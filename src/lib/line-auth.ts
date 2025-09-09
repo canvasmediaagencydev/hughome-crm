@@ -11,7 +11,7 @@ export interface LineIdTokenPayload {
   exp: number // Expiration time
   iat: number // Issued at
   nonce?: string // Optional nonce
-  amr: string[] // Authentication methods reference
+  amr?: string[] // Authentication methods reference (optional)
   name: string // Display name
   picture: string // Profile picture URL
   email?: string // Email (if available)
@@ -19,14 +19,30 @@ export interface LineIdTokenPayload {
 
 // Cache for JWKS to avoid repeated requests
 let jwksCache: ReturnType<typeof createRemoteJWKSet> | null = null
+let jwksCacheTime = 0
+const JWKS_CACHE_TTL = 3600000 // 1 hour in milliseconds
 
 /**
- * Get or create JWKS instance for LINE token verification
+ * Get or create JWKS instance for LINE token verification with TTL
  */
 function getJWKS() {
-  if (!jwksCache) {
-    jwksCache = createRemoteJWKSet(new URL(LINE_JWKS_URL))
+  const now = Date.now()
+  
+  // Check if cache is expired
+  if (jwksCache && (now - jwksCacheTime) > JWKS_CACHE_TTL) {
+    console.log('JWKS cache expired, clearing...')
+    jwksCache = null
   }
+  
+  if (!jwksCache) {
+    console.log('Creating new JWKS instance...')
+    jwksCache = createRemoteJWKSet(new URL(LINE_JWKS_URL), {
+      timeoutDuration: 5000, // 5 second timeout
+      cooldownDuration: 30000, // 30 second cooldown
+    })
+    jwksCacheTime = now
+  }
+  
   return jwksCache
 }
 
@@ -64,7 +80,7 @@ export async function verifyLineIdToken(
       })
       payload = result.payload
     } catch (audienceError) {
-      console.log('LIFF ID audience verification failed, trying with Channel ID')
+      // Try with Channel ID as fallback (this is normal behavior)
       
       // Try with Channel ID (extract from LIFF ID if it follows pattern)
       const channelId = expectedLiffId.split('-')[0] // Extract channel ID from LIFF ID
@@ -75,7 +91,7 @@ export async function verifyLineIdToken(
         })
         payload = result.payload
       } catch (channelError) {
-        console.log('Channel ID audience verification failed, trying without audience check')
+        // Last resort: verify signature only, check audience manually
         
         // Last resort: verify signature only, check audience manually
         const result = await jwtVerify(idToken, jwks, {
@@ -108,9 +124,8 @@ export async function verifyLineIdToken(
     // Validate and return typed payload
     const linePayload = payload as unknown as LineIdTokenPayload
     
-    // Additional runtime validation for LINE-specific fields
-    if (!linePayload.amr || !Array.isArray(linePayload.amr)) {
-      throw new Error('Invalid or missing authentication methods reference in token')
+    if (linePayload.amr && !Array.isArray(linePayload.amr)) {
+      throw new Error('Invalid authentication methods reference in token')
     }
     
     return linePayload

@@ -24,17 +24,24 @@ interface LoginResponse {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse<LoginResponse>> {
+  const startTime = Date.now()
+  console.log('🚀 API: Starting login process...')
+  
   try {
-    // Parse request body
-    let body: LoginRequestBody
-    try {
-      body = await request.json()
-    } catch {
-      return NextResponse.json(
-        { success: false, error: 'Invalid JSON in request body' },
-        { status: 400 }
+    // Parse request body with timeout
+    console.log('⏳ API: Parsing request body...')
+    const parseStart = Date.now()
+    
+    const body: LoginRequestBody = await Promise.race([
+      request.json(),
+      new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 5000)
       )
-    }
+    ]).catch(() => {
+      throw new Error('Invalid JSON in request body')
+    })
+    
+    console.log(`✅ API: Body parsed in ${Date.now() - parseStart}ms`)
 
     const { idToken } = body
 
@@ -45,97 +52,56 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
       )
     }
 
-    // Validate LINE configuration
-    const { liffId } = validateLineConfig()
+    // Parallel execution: validate config and initialize Supabase
+    console.log('⏳ API: Initializing config and Supabase...')
+    const configStart = Date.now()
+    
+    const [{ liffId }, supabase] = await Promise.all([
+      Promise.resolve(validateLineConfig()),
+      Promise.resolve(createServerSupabaseClient())
+    ])
+    
+    console.log(`✅ API: Config and Supabase initialized in ${Date.now() - configStart}ms`)
 
-    // Verify the LINE ID token
-    let tokenPayload
-    try {
-      tokenPayload = await verifyLineIdToken(idToken, liffId)
-    } catch (error) {
-      console.error('LINE token verification error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Invalid or expired LINE token' },
-        { status: 401 }
-      )
-    }
-
-    // Extract user profile data from token
+    // Verify the LINE ID token and extract profile data
+    console.log('⏳ API: Verifying LINE token...')
+    const tokenStart = Date.now()
+    
+    const tokenPayload = await verifyLineIdToken(idToken, liffId)
     const profileData = extractUserProfileData(tokenPayload)
+    
+    console.log(`✅ API: Token verified in ${Date.now() - tokenStart}ms`)
 
-    // Initialize Supabase client with service role for admin operations
-    const supabase = createServerSupabaseClient()
-
-    // Check if user already exists
+    // Check if user already exists (select only needed fields)
+    console.log('⏳ API: Checking existing user...')
+    const dbStart = Date.now()
+    
     const { data: existingUser, error: fetchError } = await supabase
       .from('user_profiles')
-      .select('*')
+      .select('id, line_user_id, display_name, picture_url, role, first_name, last_name, phone, created_at, updated_at')
       .eq('line_user_id', profileData.line_user_id)
-      .single()
+      .maybeSingle() // Use maybeSingle() instead of single() to avoid throwing on no results
 
-    if (fetchError && fetchError.code !== 'PGRST116') {
-      // PGRST116 is "not found", which is expected for new users
+    if (fetchError) {
       console.error('Database fetch error:', fetchError)
       return NextResponse.json(
         { success: false, error: 'Database error occurred' },
         { status: 500 }
       )
     }
+    
+    console.log(`✅ API: User check completed in ${Date.now() - dbStart}ms`)
 
-    let userProfile
-
-    if (existingUser) {
-      // Update existing user with latest LINE profile data
-      const { data: updatedUser, error: updateError } = await supabase
-        .from('user_profiles')
-        .update({
-          display_name: profileData.display_name,
-          picture_url: profileData.picture_url,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('line_user_id', profileData.line_user_id)
-        .select()
-        .single()
-
-      if (updateError) {
-        console.error('User profile update error:', updateError)
-        return NextResponse.json(
-          { success: false, error: 'Failed to update user profile' },
-          { status: 500 }
-        )
-      }
-
-      userProfile = updatedUser
-    } else {
-      // Create new user profile
-      const newUserData: UserProfileInsert = {
-        id: uuidv4(),
-        line_user_id: profileData.line_user_id,
-        display_name: profileData.display_name,
-        picture_url: profileData.picture_url,
-        // Onboarding fields will be null initially
-        role: null,
-        first_name: null,
-        last_name: null,
-        phone: null,
-      }
-
-      const { data: newUser, error: insertError } = await supabase
-        .from('user_profiles')
-        .insert(newUserData)
-        .select()
-        .single()
-
-      if (insertError) {
-        console.error('User profile creation error:', insertError)
-        return NextResponse.json(
-          { success: false, error: 'Failed to create user profile' },
-          { status: 500 }
-        )
-      }
-
-      userProfile = newUser
-    }
+    // Handle existing vs new user
+    console.log(`⏳ API: ${existingUser ? 'Updating existing' : 'Creating new'} user...`)
+    const userOpStart = Date.now()
+    
+    const userProfile = await (existingUser 
+      ? updateExistingUser(supabase, profileData)
+      : createNewUser(supabase, profileData)
+    )
+    
+    console.log(`✅ API: User operation completed in ${Date.now() - userOpStart}ms`)
 
     // Determine if user has completed onboarding
     const isOnboarded = !!(
@@ -145,7 +111,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
       userProfile.phone
     )
 
-    // Return user profile data
+    const totalTime = Date.now() - startTime
+    console.log(`🎉 API: Login completed successfully in ${totalTime}ms`)
+    
     return NextResponse.json({
       success: true,
       user: {
@@ -162,11 +130,67 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
     })
   } catch (error) {
     console.error('Unexpected error in login API:', error)
+    
+    if (error instanceof Error && error.message.includes('token verification failed')) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid or expired LINE token' },
+        { status: 401 }
+      )
+    }
+
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
     )
   }
+}
+
+// Helper function for updating existing user
+async function updateExistingUser(supabase: any, profileData: any) {
+  const { data: updatedUser, error: updateError } = await supabase
+    .from('user_profiles')
+    .update({
+      display_name: profileData.display_name,
+      picture_url: profileData.picture_url,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('line_user_id', profileData.line_user_id)
+    .select()
+    .single()
+
+  if (updateError) {
+    console.error('User profile update error:', updateError)
+    throw new Error('Failed to update user profile')
+  }
+
+  return updatedUser
+}
+
+// Helper function for creating new user
+async function createNewUser(supabase: any, profileData: any) {
+  const newUserData: UserProfileInsert = {
+    id: uuidv4(),
+    line_user_id: profileData.line_user_id,
+    display_name: profileData.display_name,
+    picture_url: profileData.picture_url,
+    role: null,
+    first_name: null,
+    last_name: null,
+    phone: null,
+  }
+
+  const { data: newUser, error: insertError } = await supabase
+    .from('user_profiles')
+    .insert(newUserData)
+    .select()
+    .single()
+
+  if (insertError) {
+    console.error('User profile creation error:', insertError)
+    throw new Error('Failed to create user profile')
+  }
+
+  return newUser
 }
 
 // Handle unsupported HTTP methods
