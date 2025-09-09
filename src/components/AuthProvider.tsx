@@ -34,14 +34,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const { isLiffReady, isLoggedIn } = useLiff()
   const auth = useAuth()
   const [hasTriedAutoLogin, setHasTriedAutoLogin] = useState(false)
+  const [isAutoLogging, setIsAutoLogging] = useState(false)
 
   // Auto-login when LIFF is ready and user is logged in
   useEffect(() => {
-    if (isLiffReady && isLoggedIn && !hasTriedAutoLogin && !auth.user) {
+    if (isLiffReady && isLoggedIn && !hasTriedAutoLogin && !auth.user && !auth.isLoading && !isAutoLogging) {
+      console.log('🔄 Auto-login triggered')
       setHasTriedAutoLogin(true)
-      auth.login()
+      setIsAutoLogging(true)
+      
+      auth.login().finally(() => {
+        setIsAutoLogging(false)
+      })
     }
-  }, [isLiffReady, isLoggedIn, hasTriedAutoLogin, auth.user, auth.login])
+  }, [isLiffReady, isLoggedIn, hasTriedAutoLogin, auth.user, auth.isLoading, isAutoLogging, auth.login])
 
   const contextValue: AuthContextType = {
     ...auth,

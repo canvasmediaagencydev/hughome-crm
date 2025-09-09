@@ -24,13 +24,13 @@ export default function OnboardingForm() {
     if (!formData.first_name.trim()) {
       errors.first_name = 'กรุณาใส่ชื่อจริง'
     } else if (formData.first_name.trim().length < 1 || formData.first_name.trim().length > 100) {
-      errors.first_name = 'ชื่อจริงต้องมีความยาว 1-100 ตัวอักษร'
+      errors.first_name = 'กรุณาใส่ชื่อจริง'
     }
     
     if (!formData.last_name.trim()) {
       errors.last_name = 'กรุณาใส่นามสกุล'
     } else if (formData.last_name.trim().length < 1 || formData.last_name.trim().length > 100) {
-      errors.last_name = 'นามสกุลต้องมีความยาว 1-100 ตัวอักษร'
+      errors.last_name = 'กรุณาใส่นามสกุล'
     }
     
     if (!formData.phone.trim()) {
@@ -38,7 +38,7 @@ export default function OnboardingForm() {
     } else {
       const phoneRegex = /^[\+]?[\d\-\s\(\)]+$/
       if (!phoneRegex.test(formData.phone) || formData.phone.length < 10 || formData.phone.length > 20) {
-        errors.phone = 'กรุณาใส่เบอร์โทรศัพท์ที่ถูกต้อง (10-20 หลัก)'
+        errors.phone = 'กรุณาใส่เบอร์โทรศัพท์ที่ถูกต้อง'
       }
     }
     

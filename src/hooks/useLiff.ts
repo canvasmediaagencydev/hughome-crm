@@ -9,7 +9,6 @@ interface UseLiffReturn {
   isInClient: boolean
   error: string | null
   login: () => void
-  logout: () => void
   getIdToken: () => Promise<string | null>
   getUserProfile: () => Promise<any>
 }
@@ -20,7 +19,7 @@ export function useLiff(): UseLiffReturn {
   const [isInClient, setIsInClient] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Initialize LIFF
+  // Initialize LIFF with timeout
   useEffect(() => {
     const initializeLiff = async () => {
       try {
@@ -29,10 +28,17 @@ export function useLiff(): UseLiffReturn {
           throw new Error('LINE LIFF ID is not configured')
         }
 
-        await liff.init({
+        // Add timeout to LIFF initialization
+        const initPromise = liff.init({
           liffId,
           withLoginOnExternalBrowser: true
         })
+
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('LIFF initialization timeout')), 10000)
+        )
+
+        await Promise.race([initPromise, timeoutPromise])
 
         setIsLiffReady(true)
         setIsLoggedIn(liff.isLoggedIn())
@@ -63,19 +69,6 @@ export function useLiff(): UseLiffReturn {
     }
   }, [isLiffReady])
 
-  const logout = useCallback(() => {
-    if (!isLiffReady) return
-    
-    try {
-      if (liff.isLoggedIn()) {
-        liff.logout()
-        setIsLoggedIn(false)
-      }
-    } catch (err) {
-      console.error('Logout error:', err)
-      setError(err instanceof Error ? err.message : 'Logout failed')
-    }
-  }, [isLiffReady])
 
   const getIdToken = useCallback(async (): Promise<string | null> => {
     if (!isLiffReady || !liff.isLoggedIn()) {
@@ -111,7 +104,6 @@ export function useLiff(): UseLiffReturn {
     isInClient,
     error,
     login,
-    logout,
     getIdToken,
     getUserProfile
   }

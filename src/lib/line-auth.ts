@@ -19,14 +19,30 @@ export interface LineIdTokenPayload {
 
 // Cache for JWKS to avoid repeated requests
 let jwksCache: ReturnType<typeof createRemoteJWKSet> | null = null
+let jwksCacheTime = 0
+const JWKS_CACHE_TTL = 3600000 // 1 hour in milliseconds
 
 /**
- * Get or create JWKS instance for LINE token verification
+ * Get or create JWKS instance for LINE token verification with TTL
  */
 function getJWKS() {
-  if (!jwksCache) {
-    jwksCache = createRemoteJWKSet(new URL(LINE_JWKS_URL))
+  const now = Date.now()
+  
+  // Check if cache is expired
+  if (jwksCache && (now - jwksCacheTime) > JWKS_CACHE_TTL) {
+    console.log('JWKS cache expired, clearing...')
+    jwksCache = null
   }
+  
+  if (!jwksCache) {
+    console.log('Creating new JWKS instance...')
+    jwksCache = createRemoteJWKSet(new URL(LINE_JWKS_URL), {
+      timeoutDuration: 5000, // 5 second timeout
+      cooldownDuration: 30000, // 30 second cooldown
+    })
+    jwksCacheTime = now
+  }
+  
   return jwksCache
 }
 
