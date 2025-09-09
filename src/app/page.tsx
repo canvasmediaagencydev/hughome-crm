@@ -18,61 +18,50 @@ export default function Home() {
     }
   }, [user, router, isLoading])
 
-  // Show skeleton loading while redirecting
+  // Show clean loading spinner while redirecting
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header Skeleton */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
-              <div className="w-32 h-6 bg-gray-200 rounded animate-pulse"></div>
-            </div>
-            <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4">
+      <div className="text-center space-y-8">
+        {/* Brand Logo/Title */}
+        <div className="space-y-2">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">
+            Hughome CRM
+          </h1>
+          <p className="text-gray-600 text-sm sm:text-base">
+            Loyalty Platform
+          </p>
+        </div>
+
+        {/* Loading Spinner */}
+        <div className="relative w-16 h-16 sm:w-20 sm:h-20 mx-auto">
+          {/* Outer spinning ring */}
+          <div className="absolute inset-0 rounded-full border-4 border-gray-200"></div>
+          <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#06c755] animate-spin duration-1000"></div>
+          
+          {/* Inner pulsing dot */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-3 h-3 bg-[#06c755] rounded-full animate-pulse duration-2000"></div>
           </div>
         </div>
-      </div>
 
-      {/* Main Content Skeleton */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-6">
-          {/* Page Title Skeleton */}
-          <div className="space-y-2">
-            <div className="w-48 h-8 bg-gray-200 rounded animate-pulse"></div>
-            <div className="w-72 h-4 bg-gray-200 rounded animate-pulse"></div>
+        {/* Loading Text */}
+        <div className="space-y-4">
+          <p className="text-gray-700 font-medium text-sm sm:text-base">
+            Loading your dashboard...
+          </p>
+          
+          {/* Bouncing dots */}
+          <div className="flex items-center justify-center space-x-1">
+            <div className="w-2 h-2 bg-[#06c755] rounded-full animate-bounce [animation-delay:0ms]"></div>
+            <div className="w-2 h-2 bg-[#06c755] rounded-full animate-bounce [animation-delay:150ms]"></div>
+            <div className="w-2 h-2 bg-[#06c755] rounded-full animate-bounce [animation-delay:300ms]"></div>
           </div>
+        </div>
 
-          {/* Cards Skeleton */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map((item) => (
-              <div key={item} className="bg-white rounded-lg shadow p-6">
-                <div className="space-y-4">
-                  <div className="w-full h-4 bg-gray-200 rounded animate-pulse"></div>
-                  <div className="w-3/4 h-4 bg-gray-200 rounded animate-pulse"></div>
-                  <div className="w-1/2 h-6 bg-gray-200 rounded animate-pulse"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Table Skeleton */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="px-6 py-4 border-b">
-              <div className="w-32 h-6 bg-gray-200 rounded animate-pulse"></div>
-            </div>
-            <div className="divide-y">
-              {[1, 2, 3, 4, 5].map((item) => (
-                <div key={item} className="px-6 py-4 flex items-center space-x-4">
-                  <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
-                  <div className="flex-1 space-y-2">
-                    <div className="w-full h-4 bg-gray-200 rounded animate-pulse"></div>
-                    <div className="w-2/3 h-3 bg-gray-200 rounded animate-pulse"></div>
-                  </div>
-                  <div className="w-20 h-8 bg-gray-200 rounded animate-pulse"></div>
-                </div>
-              ))}
-            </div>
+        {/* Progress bar */}
+        <div className="w-32 sm:w-40 mx-auto">
+          <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-[#06c755] to-[#00b94a] rounded-full animate-pulse duration-1500"></div>
           </div>
         </div>
       </div>

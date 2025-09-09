@@ -17,10 +17,20 @@ export interface LineIdTokenPayload {
   email?: string // Email (if available)
 }
 
-// Cache for JWKS to avoid repeated requests
+// Enhanced caching for JWKS and LINE config
 let jwksCache: ReturnType<typeof createRemoteJWKSet> | null = null
 let jwksCacheTime = 0
 const JWKS_CACHE_TTL = 3600000 // 1 hour in milliseconds
+
+// Cache validated LINE config to avoid repeated env var access
+let lineConfigCache: { liffId: string; channelId: string } | null = null
+let configCacheTime = 0
+const CONFIG_CACHE_TTL = 300000 // 5 minutes
+
+// Token validation result cache (short TTL for security)
+const tokenValidationCache = new Map<string, { result: LineIdTokenPayload; timestamp: number }>()
+const TOKEN_CACHE_TTL = 60000 // 1 minute
+const MAX_TOKEN_CACHE_SIZE = 100
 
 /**
  * Get or create JWKS instance for LINE token verification with TTL
@@ -47,14 +57,14 @@ function getJWKS() {
 }
 
 /**
- * Verify LINE ID token and extract user information
+ * Verify LINE ID token and extract user information with caching
  * @param idToken The ID token from LINE Login
- * @param expectedLiffId The expected LIFF ID
+ * @param expectedLiffId The expected LIFF ID (optional, will get from config if not provided)
  * @returns Decoded and verified token payload
  */
 export async function verifyLineIdToken(
   idToken: string,
-  expectedLiffId: string
+  expectedLiffId?: string
 ): Promise<LineIdTokenPayload> {
   try {
     // First validate token format
@@ -62,47 +72,51 @@ export async function verifyLineIdToken(
       throw new Error('Invalid token format')
     }
 
+    // Check token cache first (short TTL for security)
+    const now = Date.now()
+    const cached = tokenValidationCache.get(idToken)
+    if (cached && (now - cached.timestamp) < TOKEN_CACHE_TTL) {
+      return cached.result
+    }
+
     const tokenParts = idToken.split('.')
     if (tokenParts.length !== 3) {
       throw new Error('Invalid JWT format - token must have 3 parts')
     }
 
+    // Get configuration (use cached if available)
+    const { liffId, channelId } = expectedLiffId 
+      ? { liffId: expectedLiffId, channelId: expectedLiffId.split('-')[0] }
+      : validateLineConfig()
+
     const jwks = getJWKS()
     
-    // For LIFF tokens, the audience can be either the LIFF ID or the Channel ID
-    // Let's try different verification approaches
+    // Optimized verification - try most common case first
     let payload
     try {
-      // Try with LIFF ID as audience
+      // Try with Channel ID first (most common for LIFF tokens)
       const result = await jwtVerify(idToken, jwks, {
         issuer: 'https://access.line.me',
-        audience: expectedLiffId,
+        audience: channelId,
       })
       payload = result.payload
-    } catch (audienceError) {
-      // Try with Channel ID as fallback (this is normal behavior)
-      
-      // Try with Channel ID (extract from LIFF ID if it follows pattern)
-      const channelId = expectedLiffId.split('-')[0] // Extract channel ID from LIFF ID
+    } catch (channelError) {
       try {
+        // Fallback: try with LIFF ID as audience
         const result = await jwtVerify(idToken, jwks, {
           issuer: 'https://access.line.me',
-          audience: channelId,
+          audience: liffId,
         })
         payload = result.payload
-      } catch (channelError) {
-        // Last resort: verify signature only, check audience manually
-        
+      } catch (liffError) {
         // Last resort: verify signature only, check audience manually
         const result = await jwtVerify(idToken, jwks, {
           issuer: 'https://access.line.me',
-          // Skip audience verification - we'll check manually
         })
         payload = result.payload
         
         // Manual audience validation
-        if (payload.aud !== expectedLiffId && payload.aud !== channelId) {
-          console.log(`Token audience: ${payload.aud}, Expected: ${expectedLiffId} or ${channelId}`)
+        if (payload.aud !== liffId && payload.aud !== channelId) {
           throw new Error(`Token audience ${payload.aud} does not match expected values`)
         }
       }
@@ -128,6 +142,20 @@ export async function verifyLineIdToken(
       throw new Error('Invalid authentication methods reference in token')
     }
     
+    // Cache the validation result
+    if (tokenValidationCache.size >= MAX_TOKEN_CACHE_SIZE) {
+      // Simple cleanup: remove oldest entries
+      const oldestKey = tokenValidationCache.keys().next().value
+      if (oldestKey) {
+        tokenValidationCache.delete(oldestKey)
+      }
+    }
+    
+    tokenValidationCache.set(idToken, {
+      result: linePayload,
+      timestamp: now
+    })
+    
     return linePayload
   } catch (error) {
     if (error instanceof Error) {
@@ -151,14 +179,28 @@ export function extractUserProfileData(tokenPayload: LineIdTokenPayload) {
 }
 
 /**
- * Validate LINE configuration
+ * Validate LINE configuration with caching
  */
 export function validateLineConfig() {
+  const now = Date.now()
+  
+  // Return cached config if still valid
+  if (lineConfigCache && (now - configCacheTime) < CONFIG_CACHE_TTL) {
+    return lineConfigCache
+  }
+  
   const liffId = process.env.NEXT_PUBLIC_LINE_LIFF_ID
   
   if (!liffId) {
     throw new Error('NEXT_PUBLIC_LINE_LIFF_ID environment variable is required')
   }
-
-  return { liffId }
+  
+  // Extract channel ID from LIFF ID (format: channelId-randomstring)
+  const channelId = liffId.split('-')[0]
+  
+  // Cache the configuration
+  lineConfigCache = { liffId, channelId }
+  configCacheTime = now
+  
+  return lineConfigCache
 }
