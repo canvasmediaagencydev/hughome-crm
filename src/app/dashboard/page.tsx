@@ -1,13 +1,21 @@
 'use client'
 
-import { useEffect, useState, memo, useMemo, useCallback } from 'react'
+import { useState, memo, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { useAuthContext } from '@/components/AuthProvider'
-import { DashboardSkeleton } from '@/components/LoadingSkeleton'
 import { IoMdHome } from "react-icons/io";
 import { FaGift } from "react-icons/fa6";
 import { FaUser } from "react-icons/fa";
+
+// User data interface
+interface UserData {
+  first_name: string
+  last_name: string
+  picture_url: string | null
+  points_balance: number
+  displayName?: string
+  pictureUrl?: string
+}
 
 const UserProfile = memo(({ user, imageError, onImageError }: {
   user: any
@@ -99,87 +107,105 @@ const BottomNavigation = memo(() => (
 BottomNavigation.displayName = 'BottomNavigation'
 
 function DashboardPage() {
-  const { user, isLoading, isLiffReady } = useAuthContext()
-  const router = useRouter()
   const [imageError, setImageError] = useState(false)
+  const [userData, setUserData] = useState<UserData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
 
-  // Memoized callbacks for better performance
   const handleImageError = useCallback(() => {
-    console.log('🖼️ Image failed to load, showing fallback')
     setImageError(true)
   }, [])
 
-  // Memoized user points to prevent unnecessary re-renders
-  const userPoints = useMemo(() => user?.points_balance || 0, [user?.points_balance])
-
   useEffect(() => {
-    if (isLiffReady && !isLoading && !user) {
+    // Get user data from localStorage
+    const storedUser = localStorage.getItem('user')
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser)
+        setUserData({
+          first_name: user.first_name || user.displayName?.split(' ')[0] || 'User',
+          last_name: user.last_name || user.displayName?.split(' ')[1] || '',
+          picture_url: user.picture_url || user.pictureUrl,
+          points_balance: user.points_balance || 0
+        })
+      } catch (error) {
+        console.error('Error parsing user data:', error)
+        router.push('/')
+      }
+    } else {
+      // No user data, redirect to login
       router.push('/')
-      return
     }
-    
-    if (user && !user.is_onboarded) {
-      router.push('/onboarding')
-      return
-    }
-  }, [user, isLoading, isLiffReady, router])
+    setIsLoading(false)
+  }, [router])
 
-  // Reset image error when user changes
-  useEffect(() => {
-    setImageError(false)
-  }, [user?.picture_url])
-
-  // Show loading skeleton while checking authentication
-  if (!isLiffReady || isLoading || !user) {
-    return <DashboardSkeleton />
-  }
-
-  // Show dashboard if user is fully onboarded
-  if (user && user.is_onboarded) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen">
-        {/* Banner Header */}
-        <div className="relative">
-          <Image
-            src="/image/banner.svg" 
-            alt="Hughome Banner"
-            width={400}
-            height={192}
-            className="w-full h-48 object-cover"
-            priority
-          />
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-gray-600">กำลังโหลด...</p>
         </div>
-
-        {/* Main Content */}
-        <div className="px-4 pb-20 justify-between flex flex-col rounded-xl -mt-8 relative z-10">
-          <div className='flex flex-col'>
-            {/* User Profile Section */}
-            <UserProfile
-              user={user}
-              imageError={imageError}
-              onImageError={handleImageError}
-            />
-
-            {/* Points Card */}
-            <PointsCard points={userPoints} />
-          </div>
-        </div>
-
-        {/* Upload Button fixed above nav */}
-        <div className="fixed left-0 right-0 bottom-20 flex justify-center z-30 pointer-events-none">
-          <div className="pointer-events-auto w-full flex justify-center">
-            <UploadButton />
-          </div>
-        </div>
-
-        {/* Bottom Navigation */}
-        <BottomNavigation />
       </div>
     )
   }
 
-  return null
+  if (!userData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <p className="text-gray-600">ไม่พบข้อมูลผู้ใช้</p>
+          <button 
+            onClick={() => router.push('/')}
+            className="bg-red-500 text-white px-4 py-2 rounded"
+          >
+            กลับหน้าหลัก
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen">
+      {/* Banner Header */}
+      <div className="relative">
+        <Image
+          src="/image/banner.svg" 
+          alt="Hughome Banner"
+          width={400}
+          height={192}
+          className="w-full h-48 object-cover"
+          priority
+        />
+      </div>
+
+      {/* Main Content */}
+      <div className="px-4 pb-20 justify-between flex flex-col rounded-xl -mt-8 relative z-10">
+        <div className='flex flex-col'>
+          {/* User Profile Section */}
+          <UserProfile
+            user={userData}
+            imageError={imageError}
+            onImageError={handleImageError}
+          />
+
+          {/* Points Card */}
+          <PointsCard points={userData.points_balance} />
+        </div>
+      </div>
+
+      {/* Upload Button fixed above nav */}
+      <div className="fixed left-0 right-0 bottom-20 flex justify-center z-30 pointer-events-none">
+        <div className="pointer-events-auto w-full flex justify-center">
+          <UploadButton />
+        </div>
+      </div>
+
+      {/* Bottom Navigation */}
+      <BottomNavigation />
+    </div>
+  )
 }
 
-// Export memoized component for better performance
 export default memo(DashboardPage)

@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Noto_Sans_Thai } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from "@/components/AuthProvider";
 
 // Optimized font loading with display swap for better performance
 const notoSansThai = Noto_Sans_Thai({
@@ -35,9 +34,7 @@ export default function RootLayout({
       <body
         className={`${notoSansThai.variable} font-sans antialiased bg-gray-50`}
       >
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        {children}
       </body>
     </html>
   );

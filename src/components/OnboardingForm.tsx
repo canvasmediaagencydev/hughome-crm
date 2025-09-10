@@ -2,15 +2,21 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuthContext } from './AuthProvider'
-import type { OnboardingFormData } from '@/types/user'
 import Image from 'next/image'
 import { IoHome } from "react-icons/io5";
 import { FaUsers } from "react-icons/fa";
 
+interface OnboardingFormData {
+  role: 'homeowner' | 'contractor'
+  first_name: string
+  last_name: string
+  phone: string
+}
+
 export default function OnboardingForm() {
-  const { updateProfile, isLoading, error, clearError } = useAuthContext()
   const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const [formData, setFormData] = useState<OnboardingFormData>({
     role: 'homeowner',
@@ -26,23 +32,14 @@ export default function OnboardingForm() {
 
     if (!formData.first_name.trim()) {
       errors.first_name = 'กรุณาใส่ชื่อจริง'
-    } else if (formData.first_name.trim().length < 1 || formData.first_name.trim().length > 100) {
-      errors.first_name = 'กรุณาใส่ชื่อจริง'
     }
 
     if (!formData.last_name.trim()) {
-      errors.last_name = 'กรุณาใส่นามสกุล'
-    } else if (formData.last_name.trim().length < 1 || formData.last_name.trim().length > 100) {
       errors.last_name = 'กรุณาใส่นามสกุล'
     }
 
     if (!formData.phone.trim()) {
       errors.phone = 'กรุณาใส่เบอร์โทรศัพท์'
-    } else {
-      const phoneRegex = /^[\+]?[\d\-\s\(\)]+$/
-      if (!phoneRegex.test(formData.phone) || formData.phone.length < 10 || formData.phone.length > 20) {
-        errors.phone = 'กรุณาใส่เบอร์โทรศัพท์ที่ถูกต้อง'
-      }
     }
 
     setValidationErrors(errors)
@@ -51,23 +48,59 @@ export default function OnboardingForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    clearError()
+    setError('')
 
     if (!validateForm()) {
       return
     }
 
+    setIsLoading(true)
     try {
-      await updateProfile(formData)
-      window.location.href = '/dashboard'
+      // Get user data from localStorage to get LINE user ID
+      const storedUser = localStorage.getItem('user')
+      if (!storedUser) {
+        setError('ไม่พบข้อมูลผู้ใช้ กรุณาลองเข้าสู่ระบบใหม่')
+        return
+      }
+
+      const userData = JSON.parse(storedUser)
+      
+      // Send onboarding data to API
+      const response = await fetch('/api/onboarding', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          line_user_id: userData.line_user_id || userData.userId,
+          ...formData
+        })
+      })
+
+      const data = await response.json()
+      
+      if (data.success && data.user) {
+        // Update localStorage with complete user data
+        localStorage.setItem('user', JSON.stringify({
+          ...userData,
+          ...data.user
+        }))
+        
+        // Redirect to dashboard
+        router.push('/dashboard')
+      } else {
+        setError(data.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง')
+      }
     } catch (err) {
       console.error('Onboarding error:', err)
+      setError('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง')
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const handleChange = (field: keyof OnboardingFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-    // Clear validation error for this field when user starts typing
     if (validationErrors[field]) {
       setValidationErrors(prev => ({ ...prev, [field]: undefined }))
     }
@@ -77,7 +110,6 @@ export default function OnboardingForm() {
     <div className="flex items-center justify-center px-4">
       <div className="w-full max-w-md mx-auto">
         <div className="bg-white px-6 sm:p-8 py-3">
-          {/* Header */}
           <div className="text-center mb-8">
             <Image
               src="/image/HUG HOME LOGO.svg"
@@ -91,16 +123,13 @@ export default function OnboardingForm() {
             </p>
           </div>
 
-          {/* Error Display */}
           {error && (
             <div className="mb-6 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">
               {error}
             </div>
           )}
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Role Selection */}
             <div>
               <div className="grid grid-cols-2 gap-3">
                 <label className={`relative flex cursor-pointer rounded-lg border p-4 transition-colors ${formData.role === 'homeowner'
@@ -145,7 +174,6 @@ export default function OnboardingForm() {
               </div>
             </div>
 
-            {/* First Name */}
             <div>
               <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 mb-2">
                 ชื่อจริง <span className="text-red-500">*</span>
@@ -167,7 +195,6 @@ export default function OnboardingForm() {
               )}
             </div>
 
-            {/* Last Name */}
             <div>
               <label htmlFor="last_name" className="block text-sm font-medium text-gray-700 mb-2">
                 นามสกุล <span className="text-red-500">*</span>
@@ -189,7 +216,6 @@ export default function OnboardingForm() {
               )}
             </div>
 
-            {/* Phone */}
             <div>
               <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
                 เบอร์โทรศัพท์ <span className="text-red-500">*</span>
@@ -211,9 +237,6 @@ export default function OnboardingForm() {
               )}
             </div>
 
-
-
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
