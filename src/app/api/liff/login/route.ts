@@ -5,6 +5,7 @@ import { verifyLineIdToken, extractUserProfileData } from '@/lib/line-auth'
 
 interface LoginRequestBody {
   idToken: string
+  skipDbUpdate?: boolean
 }
 
 interface LoginResponse {
@@ -27,7 +28,7 @@ interface LoginResponse {
 export async function POST(request: NextRequest): Promise<NextResponse<LoginResponse>> {
   try {
     const body: LoginRequestBody = await request.json()
-    const { idToken } = body
+    const { idToken, skipDbUpdate = false } = body
 
     if (!idToken || typeof idToken !== 'string') {
       return NextResponse.json(
@@ -52,19 +53,33 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
 
     let userProfile
     if (existingUser) {
-      // Update existing user
-      const { data: updatedUser } = await supabase
-        .from('user_profiles')
-        .update({
+      if (skipDbUpdate) {
+        // Skip database update for cached validation - just return existing user
+        userProfile = existingUser
+      } else {
+        // Update existing user with fresh data
+        const updateData: any = {
           display_name: profileData.display_name,
           picture_url: profileData.picture_url,
-          last_login_at: new Date().toISOString(),
-        })
-        .eq('line_user_id', profileData.line_user_id)
-        .select()
-        .single()
-      
-      userProfile = updatedUser
+        }
+        
+        // Only update last_login_at if it's been more than 1 hour
+        const lastLogin = existingUser.last_login_at ? new Date(existingUser.last_login_at) : new Date(0)
+        const hourAgo = new Date(Date.now() - 60 * 60 * 1000)
+        
+        if (lastLogin < hourAgo) {
+          updateData.last_login_at = new Date().toISOString()
+        }
+        
+        const { data: updatedUser } = await supabase
+          .from('user_profiles')
+          .update(updateData)
+          .eq('line_user_id', profileData.line_user_id)
+          .select()
+          .single()
+        
+        userProfile = updatedUser || existingUser
+      }
     } else {
       // Create new user
       const { data: newUser } = await supabase

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import liff from '@line/liff'
 import axios from 'axios'
+import { UserSessionManager } from '@/lib/user-session'
 
 interface User {
   userId: string
@@ -18,39 +19,75 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
+  const authenticateWithBackend = async (profile: any, forceValidation = false) => {
+    try {
+      const idToken = liff.getIDToken()
+      const response = await axios.post('/api/liff/login', {
+        idToken,
+        skipDbUpdate: !forceValidation && !UserSessionManager.needsValidation()
+      })
+      
+      const data = response.data
+      if (data.success && data.user) {
+        const userData = {
+          ...profile,
+          ...data.user
+        }
+        
+        // Save to new session system
+        UserSessionManager.saveSession(userData)
+        // Keep backward compatibility
+        localStorage.setItem('user', JSON.stringify(userData))
+        
+        // Check if user needs onboarding
+        if (!data.user.is_onboarded) {
+          router.push('/onboarding')
+        } else {
+          router.push('/dashboard')
+        }
+        return true
+      }
+      return false
+    } catch (apiError) {
+      console.error('API authentication failed:', apiError)
+      return false
+    }
+  }
+
+  const handleCachedUser = () => {
+    const cachedUser = UserSessionManager.getCachedUser()
+    if (cachedUser) {
+      // Instant redirect for cached users
+      if (!cachedUser.is_onboarded) {
+        router.push('/onboarding')
+      } else {
+        router.push('/dashboard')
+      }
+      return true
+    }
+    return false
+  }
+
   const main = async () => {
     try {
+      // First, migrate any old localStorage data
+      UserSessionManager.migrateOldUserData()
+      
+      // Check cached session first for instant redirect
+      if (handleCachedUser()) {
+        setIsLoading(false)
+        return
+      }
+
       await liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID || "2000719050-rGVOBePm" })
       
       if (liff.isLoggedIn()) {
         const profile = await liff.getProfile()
         
-        // Call our API to authenticate with backend
-        try {
-          const idToken = liff.getIDToken()
-          const response = await axios.post('/api/liff/login', {
-            idToken
-          })
-          
-          const data = response.data
-          if (data.success && data.user) {
-            // Store user data in localStorage for dashboard
-            localStorage.setItem('user', JSON.stringify({
-              ...profile,
-              ...data.user
-            }))
-            
-            // Check if user needs onboarding
-            if (!data.user.is_onboarded) {
-              router.push('/onboarding')
-            } else {
-              router.push('/dashboard')
-            }
-          } else {
-            setUser(profile) // Fallback to show LINE profile
-          }
-        } catch (apiError) {
-          console.error('API authentication failed:', apiError)
+        // Try to authenticate with backend
+        const success = await authenticateWithBackend(profile)
+        
+        if (!success) {
           setUser(profile) // Fallback to show LINE profile
         }
       } else {
@@ -63,8 +100,34 @@ export default function Home() {
     }
   }
 
+  // Background validation for cached users
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      const cachedUser = UserSessionManager.getCachedUser()
+      
+      if (cachedUser && UserSessionManager.needsValidation()) {
+        // Background validation - don't block UI
+        const validateInBackground = async () => {
+          try {
+            await liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID || "2000719050-rGVOBePm" })
+            
+            if (liff.isLoggedIn()) {
+              const profile = await liff.getProfile()
+              await authenticateWithBackend(profile, true)
+              UserSessionManager.updateValidationTime()
+            } else {
+              // User not logged in to LINE anymore
+              UserSessionManager.clearSession()
+            }
+          } catch (error) {
+            console.warn('Background validation failed:', error)
+          }
+        }
+        
+        // Run validation in background after a short delay
+        setTimeout(validateInBackground, 100)
+      }
+      
       main()
     }
   }, [])

@@ -6,6 +6,8 @@ import Image from 'next/image'
 import { IoMdHome } from "react-icons/io";
 import { FaGift } from "react-icons/fa6";
 import { FaUser } from "react-icons/fa";
+import { UserSessionManager } from '@/lib/user-session'
+import axios from 'axios'
 
 // User data interface
 interface UserData {
@@ -49,7 +51,7 @@ const UserProfile = memo(({ user, imageError, onImageError }: {
 ))
 UserProfile.displayName = 'UserProfile'
 
-const PointsCard = memo(({ points }: { points: number }) => (
+const PointsCard = memo(({ points, isRefreshing }: { points: number, isRefreshing?: boolean }) => (
   <div className="bg-red-600 rounded-2xl p-6 mt-5 mb-6 shadow-lg">
     <div className="flex justify-between items-center px-5">
       <div className="flex items-center justify-between w-full">
@@ -59,6 +61,9 @@ const PointsCard = memo(({ points }: { points: number }) => (
             {points || 0}
           </span>
           <span className="text-white text-lg ml-2">แต้ม</span>
+          {isRefreshing && (
+            <div className="ml-2 w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          )}
         </div>
       </div>
     </div>
@@ -110,34 +115,81 @@ function DashboardPage() {
   const [imageError, setImageError] = useState(false)
   const [userData, setUserData] = useState<UserData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const router = useRouter()
 
   const handleImageError = useCallback(() => {
     setImageError(true)
   }, [])
 
-  useEffect(() => {
-    // Get user data from localStorage
-    const storedUser = localStorage.getItem('user')
-    if (storedUser) {
-      try {
-        const user = JSON.parse(storedUser)
-        setUserData({
-          first_name: user.first_name || user.displayName?.split(' ')[0] || 'User',
-          last_name: user.last_name || user.displayName?.split(' ')[1] || '',
-          picture_url: user.picture_url || user.pictureUrl,
-          points_balance: user.points_balance || 0
+  const transformUserData = (user: any): UserData => ({
+    first_name: user.first_name || user.displayName?.split(' ')[0] || 'User',
+    last_name: user.last_name || user.displayName?.split(' ')[1] || '',
+    picture_url: user.picture_url || user.pictureUrl,
+    points_balance: user.points_balance || 0
+  })
+
+  const refreshUserData = useCallback(async () => {
+    if (isRefreshing) return
+    
+    setIsRefreshing(true)
+    try {
+      // Get fresh data from API (this could be a new endpoint just for data refresh)
+      const cachedSession = UserSessionManager.getCachedSession()
+      if (cachedSession) {
+        // In a real implementation, you might want to create a separate API endpoint
+        // for refreshing just the points balance and other dynamic data
+        const response = await axios.post('/api/user/refresh', {
+          userId: cachedSession.user.id
         })
-      } catch (error) {
-        console.error('Error parsing user data:', error)
-        router.push('/')
+        
+        if (response.data.success) {
+          const updatedUser = { ...cachedSession.user, ...response.data.updates }
+          UserSessionManager.updateUserData(updatedUser)
+          setUserData(transformUserData(updatedUser))
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to refresh user data:', error)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }, [isRefreshing]) // Remove userData dependency to prevent loops
+
+  useEffect(() => {
+    // Instant loading with cached data
+    const cachedUser = UserSessionManager.getCachedUser()
+    
+    if (cachedUser) {
+      // Show cached data immediately
+      setUserData(transformUserData(cachedUser))
+      setIsLoading(false)
+      
+      // Background refresh if data is getting old
+      if (UserSessionManager.needsValidation()) {
+        setTimeout(() => refreshUserData(), 500)
       }
     } else {
-      // No user data, redirect to login
-      router.push('/')
+      // Fallback to old localStorage method for backward compatibility
+      const storedUser = localStorage.getItem('user')
+      if (storedUser) {
+        try {
+          const user = JSON.parse(storedUser)
+          const userData = transformUserData(user)
+          setUserData(userData)
+          // Migrate to new session system
+          UserSessionManager.saveSession(user)
+        } catch (error) {
+          console.error('Error parsing user data:', error)
+          router.push('/')
+        }
+      } else {
+        // No user data, redirect to login
+        router.push('/')
+      }
+      setIsLoading(false)
     }
-    setIsLoading(false)
-  }, [router])
+  }, [router]) // Remove refreshUserData from dependencies
 
   if (isLoading) {
     return (
@@ -191,7 +243,7 @@ function DashboardPage() {
           />
 
           {/* Points Card */}
-          <PointsCard points={userData.points_balance} />
+          <PointsCard points={userData.points_balance} isRefreshing={isRefreshing} />
         </div>
       </div>
 
