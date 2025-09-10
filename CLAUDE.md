@@ -18,8 +18,14 @@ npm run build
 # Production server
 npm start
 
+# Bundle analysis (analyze bundle size and dependencies)
+npm run build:analyze
+
 # Database type generation (when schema changes)
 supabase gen types typescript --project-id YOUR_PROJECT_ID > database.types.ts
+
+# TypeScript compilation check
+npx tsc --noEmit
 ```
 
 ## Architecture & Technical Stack
@@ -98,7 +104,7 @@ This project follows a structured approach with:
 ### LINE Integration Requirements
 - **LIFF SDK**: Already installed, requires channel configuration
 - **Mobile-First**: UI designed for mobile LINE app usage
-- **Token Verification**: Server-side LINE JWKS verification is mandatory
+- **Token Verification**: Server-side LINE JWKS verification is mandatory (currently uses simplified verification in `src/lib/line-auth.ts:8-22` - production requires full JWKS verification)
 
 ### OCR Workflow
 1. Receipt uploaded to Supabase Storage
@@ -112,4 +118,11 @@ This project follows a structured approach with:
 - `SUPABASE_SERVICE_ROLE_KEY`: Server-side key for admin operations (never expose to client)
 - `LINE_CHANNEL_ID`: LINE Login channel identifier
 - `NEXT_PUBLIC_LINE_LIFF_ID`: LIFF app ID for client-side initialization
+
+## Development Workflow Notes
+- **Database Migrations**: Located in `/migrations/` - apply manually to Supabase dashboard
+- **TypeScript Strict Mode**: Project uses strict TypeScript - always run `npx tsc --noEmit` before commits
+- **Bundle Analysis**: Use `npm run build:analyze` to inspect bundle size and dependencies
+- **Path Aliases**: Use `@/*` imports for src directory (configured in `tsconfig.json:21-23`)
+- **Image Optimization**: Supports LINE profile images via remote pattern in `next.config.ts:19-27`
 - เวลาพิมพ์ commit message ที่แก้ไปทั้งหมด ให้แค่ข้อความ ไม่ต้อง command line

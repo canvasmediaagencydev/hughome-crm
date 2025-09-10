@@ -2,56 +2,37 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import liff from '@line/liff'
+import axios from 'axios'
 
 interface User {
   userId: string
   displayName: string
-  pictureUrl: string
+  pictureUrl?: string
   statusMessage?: string
 }
 
-declare global {
-  interface Window {
-    liff: {
-      init: (config: { liffId: string }) => Promise<void>
-      isLoggedIn: () => boolean
-      getProfile: () => Promise<User>
-      getIDToken: () => string
-      login: () => void
-      logout: () => void
-    }
-  }
-}
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
-  const logOut = () => {
-    window.liff.logout()
-    window.location.reload()
-  }
-
   const main = async () => {
     try {
-      await window.liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID || "2000719050-rGVOBePm" })
+      await liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID || "2000719050-rGVOBePm" })
       
-      if (window.liff.isLoggedIn()) {
-        const profile = await window.liff.getProfile()
+      if (liff.isLoggedIn()) {
+        const profile = await liff.getProfile()
         
         // Call our API to authenticate with backend
         try {
-          const idToken = window.liff.getIDToken()
-          const response = await fetch('/api/liff/login', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ idToken })
+          const idToken = liff.getIDToken()
+          const response = await axios.post('/api/liff/login', {
+            idToken
           })
           
-          const data = await response.json()
+          const data = response.data
           if (data.success && data.user) {
             // Store user data in localStorage for dashboard
             localStorage.setItem('user', JSON.stringify({
@@ -73,7 +54,7 @@ export default function Home() {
           setUser(profile) // Fallback to show LINE profile
         }
       } else {
-        window.liff.login()
+        liff.login()
       }
     } catch (error) {
       console.error('LIFF initialization error:', error)
@@ -83,14 +64,8 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.liff) {
+    if (typeof window !== 'undefined') {
       main()
-    } else {
-      // Wait for LIFF SDK to load
-      const script = document.createElement('script')
-      script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js'
-      script.onload = () => main()
-      document.head.appendChild(script)
     }
   }, [])
 
@@ -106,42 +81,4 @@ export default function Home() {
       </div>
     )
   }
-
-  if (!user) {
-    return (
-      <div className="py-70 flex items-center justify-center">
-        <div className="text-center space-y-8">
-          <p>กำลังเข้าสู่ระบบ...</p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
-        <div className="text-center">
-          <img 
-            width={100} 
-            height={100}
-            className="mx-auto rounded-full mb-4"
-            src={user.pictureUrl} 
-            alt="Profile"
-          />
-          <div className="mb-2">
-            สวัสดี <strong>{user.displayName}</strong>
-          </div>
-          <div className="text-gray-600 mb-4">
-            UID: {user.userId}
-          </div>
-          <button 
-            onClick={logOut}
-            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
-          >
-            ออกจากระบบ
-          </button>
-        </div>
-      </div>
-    </div>
-  )
 }

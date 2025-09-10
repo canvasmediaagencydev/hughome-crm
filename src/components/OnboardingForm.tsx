@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { IoHome } from "react-icons/io5";
 import { FaUsers } from "react-icons/fa";
+import axios from 'axios'
 
 interface OnboardingFormData {
   role: 'homeowner' | 'contractor'
@@ -66,18 +67,12 @@ export default function OnboardingForm() {
       const userData = JSON.parse(storedUser)
       
       // Send onboarding data to API
-      const response = await fetch('/api/onboarding', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          line_user_id: userData.line_user_id || userData.userId,
-          ...formData
-        })
+      const response = await axios.post('/api/onboarding', {
+        line_user_id: userData.line_user_id || userData.userId,
+        ...formData
       })
 
-      const data = await response.json()
+      const data = response.data
       
       if (data.success && data.user) {
         // Update localStorage with complete user data

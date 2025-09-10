@@ -13,6 +13,7 @@
     "@line/liff": "^2.27.2",
     "@supabase/supabase-js": "^2.57.3",
     "@types/uuid": "^10.0.0",
+    "axios": "^1.11.0",
     "critters": "^0.0.23",
     "jose": "^6.1.0",
     "next": "15.5.2",
