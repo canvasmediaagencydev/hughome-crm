@@ -61,26 +61,10 @@ export default function OnboardingForm() {
       await updateProfile(formData)
       console.log('✅ Profile updated successfully, user should be onboarded now')
       
-      // Clear any cached data to ensure fresh reload
-      if (typeof window !== 'undefined') {
-        // Clear cache entries
-        sessionStorage.removeItem('hughome_user')
-        localStorage.removeItem('hughome_auth')
-        console.log('🗑️ Cleared cached data for fresh reload')
-      }
-      
-      // Add a small delay to ensure session is updated
-      setTimeout(() => {
-        console.log('🔄 Redirecting to dashboard...')
-        router.push('/dashboard')
-        // Force a page refresh if needed
-        setTimeout(() => {
-          if (window.location.pathname !== '/dashboard') {
-            console.log('🔄 Forcing page refresh...')
-            window.location.href = '/dashboard'
-          }
-        }, 1000)
-      }, 500)
+      // Force immediate redirect to dashboard - the user state will be updated
+      // and dashboard will handle authentication checks
+      console.log('🔄 Redirecting to dashboard...')
+      window.location.href = '/dashboard'
     } catch (err) {
       // Error is handled by the useAuth hook
       console.error('Onboarding error:', err)
