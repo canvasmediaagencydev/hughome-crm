@@ -112,4 +112,4 @@ This project follows a structured approach with:
 - `SUPABASE_SERVICE_ROLE_KEY`: Server-side key for admin operations (never expose to client)
 - `LINE_CHANNEL_ID`: LINE Login channel identifier
 - `NEXT_PUBLIC_LINE_LIFF_ID`: LIFF app ID for client-side initialization
-- เวลาพิมพ์ commit message ให้แค่ข้อความไม่ต้อง command line
+- เวลาพิมพ์ commit message ที่แก้ไปทั้งหมด ให้แค่ข้อความ ไม่ต้อง command line

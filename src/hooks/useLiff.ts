@@ -92,7 +92,7 @@ export function useLiff(): UseLiffReturn {
       const mockPayload = {
         sub: 'U714f0fe0fce37946a50d8c8b977168f6', // Mock LINE user ID
         name: 'Desktop User',
-        picture: 'https://via.placeholder.com/100',
+        picture: 'https://ui-avatars.com/api/?name=Desktop+User&background=06c755&color=fff&size=100',
         aud: process.env.NEXT_PUBLIC_LINE_LIFF_ID,
         iss: 'https://access.line.me',
         exp: Math.floor(Date.now() / 1000) + 3600,

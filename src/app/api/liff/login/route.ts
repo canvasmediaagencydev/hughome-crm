@@ -131,6 +131,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
             () => updateUserProfileOptimized(profileData.line_user_id, {
               display_name: profileData.display_name,
               picture_url: profileData.picture_url,
+              last_login_at: new Date().toISOString(),
             }),
             { isExistingUser: true, lineUserId: profileData.line_user_id }
           )
@@ -141,6 +142,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
               line_user_id: profileData.line_user_id,
               display_name: profileData.display_name,
               picture_url: profileData.picture_url,
+              last_login_at: new Date().toISOString(),
               role: null,
               first_name: null,
               last_name: null,
@@ -176,6 +178,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
           first_name: userProfile.first_name,
           last_name: userProfile.last_name,
           phone: userProfile.phone,
+          last_login_at: userProfile.last_login_at,
+          points_balance: userProfile.points_balance || 0,
+          total_points_earned: userProfile.total_points_earned || 0,
+          total_receipts: userProfile.total_receipts || 0,
+          is_admin: userProfile.is_admin || false,
           is_onboarded: isOnboarded,
         },
       })

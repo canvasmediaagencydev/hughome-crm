@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthContext } from '@/components/AuthProvider'
 
 export default function DashboardPage() {
   const { user, isLoading, isLiffReady } = useAuthContext()
   const router = useRouter()
+  const [imageError, setImageError] = useState(false)
 
   useEffect(() => {
     console.log('🔍 Dashboard state:', {
@@ -33,12 +34,17 @@ export default function DashboardPage() {
     }
   }, [user, isLoading, isLiffReady, router])
 
+  // Reset image error when user changes
+  useEffect(() => {
+    setImageError(false)
+  }, [user?.picture_url])
+
   // Show loading while checking authentication
   if (!isLiffReady || isLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center space-y-4">
-          <div className="w-16 h-16 border-4 border-[#06c755] border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-gray-600">กำลังโหลด...</p>
         </div>
       </div>
@@ -83,15 +89,23 @@ export default function DashboardPage() {
               
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
-                  {user.picture_url && (
+                  {user.picture_url && !imageError ? (
                     <img
                       src={user.picture_url}
                       alt="Profile"
                       className="w-8 h-8 rounded-full"
+                      onError={() => {
+                        console.log('🖼️ Image failed to load, showing fallback')
+                        setImageError(true)
+                      }}
                     />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-sm font-medium">
+                      {(user.first_name || 'D').charAt(0).toUpperCase()}
+                    </div>
                   )}
                   <span className="text-sm font-medium text-gray-700">
-                    {user.first_name} {user.last_name}
+                    {user.first_name}
                   </span>
                 </div>
               </div>
@@ -108,10 +122,15 @@ export default function DashboardPage() {
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
                 ยินดีต้อนรับ {user.first_name}! 👋
               </h2>
-              <p className="text-gray-600">
+              <p className="text-gray-600 mb-2">
                 คุณเป็น{user.role === 'contractor' ? 'ผู้รับเหมา' : 'เจ้าของบ้าน'} 
                 ในระบบ Hughome CRM
               </p>
+              {user.last_login_at && (
+                <p className="text-sm text-gray-500">
+                  เข้าใช้งานล่าสุด: {new Date(user.last_login_at).toLocaleString('th-TH')}
+                </p>
+              )}
             </div>
 
             {/* Stats Cards */}
@@ -124,7 +143,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="ml-4">
                   <h3 className="text-sm font-medium text-gray-900">ใบเสร็จทั้งหมด</h3>
-                  <p className="text-2xl font-bold text-gray-900">0</p>
+                  <p className="text-2xl font-bold text-gray-900">{user.total_receipts || 0}</p>
                 </div>
               </div>
             </div>
@@ -138,7 +157,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="ml-4">
                   <h3 className="text-sm font-medium text-gray-900">แต้มสะสม</h3>
-                  <p className="text-2xl font-bold text-gray-900">0</p>
+                  <p className="text-2xl font-bold text-gray-900">{user.points_balance || 0}</p>
                 </div>
               </div>
             </div>
