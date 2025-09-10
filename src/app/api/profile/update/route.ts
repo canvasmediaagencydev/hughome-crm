@@ -21,6 +21,11 @@ interface UpdateProfileResponse {
     first_name: string | null
     last_name: string | null
     phone: string | null
+    last_login_at: string | null
+    points_balance: number | null
+    total_points_earned: number | null
+    total_receipts: number | null
+    is_admin: boolean | null
     is_onboarded: boolean
   }
   error?: string
@@ -186,6 +191,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<UpdatePro
         first_name: updatedUser.first_name,
         last_name: updatedUser.last_name,
         phone: updatedUser.phone,
+        last_login_at: updatedUser.last_login_at,
+        points_balance: updatedUser.points_balance || 0,
+        total_points_earned: updatedUser.total_points_earned || 0,
+        total_receipts: updatedUser.total_receipts || 0,
+        is_admin: updatedUser.is_admin || false,
         is_onboarded: isOnboarded,
       },
     })

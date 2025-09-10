@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { useLiff } from './useLiff'
+import { setSession, clearSession, updateSessionOnboardingStatus } from '@/lib/session'
 import type { User, LoginResponse, UpdateProfileResponse, OnboardingFormData } from '@/types/user'
 
 interface UseAuthReturn {
@@ -44,6 +45,7 @@ export function useAuth(): UseAuthReturn {
   }, [])
 
 
+
   const login = useCallback(async () => {
     // Return existing promise if already logging in
     if (loginPromiseRef.current) {
@@ -77,34 +79,80 @@ export function useAuth(): UseAuthReturn {
         console.log('✅ ID token obtained')
 
         console.log('⏳ Calling login API...')
-        const response = await fetch('/api/liff/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idToken }),
-        })
+        
+        // Enhanced fetch with retry mechanism and timeout
+        let lastError: Error
+        const maxRetries = 3
+        const timeoutMs = 12000 // 12 seconds
+        
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            console.log(`🔄 Login attempt ${attempt}/${maxRetries}`)
+            
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+            
+            const response = await fetch('/api/liff/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ idToken }),
+              signal: controller.signal,
+            })
+            
+            clearTimeout(timeoutId)
+            
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+            }
+            
+            console.log(`✅ Login successful on attempt ${attempt}`)
+            const data: LoginResponse = await response.json()
+            
+            if (!data.success) {
+              throw new Error(data.error || 'Login failed')
+            }
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        console.log('✅ API response received')
-        const data: LoginResponse = await response.json()
-
-        if (!data.success) {
-          throw new Error(data.error || 'Login failed')
-        }
-
-        if (data.user) {
-          setUser(data.user)
-          // Cache user data for persistent login
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('hughome_user', JSON.stringify(data.user))
-            console.log('💾 User data cached for persistent session')
+            if (data.user) {
+              setUser(data.user)
+              // Cache user data for persistent login
+              if (typeof window !== 'undefined') {
+                sessionStorage.setItem('hughome_user', JSON.stringify(data.user))
+                console.log('💾 User data cached for persistent session')
+                
+                // Set session for middleware
+                setSession({
+                  lineUserId: data.user.line_user_id,
+                  userId: data.user.id,
+                  isOnboarded: data.user.is_onboarded
+                })
+                console.log('🍪 Session cookie set for middleware')
+              }
+            }
+            
+            const duration = Date.now() - startTime
+            console.log(`🎉 Login completed successfully in ${duration}ms`)
+            return // Success - exit function
+            
+          } catch (err) {
+            lastError = err instanceof Error ? err : new Error('Unknown error')
+            console.warn(`❌ Login attempt ${attempt} failed:`, lastError.message)
+            
+            // Don't retry for authentication errors
+            if (lastError.message.includes('401') || lastError.message.includes('token')) {
+              throw lastError
+            }
+            
+            // Wait before retry (exponential backoff)
+            if (attempt < maxRetries) {
+              const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
+              console.log(`⏳ Waiting ${delay}ms before retry...`)
+              await new Promise(resolve => setTimeout(resolve, delay))
+            }
           }
         }
         
-        const duration = Date.now() - startTime
-        console.log(`🎉 Login completed successfully in ${duration}ms`)
+        // All attempts failed
+        throw new Error(`Login failed after ${maxRetries} attempts: ${lastError!.message}`)
       } catch (err) {
         console.error('Login error:', err)
         setError(err instanceof Error ? err.message : 'Login failed')
@@ -155,6 +203,10 @@ export function useAuth(): UseAuthReturn {
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('hughome_user', JSON.stringify(data.user))
           console.log('💾 User profile updated in persistent cache')
+          
+          // Update session onboarding status
+          updateSessionOnboardingStatus(data.user.is_onboarded)
+          console.log('🍪 Session onboarding status updated')
         }
       }
     } catch (err) {

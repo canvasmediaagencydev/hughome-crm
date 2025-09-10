@@ -7,6 +7,11 @@ export interface User {
   first_name: string | null
   last_name: string | null
   phone: string | null
+  last_login_at: string | null
+  points_balance: number | null
+  total_points_earned: number | null
+  total_receipts: number | null
+  is_admin: boolean | null
   is_onboarded: boolean
 }
 

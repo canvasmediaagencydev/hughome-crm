@@ -73,7 +73,7 @@ export const getUserProfileOptimized = async (
   // Use optimized query with specific field selection and prepared statement pattern
   const { data, error } = await supabase
     .from('user_profiles')
-    .select('id, line_user_id, display_name, picture_url, role, first_name, last_name, phone, created_at, updated_at')
+    .select('id, line_user_id, display_name, picture_url, role, first_name, last_name, phone, is_admin, last_login_at, points_balance, total_points_earned, total_receipts, created_at, updated_at')
     .eq('line_user_id', lineUserId)
     .maybeSingle()
   
@@ -139,6 +139,12 @@ export const updateUserProfileOptimized = async (
   
   // Invalidate cache
   userProfileCache.delete(lineUserId)
+  
+  console.log('🔄 User profile updated and cache invalidated:', {
+    lineUserId,
+    updatedFields: Object.keys(updates),
+    isOnboarded: !!(updatedUser.role && updatedUser.first_name && updatedUser.last_name && updatedUser.phone)
+  })
   
   return updatedUser
 }
