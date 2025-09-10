@@ -47,8 +47,9 @@ function getJWKS() {
   if (!jwksCache) {
     console.log('Creating new JWKS instance...')
     jwksCache = createRemoteJWKSet(new URL(LINE_JWKS_URL), {
-      timeoutDuration: 5000, // 5 second timeout
-      cooldownDuration: 30000, // 30 second cooldown
+      timeoutDuration: 10000, // Increased to 10 seconds
+      cooldownDuration: 15000, // Reduced cooldown for faster retry
+      cacheMaxAge: JWKS_CACHE_TTL, // Explicit cache duration
     })
     jwksCacheTime = now
   }
@@ -91,35 +92,39 @@ export async function verifyLineIdToken(
 
     const jwks = getJWKS()
     
-    // Optimized verification - try most common case first
+    // Optimized verification with timeout and retry logic
     let payload
-    try {
-      // Try with Channel ID first (most common for LIFF tokens)
-      const result = await jwtVerify(idToken, jwks, {
-        issuer: 'https://access.line.me',
-        audience: channelId,
-      })
-      payload = result.payload
-    } catch (channelError) {
+    const verificationOptions = [
+      { audience: channelId, label: 'channelId' },
+      { audience: liffId, label: 'liffId' },
+    ]
+    
+    let lastError: Error | null = null
+    
+    for (const { audience, label } of verificationOptions) {
       try {
-        // Fallback: try with LIFF ID as audience
-        const result = await jwtVerify(idToken, jwks, {
-          issuer: 'https://access.line.me',
-          audience: liffId,
-        })
+        const result = await Promise.race([
+          jwtVerify(idToken, jwks, {
+            issuer: 'https://access.line.me',
+            audience,
+          }),
+          new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error('JWT verification timeout')), 8000)
+          )
+        ])
         payload = result.payload
-      } catch (liffError) {
-        // Last resort: verify signature only, check audience manually
-        const result = await jwtVerify(idToken, jwks, {
-          issuer: 'https://access.line.me',
-        })
-        payload = result.payload
-        
-        // Manual audience validation
-        if (payload.aud !== liffId && payload.aud !== channelId) {
-          throw new Error(`Token audience ${payload.aud} does not match expected values`)
-        }
+        console.log(`✅ Token verified successfully with ${label}`)
+        break
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Unknown verification error')
+        console.log(`❌ Token verification failed with ${label}:`, lastError.message)
+        continue
       }
+    }
+    
+    // If all attempts failed, throw the last error
+    if (!payload) {
+      throw lastError || new Error('All token verification attempts failed')
     }
 
     // Validate required claims

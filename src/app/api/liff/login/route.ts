@@ -60,10 +60,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
     const body: LoginRequestBody = await Promise.race([
       request.json(),
       new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Request timeout')), 5000)
+        setTimeout(() => reject(new Error('Request parsing timeout')), 8000)
       )
-    ]).catch(() => {
-      throw new Error('Invalid JSON in request body')
+    ]).catch((error) => {
+      console.error('Request parsing error:', error)
+      throw new Error('Invalid JSON in request body or timeout occurred')
     })
     
     console.log(`✅ API: Body parsed in ${Date.now() - parseStart}ms`)
@@ -77,17 +78,43 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
       )
     }
 
-    // Parallel execution: validate config, verify token, and check user
+    // Enhanced parallel execution with retry and timeout handling
     console.log('⏳ API: Initializing config and verifying token...')
     const parallelStart = Date.now()
     
-    const [{ liffId }, tokenPayload] = await Promise.all([
-      Promise.resolve(validateLineConfig()),
-      verifyLineIdToken(idToken, process.env.NEXT_PUBLIC_LINE_LIFF_ID!)
-    ])
+    let tokenPayload
+    let retryCount = 0
+    const maxRetries = 2
     
-    const profileData = extractUserProfileData(tokenPayload)
-    console.log(`✅ API: Config and token verified in ${Date.now() - parallelStart}ms`)
+    while (retryCount <= maxRetries) {
+      try {
+        const [{ liffId }, verifiedPayload] = await Promise.race([
+          Promise.all([
+            Promise.resolve(validateLineConfig()),
+            verifyLineIdToken(idToken, process.env.NEXT_PUBLIC_LINE_LIFF_ID!)
+          ]),
+          new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error('Token verification timeout')), 15000)
+          )
+        ])
+        
+        tokenPayload = verifiedPayload
+        break
+      } catch (error) {
+        retryCount++
+        console.warn(`🔄 Token verification attempt ${retryCount} failed:`, error instanceof Error ? error.message : 'Unknown error')
+        
+        if (retryCount > maxRetries) {
+          throw error
+        }
+        
+        // Exponential backoff: wait longer between retries
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000))
+      }
+    }
+    
+    const profileData = extractUserProfileData(tokenPayload!)
+    console.log(`✅ API: Config and token verified in ${Date.now() - parallelStart}ms (attempts: ${retryCount + 1})`)
 
     // Optimized user lookup with caching
     console.log('⏳ API: Checking existing user with cache...')
