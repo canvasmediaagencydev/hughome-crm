@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthContext } from '@/components/AuthProvider'
+import { IoMdHome } from "react-icons/io";
+import { FaGift } from "react-icons/fa6";
+import { FaUser } from "react-icons/fa";
 
 export default function DashboardPage() {
   const { user, isLoading, isLiffReady } = useAuthContext()
@@ -98,7 +101,7 @@ export default function DashboardPage() {
 
           {/* Points Card */}
           <div className="bg-red-600 rounded-2xl p-6 mt-10 mb-6 shadow-lg">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center px-5">
               <div className="flex items-center justify-between w-full">
                 <h3 className="text-white text-2xl font-bold mb-1">User <br /> Point</h3>
                 <div className="flex items-baseline">
@@ -113,9 +116,10 @@ export default function DashboardPage() {
 
           {/* Quick Action Button */}
           <div className="mb-6 mt-50 mx-auto text-center">
-            <button className="w-3/5 bg-red-600 hover:bg-red-700 text-white font-medium py-4 px-6 rounded-full shadow-lg transition-colors">
+            <button className="w-3/5 bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-6 rounded-full shadow-lg transition-colors text-lg">
               อัพโหลดใบเสร็จ
             </button>
+            <p className="text-gray-500 text-sm mt-2">คุณสามารถอัพโหลดใบเสร็จเพื่อแลกแต้มได้ที่นี่</p>
           </div>
         </div>
 
@@ -125,27 +129,21 @@ export default function DashboardPage() {
             
             <button className="flex flex-col items-center py-2 px-3">
               <div className="w-6 h-6 mb-1">
-                <svg className="w-full h-full text-red-600" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2L2 7v10c0 5.55 3.84 9.95 9 11 5.16-1.05 9-5.45 9-11V7l-10-5z"/>
-                </svg>
+                <IoMdHome className="w-full h-full text-red-500" />
               </div>
               <span className="text-xs text-red-600 font-medium">หน้าหลัก</span>
             </button>
 
             <button className="flex flex-col items-center py-2 px-3">
               <div className="w-6 h-6 mb-1">
-                <svg className="w-full h-full text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                </svg>
+                <FaGift className="w-full h-full text-gray-400" />
               </div>
               <span className="text-xs text-gray-400">แลกของรางวัล</span>
             </button>
 
             <button className="flex flex-col items-center py-2 px-3">
               <div className="w-6 h-6 mb-1">
-                <svg className="w-full h-full text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M20 6h-2.18c.11-.31.18-.65.18-1a2.996 2.996 0 0 0-5.5-1.65l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1z"/>
-                </svg>
+                <FaUser className="w-full h-full text-gray-400" />
               </div>
               <span className="text-xs text-gray-400">ข้อมูลผู้ใช้งาน</span>
             </button>
