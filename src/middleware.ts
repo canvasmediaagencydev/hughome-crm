@@ -71,11 +71,24 @@ async function getUserAuthStatus(request: NextRequest) {
     if (authCookie) {
       try {
         const authData = JSON.parse(authCookie)
+        // Always fetch fresh data from database to ensure up-to-date onboarding status
         const userProfile = await getUserProfileOptimized(authData.lineUserId)
+        
+        const isOnboarded = !!(userProfile?.role && userProfile?.first_name && userProfile?.last_name && userProfile?.phone)
+        
+        console.log(`🔍 Middleware auth check:`, {
+          lineUserId: authData.lineUserId,
+          hasProfile: !!userProfile,
+          role: userProfile?.role,
+          firstName: userProfile?.first_name,
+          lastName: userProfile?.last_name, 
+          phone: userProfile?.phone,
+          isOnboarded
+        })
         
         return {
           isAuthenticated: true,
-          isOnboarded: !!(userProfile?.role && userProfile?.first_name && userProfile?.last_name && userProfile?.phone),
+          isOnboarded,
           userProfile,
           lineUserId: authData.lineUserId
         }
@@ -98,6 +111,8 @@ export async function middleware(request: NextRequest) {
   if (
     pathname.startsWith('/_next/static') ||
     pathname.startsWith('/images/') ||
+    pathname.includes('.js.map') || // Skip source maps
+    pathname.includes('installHook') || // Skip React DevTools
     pathname.includes('.') // Skip files with extensions
   ) {
     return NextResponse.next()

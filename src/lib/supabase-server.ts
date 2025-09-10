@@ -140,6 +140,12 @@ export const updateUserProfileOptimized = async (
   // Invalidate cache
   userProfileCache.delete(lineUserId)
   
+  console.log('🔄 User profile updated and cache invalidated:', {
+    lineUserId,
+    updatedFields: Object.keys(updates),
+    isOnboarded: !!(updatedUser.role && updatedUser.first_name && updatedUser.last_name && updatedUser.phone)
+  })
+  
   return updatedUser
 }
 

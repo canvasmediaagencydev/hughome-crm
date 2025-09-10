@@ -100,16 +100,16 @@ export function useNetworkMonitor(): NetworkMonitorReturn {
     }
   }, [retryConnection])
 
-  // Periodic connection quality check
-  useEffect(() => {
-    if (!isOnline) return
+  // Periodic connection quality check (disabled - only manual checks)
+  // useEffect(() => {
+  //   if (!isOnline) return
 
-    const interval = setInterval(() => {
-      retryConnection()
-    }, 30000) // Check every 30 seconds
+  //   const interval = setInterval(() => {
+  //     retryConnection()
+  //   }, 30000) // Check every 30 seconds
 
-    return () => clearInterval(interval)
-  }, [isOnline, retryConnection])
+  //   return () => clearInterval(interval)
+  // }, [isOnline, retryConnection])
 
   return {
     isOnline,

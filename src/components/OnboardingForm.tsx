@@ -4,35 +4,38 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthContext } from './AuthProvider'
 import type { OnboardingFormData } from '@/types/user'
+import Image from 'next/image'
+import { IoHome } from "react-icons/io5";
+import { FaUsers } from "react-icons/fa";
 
 export default function OnboardingForm() {
   const { updateProfile, isLoading, error, clearError } = useAuthContext()
   const router = useRouter()
-  
+
   const [formData, setFormData] = useState<OnboardingFormData>({
     role: 'homeowner',
     first_name: '',
     last_name: '',
     phone: '',
   })
-  
+
   const [validationErrors, setValidationErrors] = useState<Partial<OnboardingFormData>>({})
 
   const validateForm = (): boolean => {
     const errors: Partial<OnboardingFormData> = {}
-    
+
     if (!formData.first_name.trim()) {
       errors.first_name = 'กรุณาใส่ชื่อจริง'
     } else if (formData.first_name.trim().length < 1 || formData.first_name.trim().length > 100) {
       errors.first_name = 'กรุณาใส่ชื่อจริง'
     }
-    
+
     if (!formData.last_name.trim()) {
       errors.last_name = 'กรุณาใส่นามสกุล'
     } else if (formData.last_name.trim().length < 1 || formData.last_name.trim().length > 100) {
       errors.last_name = 'กรุณาใส่นามสกุล'
     }
-    
+
     if (!formData.phone.trim()) {
       errors.phone = 'กรุณาใส่เบอร์โทรศัพท์'
     } else {
@@ -41,7 +44,7 @@ export default function OnboardingForm() {
         errors.phone = 'กรุณาใส่เบอร์โทรศัพท์ที่ถูกต้อง'
       }
     }
-    
+
     setValidationErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -49,15 +52,35 @@ export default function OnboardingForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     clearError()
-    
+
     if (!validateForm()) {
       return
     }
 
     try {
       await updateProfile(formData)
-      // Success! User should be redirected by the AuthProvider
-      router.push('/dashboard')
+      console.log('✅ Profile updated successfully, user should be onboarded now')
+      
+      // Clear any cached data to ensure fresh reload
+      if (typeof window !== 'undefined') {
+        // Clear cache entries
+        sessionStorage.removeItem('hughome_user')
+        localStorage.removeItem('hughome_auth')
+        console.log('🗑️ Cleared cached data for fresh reload')
+      }
+      
+      // Add a small delay to ensure session is updated
+      setTimeout(() => {
+        console.log('🔄 Redirecting to dashboard...')
+        router.push('/dashboard')
+        // Force a page refresh if needed
+        setTimeout(() => {
+          if (window.location.pathname !== '/dashboard') {
+            console.log('🔄 Forcing page refresh...')
+            window.location.href = '/dashboard'
+          }
+        }, 1000)
+      }, 500)
     } catch (err) {
       // Error is handled by the useAuth hook
       console.error('Onboarding error:', err)
@@ -73,31 +96,19 @@ export default function OnboardingForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
+    <div className="flex items-center justify-center px-4">
       <div className="w-full max-w-md mx-auto">
-        <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8">
+        <div className="bg-white px-6 sm:p-8 py-3">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-12 h-12 bg-[#06c755] rounded-lg flex items-center justify-center mx-auto mb-4">
-              <svg
-                className="w-6 h-6 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                />
-              </svg>
-            </div>
-            <h1 className="text-xl font-bold text-gray-900 mb-2">
-              ยินดีต้อนรับ!
-            </h1>
-            <p className="text-gray-600 text-sm">
+            <Image
+              src="/image/HUG HOME LOGO.svg"
+              alt="Hughome Logo"
+              width={250}
+              height={64}
+              className="mx-auto mb-4"
+            />
+            <p className="text-gray-500 text-sm">
               กรุณากรอกข้อมูลเพื่อเริ่มใช้งาน
             </p>
           </div>
@@ -113,15 +124,11 @@ export default function OnboardingForm() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Role Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                ประเภทผู้ใช้งาน <span className="text-red-500">*</span>
-              </label>
               <div className="grid grid-cols-2 gap-3">
-                <label className={`relative flex cursor-pointer rounded-lg border p-4 transition-colors ${
-                  formData.role === 'homeowner' 
-                    ? 'border-[#06c755] bg-green-50' 
+                <label className={`relative flex cursor-pointer rounded-lg border p-4 transition-colors ${formData.role === 'homeowner'
+                    ? 'border-red-500 bg-red-100'
                     : 'border-gray-200 bg-white hover:bg-gray-50'
-                }`}>
+                  }`}>
                   <input
                     type="radio"
                     name="role"
@@ -130,25 +137,18 @@ export default function OnboardingForm() {
                     onChange={(e) => handleChange('role', e.target.value as 'homeowner')}
                     className="sr-only"
                   />
-                  <div className="flex flex-col items-center text-center">
-                    <svg className="w-8 h-8 mb-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 8l2 2 4-4" />
-                    </svg>
+                  <div className="flex flex-col items-center justify-center text-center w-full">
+                    <IoHome className="w-8 h-8 mb-3 text-gray-600" />
                     <span className="text-sm font-medium text-gray-900">
                       เจ้าของบ้าน
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      ต้องการบริการ
                     </span>
                   </div>
                 </label>
 
-                <label className={`relative flex cursor-pointer rounded-lg border p-4 transition-colors ${
-                  formData.role === 'contractor' 
-                    ? 'border-[#06c755] bg-green-50' 
+                <label className={`relative flex cursor-pointer rounded-lg border p-4 transition-colors ${formData.role === 'contractor'
+                    ? 'border-red-500 bg-red-100'
                     : 'border-gray-200 bg-white hover:bg-gray-50'
-                }`}>
+                  }`}>
                   <input
                     type="radio"
                     name="role"
@@ -157,15 +157,10 @@ export default function OnboardingForm() {
                     onChange={(e) => handleChange('role', e.target.value as 'contractor')}
                     className="sr-only"
                   />
-                  <div className="flex flex-col items-center text-center">
-                    <svg className="w-8 h-8 mb-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                    </svg>
+                  <div className="flex flex-col items-center justify-center text-center w-full">
+                    <FaUsers className="w-8 h-8 mb-3 text-gray-600" />
                     <span className="text-sm font-medium text-gray-900">
                       ผู้รับเหมา
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      ให้บริการ
                     </span>
                   </div>
                 </label>
@@ -182,11 +177,10 @@ export default function OnboardingForm() {
                 id="first_name"
                 value={formData.first_name}
                 onChange={(e) => handleChange('first_name', e.target.value)}
-                className={`w-full px-3 py-3 border rounded-lg text-sm focus:ring-2 focus:ring-[#06c755] focus:border-transparent transition-colors ${
-                  validationErrors.first_name 
-                    ? 'border-red-300 bg-red-50' 
+                className={`w-full px-3 py-3 border rounded-lg text-base focus:outline-none transition-colors ${validationErrors.first_name
+                    ? 'border-red-300 bg-red-50'
                     : 'border-gray-300 bg-white'
-                }`}
+                  }`}
                 placeholder="กรอกชื่อจริง"
                 maxLength={100}
               />
@@ -205,11 +199,10 @@ export default function OnboardingForm() {
                 id="last_name"
                 value={formData.last_name}
                 onChange={(e) => handleChange('last_name', e.target.value)}
-                className={`w-full px-3 py-3 border rounded-lg text-sm focus:ring-2 focus:ring-[#06c755] focus:border-transparent transition-colors ${
-                  validationErrors.last_name 
-                    ? 'border-red-300 bg-red-50' 
+                className={`w-full px-3 py-3 border rounded-lg text-base focus:outline-none transition-colors ${validationErrors.last_name
+                    ? 'border-red-300 bg-red-50'
                     : 'border-gray-300 bg-white'
-                }`}
+                  }`}
                 placeholder="กรอกนามสกุล"
                 maxLength={100}
               />
@@ -228,11 +221,10 @@ export default function OnboardingForm() {
                 id="phone"
                 value={formData.phone}
                 onChange={(e) => handleChange('phone', e.target.value)}
-                className={`w-full px-3 py-3 border rounded-lg text-sm focus:ring-2 focus:ring-[#06c755] focus:border-transparent transition-colors ${
-                  validationErrors.phone 
-                    ? 'border-red-300 bg-red-50' 
+                className={`w-full px-3 py-3 border rounded-lg text-base focus:outline-none transition-colors ${validationErrors.phone
+                    ? 'border-red-300 bg-red-50'
                     : 'border-gray-300 bg-white'
-                }`}
+                  }`}
                 placeholder="0xx-xxx-xxxx"
                 maxLength={20}
               />
@@ -241,11 +233,13 @@ export default function OnboardingForm() {
               )}
             </div>
 
+
+
             {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-[#06c755] hover:bg-[#05b94c] disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-3 text-base"
+              className="w-full bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-3 text-base"
             >
               {isLoading ? (
                 <>
@@ -256,6 +250,10 @@ export default function OnboardingForm() {
                 'เริ่มใช้งาน'
               )}
             </button>
+
+            <p className="text-sm text-gray-500 text-center mb-4">
+              กรุณากรอกข้อมูลตามความจริง เพื่อให้เราสามารถติดต่อและให้บริการที่ดีที่สุดแก่คุณได้
+            </p>
           </form>
         </div>
       </div>
