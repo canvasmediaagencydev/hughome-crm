@@ -71,8 +71,18 @@ async function getUserAuthStatus(request: NextRequest) {
     if (authCookie) {
       try {
         const authData = JSON.parse(authCookie)
-        // Always fetch fresh data from database to ensure up-to-date onboarding status
-        const userProfile = await getUserProfileOptimized(authData.lineUserId)
+        // Force fresh database fetch for debugging (bypass cache)
+        const supabase = createServerSupabaseClient()
+        const { data: userProfile, error } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('line_user_id', authData.lineUserId)
+          .single()
+        
+        if (error) {
+          console.error('Middleware database fetch error:', error)
+          return { isAuthenticated: false, isOnboarded: false }
+        }
         
         const isOnboarded = !!(userProfile?.role && userProfile?.first_name && userProfile?.last_name && userProfile?.phone)
         
@@ -120,14 +130,14 @@ export async function middleware(request: NextRequest) {
 
   console.log(`🔒 Middleware: Processing ${pathname}`)
   
-  // Skip middleware for desktop development (temporary fix)
-  const userAgent = request.headers.get('user-agent') || ''
-  const isMobile = /Mobile|Android|iPhone|iPad/i.test(userAgent)
-  
-  if (!isMobile && (pathname === '/' || pathname === '/dashboard' || pathname === '/onboarding')) {
-    console.log(`💻 Desktop access detected, allowing ${pathname}`)
-    return NextResponse.next()
-  }
+  // Skip middleware for desktop development (temporary fix) - DISABLED for debugging
+  // const userAgent = request.headers.get('user-agent') || ''
+  // const isMobile = /Mobile|Android|iPhone|iPad/i.test(userAgent)
+  // 
+  // if (!isMobile && (pathname === '/' || pathname === '/dashboard' || pathname === '/onboarding')) {
+  //   console.log(`💻 Desktop access detected, allowing ${pathname}`)
+  //   return NextResponse.next()
+  // }
 
   // Allow public routes
   if (matchesRoute(pathname, PUBLIC_ROUTES)) {

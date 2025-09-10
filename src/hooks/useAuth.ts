@@ -167,31 +167,43 @@ export function useAuth(): UseAuthReturn {
   }, [isLiffReady, isLoggedIn, getIdToken, liffLogin])
 
   const updateProfile = useCallback(async (formData: OnboardingFormData) => {
+    console.log('🔄 updateProfile called with:', formData)
+    
     if (!isLiffReady || !isLoggedIn) {
+      console.log('❌ updateProfile failed: LIFF not ready or not logged in', { isLiffReady, isLoggedIn })
       setError('Please login first')
       return
     }
 
+    console.log('⏳ Starting profile update process...')
     setIsLoading(true)
     setError(null)
 
     try {
+      console.log('⏳ Getting ID token...')
       const idToken = await getIdToken()
       if (!idToken) {
         throw new Error('Failed to get ID token')
       }
+      console.log('✅ ID token obtained')
 
+      console.log('⏳ Sending profile update request...')
       const response = await fetch('/api/profile/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken, ...formData }),
       })
 
+      console.log('✅ Profile update response received:', response.status, response.statusText)
+
       if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ Profile update HTTP error:', errorText)
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
       const data: UpdateProfileResponse = await response.json()
+      console.log('✅ Profile update response data:', data)
 
       if (!data.success) {
         throw new Error(data.error || 'Profile update failed')

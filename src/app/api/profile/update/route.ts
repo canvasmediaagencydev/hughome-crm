@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient, type UserProfileUpdate } from '@/lib/supabase-server'
+import { createServerSupabaseClient, type UserProfileUpdate, clearUserProfileCache } from '@/lib/supabase-server'
 import { verifyLineIdToken, validateLineConfig } from '@/lib/line-auth'
 
 interface UpdateProfileRequestBody {
@@ -156,12 +156,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<UpdatePro
     }
 
     // Update user profile
+    console.log(`📝 Updating profile for user ${tokenPayload.sub} with data:`, updateData)
     const { data: updatedUser, error: updateError } = await supabase
       .from('user_profiles')
       .update(updateData)
       .eq('line_user_id', tokenPayload.sub)
       .select()
       .single()
+    console.log(`📝 Profile update result:`, { updatedUser: updatedUser ? { role: updatedUser.role, first_name: updatedUser.first_name, last_name: updatedUser.last_name, phone: updatedUser.phone } : null, error: updateError })
 
     if (updateError) {
       console.error('User profile update error:', updateError)
@@ -170,6 +172,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<UpdatePro
         { status: 500 }
       )
     }
+
+    // Clear the user profile cache to ensure middleware gets fresh data
+    clearUserProfileCache(tokenPayload.sub)
+    console.log(`🗑️ Profile cache cleared for user: ${tokenPayload.sub}`)
 
     // Determine if user has completed onboarding
     const isOnboarded = !!(
