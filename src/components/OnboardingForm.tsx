@@ -53,27 +53,15 @@ export default function OnboardingForm() {
     e.preventDefault()
     clearError()
 
-    console.log('📝 Form submitted with data:', formData)
-
     if (!validateForm()) {
-      console.log('❌ Form validation failed')
       return
     }
 
-    console.log('✅ Form validation passed, calling updateProfile...')
-
     try {
-      console.log('⏳ Starting profile update...')
       await updateProfile(formData)
-      console.log('✅ Profile updated successfully, user should be onboarded now')
-      
-      // Force immediate redirect to dashboard - the user state will be updated
-      // and dashboard will handle authentication checks
-      console.log('🔄 Redirecting to dashboard...')
       window.location.href = '/dashboard'
     } catch (err) {
-      // Error is handled by the useAuth hook
-      console.error('❌ Onboarding error:', err)
+      console.error('Onboarding error:', err)
     }
   }
 

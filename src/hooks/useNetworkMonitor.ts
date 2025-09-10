@@ -21,18 +21,11 @@ export function useNetworkMonitor(): NetworkMonitorReturn {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 5000)
 
-      // Test with a small endpoint or image
-      const response = await fetch('/api/health', {
-        method: 'GET',
+      // Test with favicon - faster and no server processing
+      const response = await fetch('/favicon.ico', {
+        method: 'HEAD',
         cache: 'no-cache',
         signal: controller.signal,
-      }).catch(() => {
-        // Fallback to testing with a small image or CSS file
-        return fetch('/favicon.ico', {
-          method: 'HEAD',
-          cache: 'no-cache',
-          signal: controller.signal,
-        })
       })
 
       clearTimeout(timeoutId)
@@ -57,27 +50,22 @@ export function useNetworkMonitor(): NetworkMonitorReturn {
 
   // Retry connection function
   const retryConnection = useCallback(async () => {
-    console.log('🔄 Testing connection quality...')
     const quality = await testConnectionQuality()
     
     setConnectionQuality(quality)
     setIsOnline(quality !== 'offline')
     setIsSlowConnection(quality === 'slow')
-    
-    console.log(`📡 Connection quality: ${quality}`)
     return
   }, [testConnectionQuality])
 
   // Monitor online/offline status
   useEffect(() => {
     const handleOnline = () => {
-      console.log('🌐 Network: Back online')
       setIsOnline(true)
       retryConnection()
     }
 
     const handleOffline = () => {
-      console.log('📡 Network: Gone offline')
       setIsOnline(false)
       setConnectionQuality('offline')
     }

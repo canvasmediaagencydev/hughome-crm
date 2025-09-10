@@ -86,15 +86,6 @@ async function getUserAuthStatus(request: NextRequest) {
         
         const isOnboarded = !!(userProfile?.role && userProfile?.first_name && userProfile?.last_name && userProfile?.phone)
         
-        console.log(`🔍 Middleware auth check:`, {
-          lineUserId: authData.lineUserId,
-          hasProfile: !!userProfile,
-          role: userProfile?.role,
-          firstName: userProfile?.first_name,
-          lastName: userProfile?.last_name, 
-          phone: userProfile?.phone,
-          isOnboarded
-        })
         
         return {
           isAuthenticated: true,
@@ -128,16 +119,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  console.log(`🔒 Middleware: Processing ${pathname}`)
+  // Skip middleware for desktop development (faster for dev)
+  const userAgent = request.headers.get('user-agent') || ''
+  const isMobile = /Mobile|Android|iPhone|iPad/i.test(userAgent)
   
-  // Skip middleware for desktop development (temporary fix) - DISABLED for debugging
-  // const userAgent = request.headers.get('user-agent') || ''
-  // const isMobile = /Mobile|Android|iPhone|iPad/i.test(userAgent)
-  // 
-  // if (!isMobile && (pathname === '/' || pathname === '/dashboard' || pathname === '/onboarding')) {
-  //   console.log(`💻 Desktop access detected, allowing ${pathname}`)
-  //   return NextResponse.next()
-  // }
+  if (!isMobile && (pathname === '/' || pathname === '/dashboard' || pathname === '/onboarding')) {
+    return NextResponse.next()
+  }
 
   // Allow public routes
   if (matchesRoute(pathname, PUBLIC_ROUTES)) {
@@ -146,22 +134,14 @@ export async function middleware(request: NextRequest) {
 
   // Get user authentication status
   const authStatus = await getUserAuthStatus(request)
-  
-  console.log(`👤 Auth status:`, {
-    path: pathname,
-    authenticated: authStatus.isAuthenticated,
-    onboarded: authStatus.isOnboarded
-  })
 
   // Handle protected routes
   if (matchesRoute(pathname, PROTECTED_ROUTES)) {
     if (!authStatus.isAuthenticated) {
-      console.log(`🔐 Redirecting unauthenticated user from ${pathname} to /`)
       return NextResponse.redirect(new URL('/', request.url))
     }
     
     if (!authStatus.isOnboarded) {
-      console.log(`📝 Redirecting unfinished user from ${pathname} to /onboarding`)
       return NextResponse.redirect(new URL('/onboarding', request.url))
     }
     
@@ -175,13 +155,11 @@ export async function middleware(request: NextRequest) {
   // Handle auth-required routes (like onboarding)
   if (matchesRoute(pathname, AUTH_REQUIRED_ROUTES)) {
     if (!authStatus.isAuthenticated) {
-      console.log(`🔐 Redirecting unauthenticated user from ${pathname} to /`)
       return NextResponse.redirect(new URL('/', request.url))
     }
     
     // If user is already onboarded, redirect to dashboard
     if (pathname === '/onboarding' && authStatus.isOnboarded) {
-      console.log(`✅ Redirecting completed user from /onboarding to /dashboard`)
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
     
@@ -198,7 +176,6 @@ export async function middleware(request: NextRequest) {
     }
     
     if (!authStatus.userProfile?.is_admin) {
-      console.log(`🚫 Non-admin user denied access to ${pathname}`)
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
     

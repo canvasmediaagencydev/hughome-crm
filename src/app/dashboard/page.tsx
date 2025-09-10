@@ -13,25 +13,12 @@ export default function DashboardPage() {
   const [imageError, setImageError] = useState(false)
 
   useEffect(() => {
-    console.log('🔍 Dashboard state:', {
-      isLiffReady,
-      isLoading,
-      hasUser: !!user,
-      isOnboarded: user?.is_onboarded,
-      userRole: user?.role,
-      firstName: user?.first_name
-    })
-    
-    // Redirect to login if not authenticated
     if (isLiffReady && !isLoading && !user) {
-      console.log('❌ No user, redirecting to login')
       router.push('/')
       return
     }
     
-    // Redirect to onboarding if not completed
     if (user && !user.is_onboarded) {
-      console.log('📝 User not onboarded, redirecting to onboarding')
       router.push('/onboarding')
       return
     }
@@ -44,7 +31,6 @@ export default function DashboardPage() {
 
   // Show loading while checking authentication
   if (!isLiffReady || isLoading || !user) {
-    console.log('🔄 Dashboard loading state:', { isLiffReady, isLoading, hasUser: !!user })
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center space-y-4">
@@ -55,15 +41,8 @@ export default function DashboardPage() {
     )
   }
 
-  // Check if user should be considered onboarded (fallback for API inconsistency)
-  const isActuallyOnboarded = user && (
-    user.is_onboarded || 
-    (user.role && user.first_name && user.last_name && user.phone)
-  )
-
   // Show dashboard if user is fully onboarded
-  if (isActuallyOnboarded) {
-    console.log('✅ Dashboard: User is onboarded, showing dashboard')
+  if (user && user.is_onboarded) {
     return (
       <div className="min-h-screen">
         {/* Banner Header */}
@@ -162,37 +141,5 @@ export default function DashboardPage() {
     )
   }
 
-  // Debug: Show what's happening when no conditions match
-  console.warn('❌ Dashboard: No condition matched', { 
-    user: user ? { 
-      id: user.id, 
-      is_onboarded: user.is_onboarded,
-      role: user.role,
-      first_name: user.first_name,
-      last_name: user.last_name,
-      phone: user.phone 
-    } : null,
-    isActuallyOnboarded 
-  })
-  
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-red-50">
-      <div className="text-center space-y-4 p-6">
-        <h2 className="text-xl font-bold text-red-600">Debug: Dashboard State</h2>
-        <pre className="text-xs bg-white p-4 rounded border text-left overflow-auto">
-          {JSON.stringify({ 
-            hasUser: !!user,
-            isOnboarded: user?.is_onboarded,
-            isActuallyOnboarded,
-            userFields: user ? {
-              role: user.role,
-              first_name: user.first_name,
-              last_name: user.last_name,
-              phone: user.phone
-            } : null
-          }, null, 2)}
-        </pre>
-      </div>
-    </div>
-  )
+  return null
 }

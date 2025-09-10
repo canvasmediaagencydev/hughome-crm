@@ -64,95 +64,45 @@ export function useAuth(): UseAuthReturn {
 
     // Create new login promise
     loginPromiseRef.current = (async () => {
-      const startTime = Date.now()
-      console.log('🚀 Starting login process...')
-      
       setIsLoading(true)
       setError(null)
 
       try {
-        console.log('⏳ Getting ID token...')
         const idToken = await getIdToken()
         if (!idToken) {
           throw new Error('Failed to get ID token')
         }
-        console.log('✅ ID token obtained')
-
-        console.log('⏳ Calling login API...')
         
-        // Enhanced fetch with retry mechanism and timeout
-        let lastError: Error
-        const maxRetries = 3
-        const timeoutMs = 12000 // 12 seconds
+        const response = await fetch('/api/liff/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken }),
+        })
         
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-          try {
-            console.log(`🔄 Login attempt ${attempt}/${maxRetries}`)
-            
-            const controller = new AbortController()
-            const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-            
-            const response = await fetch('/api/liff/login', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ idToken }),
-              signal: controller.signal,
-            })
-            
-            clearTimeout(timeoutId)
-            
-            if (!response.ok) {
-              throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-            }
-            
-            console.log(`✅ Login successful on attempt ${attempt}`)
-            const data: LoginResponse = await response.json()
-            
-            if (!data.success) {
-              throw new Error(data.error || 'Login failed')
-            }
-
-            if (data.user) {
-              setUser(data.user)
-              // Cache user data for persistent login
-              if (typeof window !== 'undefined') {
-                sessionStorage.setItem('hughome_user', JSON.stringify(data.user))
-                console.log('💾 User data cached for persistent session')
-                
-                // Set session for middleware
-                setSession({
-                  lineUserId: data.user.line_user_id,
-                  userId: data.user.id,
-                  isOnboarded: data.user.is_onboarded
-                })
-                console.log('🍪 Session cookie set for middleware')
-              }
-            }
-            
-            const duration = Date.now() - startTime
-            console.log(`🎉 Login completed successfully in ${duration}ms`)
-            return // Success - exit function
-            
-          } catch (err) {
-            lastError = err instanceof Error ? err : new Error('Unknown error')
-            console.warn(`❌ Login attempt ${attempt} failed:`, lastError.message)
-            
-            // Don't retry for authentication errors
-            if (lastError.message.includes('401') || lastError.message.includes('token')) {
-              throw lastError
-            }
-            
-            // Wait before retry (exponential backoff)
-            if (attempt < maxRetries) {
-              const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
-              console.log(`⏳ Waiting ${delay}ms before retry...`)
-              await new Promise(resolve => setTimeout(resolve, delay))
-            }
-          }
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
         }
         
-        // All attempts failed
-        throw new Error(`Login failed after ${maxRetries} attempts: ${lastError!.message}`)
+        const data: LoginResponse = await response.json()
+        
+        if (!data.success) {
+          throw new Error(data.error || 'Login failed')
+        }
+
+        if (data.user) {
+          setUser(data.user)
+          // Cache user data for persistent login
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('hughome_user', JSON.stringify(data.user))
+            
+            // Set session for middleware
+            setSession({
+              lineUserId: data.user.line_user_id,
+              userId: data.user.id,
+              isOnboarded: data.user.is_onboarded
+            })
+          }
+        }
       } catch (err) {
         console.error('Login error:', err)
         setError(err instanceof Error ? err.message : 'Login failed')
@@ -167,43 +117,31 @@ export function useAuth(): UseAuthReturn {
   }, [isLiffReady, isLoggedIn, getIdToken, liffLogin])
 
   const updateProfile = useCallback(async (formData: OnboardingFormData) => {
-    console.log('🔄 updateProfile called with:', formData)
-    
     if (!isLiffReady || !isLoggedIn) {
-      console.log('❌ updateProfile failed: LIFF not ready or not logged in', { isLiffReady, isLoggedIn })
       setError('Please login first')
       return
     }
 
-    console.log('⏳ Starting profile update process...')
     setIsLoading(true)
     setError(null)
 
     try {
-      console.log('⏳ Getting ID token...')
       const idToken = await getIdToken()
       if (!idToken) {
         throw new Error('Failed to get ID token')
       }
-      console.log('✅ ID token obtained')
 
-      console.log('⏳ Sending profile update request...')
       const response = await fetch('/api/profile/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken, ...formData }),
       })
 
-      console.log('✅ Profile update response received:', response.status, response.statusText)
-
       if (!response.ok) {
-        const errorText = await response.text()
-        console.error('❌ Profile update HTTP error:', errorText)
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
       const data: UpdateProfileResponse = await response.json()
-      console.log('✅ Profile update response data:', data)
 
       if (!data.success) {
         throw new Error(data.error || 'Profile update failed')
