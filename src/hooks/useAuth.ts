@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { useLiff } from './useLiff'
+import { setSession, clearSession, updateSessionOnboardingStatus } from '@/lib/session'
 import type { User, LoginResponse, UpdateProfileResponse, OnboardingFormData } from '@/types/user'
 
 interface UseAuthReturn {
@@ -42,6 +43,7 @@ export function useAuth(): UseAuthReturn {
   const clearError = useCallback(() => {
     setError(null)
   }, [])
+
 
 
   const login = useCallback(async () => {
@@ -116,6 +118,14 @@ export function useAuth(): UseAuthReturn {
               if (typeof window !== 'undefined') {
                 sessionStorage.setItem('hughome_user', JSON.stringify(data.user))
                 console.log('💾 User data cached for persistent session')
+                
+                // Set session for middleware
+                setSession({
+                  lineUserId: data.user.line_user_id,
+                  userId: data.user.id,
+                  isOnboarded: data.user.is_onboarded
+                })
+                console.log('🍪 Session cookie set for middleware')
               }
             }
             
@@ -193,6 +203,10 @@ export function useAuth(): UseAuthReturn {
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('hughome_user', JSON.stringify(data.user))
           console.log('💾 User profile updated in persistent cache')
+          
+          // Update session onboarding status
+          updateSessionOnboardingStatus(data.user.is_onboarded)
+          console.log('🍪 Session onboarding status updated')
         }
       }
     } catch (err) {

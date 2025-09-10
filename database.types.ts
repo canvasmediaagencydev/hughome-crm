@@ -20,6 +20,7 @@ export type Database = {
           display_name: string | null
           first_name: string | null
           id: string
+          is_admin: boolean | null
           last_name: string | null
           line_user_id: string
           phone: string | null
@@ -32,6 +33,7 @@ export type Database = {
           display_name?: string | null
           first_name?: string | null
           id?: string
+          is_admin?: boolean | null
           last_name?: string | null
           line_user_id: string
           phone?: string | null
@@ -44,6 +46,7 @@ export type Database = {
           display_name?: string | null
           first_name?: string | null
           id?: string
+          is_admin?: boolean | null
           last_name?: string | null
           line_user_id?: string
           phone?: string | null
