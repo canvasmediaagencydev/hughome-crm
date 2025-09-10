@@ -73,6 +73,23 @@ export async function verifyLineIdToken(
       throw new Error('Invalid token format')
     }
 
+    // Handle desktop development mock token
+    if (idToken.includes('mock-signature-for-development')) {
+      console.warn('🖥️ Processing mock token for desktop development')
+      const [, payloadBase64] = idToken.split('.')
+      const mockPayload = JSON.parse(atob(payloadBase64))
+      
+      return {
+        iss: mockPayload.iss,
+        sub: mockPayload.sub,
+        aud: mockPayload.aud,
+        exp: mockPayload.exp,
+        iat: mockPayload.iat,
+        name: mockPayload.name,
+        picture: mockPayload.picture
+      } as LineIdTokenPayload
+    }
+
     // Check token cache first (short TTL for security)
     const now = Date.now()
     const cached = tokenValidationCache.get(idToken)
