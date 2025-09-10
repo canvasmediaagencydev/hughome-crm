@@ -71,16 +71,11 @@ async function getUserAuthStatus(request: NextRequest) {
     if (authCookie) {
       try {
         const authData = JSON.parse(authCookie)
-        // Force fresh database fetch for debugging (bypass cache)
-        const supabase = createServerSupabaseClient()
-        const { data: userProfile, error } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('line_user_id', authData.lineUserId)
-          .single()
+        // Use optimized cached database fetch for performance
+        const userProfile = await getUserProfileOptimized(authData.lineUserId)
         
-        if (error) {
-          console.error('Middleware database fetch error:', error)
+        if (!userProfile) {
+          console.warn('User profile not found in middleware:', authData.lineUserId)
           return { isAuthenticated: false, isOnboarded: false }
         }
         

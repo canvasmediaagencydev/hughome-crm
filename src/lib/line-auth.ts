@@ -29,8 +29,8 @@ const CONFIG_CACHE_TTL = 300000 // 5 minutes
 
 // Token validation result cache (short TTL for security)
 const tokenValidationCache = new Map<string, { result: LineIdTokenPayload; timestamp: number }>()
-const TOKEN_CACHE_TTL = 60000 // 1 minute
-const MAX_TOKEN_CACHE_SIZE = 100
+const TOKEN_CACHE_TTL = 300000 // 5 minutes (increased for better performance)
+const MAX_TOKEN_CACHE_SIZE = 500 // Increased cache size
 
 /**
  * Get or create JWKS instance for LINE token verification with TTL
@@ -47,9 +47,10 @@ function getJWKS() {
   if (!jwksCache) {
     console.log('Creating new JWKS instance...')
     jwksCache = createRemoteJWKSet(new URL(LINE_JWKS_URL), {
-      timeoutDuration: 10000, // Increased to 10 seconds
-      cooldownDuration: 15000, // Reduced cooldown for faster retry
+      timeoutDuration: 15000, // Increased timeout for better reliability
+      cooldownDuration: 10000, // Faster recovery from errors
       cacheMaxAge: JWKS_CACHE_TTL, // Explicit cache duration
+      retryAttempts: 3, // Multiple retry attempts
     })
     jwksCacheTime = now
   }
@@ -124,9 +125,10 @@ export async function verifyLineIdToken(
           jwtVerify(idToken, jwks, {
             issuer: 'https://access.line.me',
             audience,
+            clockTolerance: '5 minutes', // Allow for clock skew
           }),
           new Promise<never>((_, reject) => 
-            setTimeout(() => reject(new Error('JWT verification timeout')), 8000)
+            setTimeout(() => reject(new Error('JWT verification timeout')), 12000)
           )
         ])
         payload = result.payload

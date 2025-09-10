@@ -8,6 +8,7 @@ import {
   type UserProfileInsert 
 } from '@/lib/supabase-server'
 import { verifyLineIdToken, extractUserProfileData, validateLineConfig } from '@/lib/line-auth'
+import { withRequestDeduplication, withPerformanceMonitoring, withRateLimit } from '@/lib/api-performance'
 
 // Performance monitoring utility
 async function timeOperation<T>(
@@ -48,7 +49,8 @@ interface LoginResponse {
   error?: string
 }
 
-export async function POST(request: NextRequest): Promise<NextResponse<LoginResponse>> {
+// Raw handler without middleware
+async function loginHandler(request: NextRequest): Promise<NextResponse<LoginResponse>> {
   const startTime = Date.now()
   console.log('🚀 API: Starting login process...')
   
@@ -220,6 +222,18 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
   }
 }
 
+
+// Enhanced POST handler with performance optimizations
+export const POST = withRateLimit(50, 60000)(  // 50 requests per minute
+  withRequestDeduplication(
+    withPerformanceMonitoring(loginHandler, 'auth.login'),
+    (request: NextRequest) => {
+      // Custom key for login requests - include partial token for deduplication
+      const authHeader = request.headers.get('authorization')
+      return `login:${authHeader?.slice(0, 20) || 'no-auth'}`
+    }
+  )
+)
 
 // Handle unsupported HTTP methods
 export async function GET(): Promise<NextResponse> {

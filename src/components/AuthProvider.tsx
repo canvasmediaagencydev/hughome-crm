@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode, memo, useMemo, useCallback } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useLiff } from '@/hooks/useLiff'
 import { useNetworkMonitor } from '@/hooks/useNetworkMonitor'
@@ -35,25 +35,32 @@ interface AuthProviderProps {
   children: ReactNode
 }
 
-export function AuthProvider({ children }: AuthProviderProps) {
+export const AuthProvider = memo(function AuthProvider({ children }: AuthProviderProps) {
   const { isLiffReady, isLoggedIn } = useLiff()
   const auth = useAuth()
   const networkMonitor = useNetworkMonitor()
   const [hasTriedAutoLogin, setHasTriedAutoLogin] = useState(false)
   const [isAutoLogging, setIsAutoLogging] = useState(false)
 
+  // Memoized callback to prevent unnecessary re-renders
+  const handleAutoLogin = useCallback(async () => {
+    console.log('🔄 Auto-login triggered')
+    setHasTriedAutoLogin(true)
+    setIsAutoLogging(true)
+    
+    try {
+      await auth.login()
+    } finally {
+      setIsAutoLogging(false)
+    }
+  }, [auth.login])
+
   // Auto-login when LIFF is ready and user is logged in
   useEffect(() => {
     if (isLiffReady && isLoggedIn && !hasTriedAutoLogin && !auth.user && !auth.isLoading && !isAutoLogging) {
-      console.log('🔄 Auto-login triggered')
-      setHasTriedAutoLogin(true)
-      setIsAutoLogging(true)
-      
-      auth.login().finally(() => {
-        setIsAutoLogging(false)
-      })
+      handleAutoLogin()
     }
-  }, [isLiffReady, isLoggedIn, hasTriedAutoLogin, auth.user, auth.isLoading, isAutoLogging, auth.login])
+  }, [isLiffReady, isLoggedIn, hasTriedAutoLogin, auth.user, auth.isLoading, isAutoLogging, handleAutoLogin])
 
   // Auto-retry login when connection is restored
   useEffect(() => {
@@ -77,18 +84,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [networkMonitor.isOnline, networkMonitor.connectionQuality, auth.error, auth.isLoading, auth.clearError, auth.login, isLiffReady, isLoggedIn, auth.user])
 
-  const contextValue: AuthContextType = {
+  // Memoized context value to prevent unnecessary re-renders of children
+  const contextValue: AuthContextType = useMemo(() => ({
     ...auth,
     isLiffReady,
     isLoggedIn,
     isOnline: networkMonitor.isOnline,
     connectionQuality: networkMonitor.connectionQuality,
     retryConnection: networkMonitor.retryConnection,
-  }
+  }), [
+    auth,
+    isLiffReady,
+    isLoggedIn,
+    networkMonitor.isOnline,
+    networkMonitor.connectionQuality,
+    networkMonitor.retryConnection
+  ])
 
   return (
     <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   )
-}
+})

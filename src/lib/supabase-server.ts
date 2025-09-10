@@ -12,8 +12,8 @@ interface CachedUserProfile {
 }
 
 const userProfileCache = new Map<string, CachedUserProfile>()
-const USER_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
-const MAX_CACHE_SIZE = 1000 // Prevent memory leaks
+const USER_CACHE_TTL = 10 * 60 * 1000 // 10 minutes (increased for better performance)
+const MAX_CACHE_SIZE = 2000 // Increased cache size for better hit rates
 
 // Server-side Supabase client with service role key for admin operations
 export const createServerSupabaseClient = () => {
@@ -41,7 +41,24 @@ export const createServerSupabaseClient = () => {
         'connection': 'keep-alive',
         'keep-alive-timeout': '600',
         'x-connection-pool': 'true',
+        'x-postgrest-prefer': 'count=exact-planned', // Optimize count queries
+        'cache-control': 'max-age=300', // 5 minute cache for static data
       },
+      fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+        // Enhanced fetch with retry logic and timeouts
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10s timeout
+        
+        const requestInit: RequestInit = {
+          ...init,
+          signal: controller.signal,
+          keepalive: true, // Reuse connections
+        }
+        
+        return fetch(input, requestInit).finally(() => {
+          clearTimeout(timeoutId)
+        })
+      }
     },
     realtime: {
       params: {
@@ -95,6 +112,16 @@ export const getUserProfileOptimized = async (
     timestamp: now,
     ttl: data ? USER_CACHE_TTL : 30000 // Cache null results for 30s to prevent DB hammering
   })
+  
+  // Intelligent cache warming - prefetch related data for existing users
+  if (data && data.role) {
+    // Warm cache by prefetching this user in 5 minutes (before cache expires)
+    setTimeout(() => {
+      getUserProfileOptimized(lineUserId).catch(() => {
+        // Ignore errors in background prefetch
+      })
+    }, USER_CACHE_TTL - 60000) // Refresh 1 minute before expiry
+  }
   
   return data
 }

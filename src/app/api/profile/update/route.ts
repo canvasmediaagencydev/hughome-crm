@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient, type UserProfileUpdate, clearUserProfileCache } from '@/lib/supabase-server'
+import { 
+  getUserProfileOptimized, 
+  updateUserProfileOptimized, 
+  type UserProfileUpdate,
+  clearUserProfileCache 
+} from '@/lib/supabase-server'
 import { verifyLineIdToken, validateLineConfig } from '@/lib/line-auth'
+import { withRequestDeduplication, withPerformanceMonitoring, withRateLimit } from '@/lib/api-performance'
 
 interface UpdateProfileRequestBody {
   idToken: string
@@ -47,15 +53,24 @@ function validateName(name: string): boolean {
   return name.trim().length >= 1 && name.trim().length <= 100
 }
 
-export async function POST(request: NextRequest): Promise<NextResponse<UpdateProfileResponse>> {
+// Raw handler without middleware
+async function updateProfileHandler(request: NextRequest): Promise<NextResponse<UpdateProfileResponse>> {
+  const startTime = Date.now()
+  
   try {
-    // Parse request body
+    // Parse request body with timeout
     let body: UpdateProfileRequestBody
     try {
-      body = await request.json()
-    } catch {
+      body = await Promise.race([
+        request.json(),
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), 5000)
+        )
+      ])
+    } catch (error) {
+      console.error('Profile update request parsing error:', error)
       return NextResponse.json(
-        { success: false, error: 'Invalid JSON in request body' },
+        { success: false, error: 'Invalid JSON in request body or timeout' },
         { status: 400 }
       )
     }
@@ -116,18 +131,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<UpdatePro
       )
     }
 
-    // Initialize Supabase client with service role for admin operations
-    const supabase = createServerSupabaseClient()
+    // Use optimized user profile lookup with caching
+    const existingUser = await getUserProfileOptimized(tokenPayload.sub)
 
-    // Check if user exists
-    const { data: existingUser, error: fetchError } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('line_user_id', tokenPayload.sub)
-      .single()
-
-    if (fetchError || !existingUser) {
-      console.error('User not found or database error:', fetchError)
+    if (!existingUser) {
+      console.error('User profile not found:', tokenPayload.sub)
       return NextResponse.json(
         { success: false, error: 'User profile not found' },
         { status: 404 }
@@ -155,24 +163,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<UpdatePro
       updateData.phone = phone.trim()
     }
 
-    // Update user profile
-    const { data: updatedUser, error: updateError } = await supabase
-      .from('user_profiles')
-      .update(updateData)
-      .eq('line_user_id', tokenPayload.sub)
-      .select()
-      .single()
-
-    if (updateError) {
-      console.error('User profile update error:', updateError)
-      return NextResponse.json(
-        { success: false, error: 'Failed to update user profile' },
-        { status: 500 }
-      )
-    }
-
-    // Clear the user profile cache to ensure middleware gets fresh data
-    clearUserProfileCache(tokenPayload.sub)
+    // Use optimized profile update with intelligent caching
+    const updatedUser = await updateUserProfileOptimized(tokenPayload.sub, updateData)
 
     // Determine if user has completed onboarding
     const isOnboarded = !!(
@@ -181,6 +173,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<UpdatePro
       updatedUser.last_name &&
       updatedUser.phone
     )
+
+    // Log performance metrics
+    const duration = Date.now() - startTime
+    console.log(`✅ Profile update completed in ${duration}ms`, {
+      lineUserId: tokenPayload.sub,
+      fieldsUpdated: Object.keys(updateData).filter(k => k !== 'updated_at'),
+      isOnboarded
+    })
 
     // Return updated user profile
     return NextResponse.json({
@@ -210,6 +210,18 @@ export async function POST(request: NextRequest): Promise<NextResponse<UpdatePro
     )
   }
 }
+
+// Enhanced POST handler with performance optimizations
+export const POST = withRateLimit(30, 60000)(  // 30 profile updates per minute
+  withRequestDeduplication(
+    withPerformanceMonitoring(updateProfileHandler, 'profile.update'),
+    (request: NextRequest) => {
+      // Custom key for profile updates - include auth header for user-specific deduplication
+      const authHeader = request.headers.get('authorization')
+      return `profile-update:${authHeader?.slice(0, 30) || 'no-auth'}`
+    }
+  )
+)
 
 // Handle unsupported HTTP methods
 export async function GET(): Promise<NextResponse> {
