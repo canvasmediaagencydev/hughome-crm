@@ -6,7 +6,6 @@ import {
   clearUserProfileCache 
 } from '@/lib/supabase-server'
 import { verifyLineIdToken, validateLineConfig } from '@/lib/line-auth'
-import { withRequestDeduplication, withPerformanceMonitoring, withRateLimit } from '@/lib/api-performance'
 
 interface UpdateProfileRequestBody {
   idToken: string
@@ -212,16 +211,9 @@ async function updateProfileHandler(request: NextRequest): Promise<NextResponse<
 }
 
 // Enhanced POST handler with performance optimizations
-export const POST = withRateLimit(30, 60000)(  // 30 profile updates per minute
-  withRequestDeduplication(
-    withPerformanceMonitoring(updateProfileHandler, 'profile.update'),
-    (request: NextRequest) => {
-      // Custom key for profile updates - include auth header for user-specific deduplication
-      const authHeader = request.headers.get('authorization')
-      return `profile-update:${authHeader?.slice(0, 30) || 'no-auth'}`
-    }
-  )
-)
+export async function POST(request: NextRequest): Promise<NextResponse<UpdateProfileResponse>> {
+  return await updateProfileHandler(request)
+}
 
 // Handle unsupported HTTP methods
 export async function GET(): Promise<NextResponse> {

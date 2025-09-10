@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, getCacheStats } from '@/lib/supabase-server'
-import { createHealthCheck } from '@/lib/api-performance'
 
 // Database connectivity check
 async function checkDatabase(): Promise<boolean> {
@@ -60,12 +59,52 @@ async function checkMemory(): Promise<boolean> {
 }
 
 // Export the health check handler
-export const GET = createHealthCheck({
-  database: checkDatabase,
-  cache: checkCache,
-  lineAPI: checkLineAPI,
-  memory: checkMemory
-})
+export async function GET(): Promise<NextResponse> {
+  const startTime = Date.now()
+  const results: Record<string, { status: 'ok' | 'error', duration: number, error?: string }> = {}
+  
+  // Run all health checks in parallel with timeout
+  const checks = { database: checkDatabase, cache: checkCache, lineAPI: checkLineAPI, memory: checkMemory }
+  const checkPromises = Object.entries(checks).map(async ([name, check]) => {
+    const checkStart = Date.now()
+    try {
+      await Promise.race([
+        check(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Health check timeout')), 5000)
+        )
+      ])
+      results[name] = { 
+        status: 'ok', 
+        duration: Date.now() - checkStart 
+      }
+    } catch (error) {
+      results[name] = { 
+        status: 'error', 
+        duration: Date.now() - checkStart,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }
+  })
+  
+  await Promise.allSettled(checkPromises)
+  
+  const overallStatus = Object.values(results).every(r => r.status === 'ok') ? 'healthy' : 'unhealthy'
+  const totalDuration = Date.now() - startTime
+  
+  return NextResponse.json({
+    status: overallStatus,
+    timestamp: new Date().toISOString(),
+    duration: totalDuration,
+    checks: results
+  }, {
+    status: overallStatus === 'healthy' ? 200 : 503,
+    headers: {
+      'cache-control': 'no-cache, no-store, must-revalidate',
+      'x-health-check-duration': totalDuration.toString()
+    }
+  })
+}
 
 // Also provide detailed performance metrics
 export async function POST(): Promise<NextResponse> {

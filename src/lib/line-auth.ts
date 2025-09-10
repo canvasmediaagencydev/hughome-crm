@@ -50,7 +50,6 @@ function getJWKS() {
       timeoutDuration: 15000, // Increased timeout for better reliability
       cooldownDuration: 10000, // Faster recovery from errors
       cacheMaxAge: JWKS_CACHE_TTL, // Explicit cache duration
-      retryAttempts: 3, // Multiple retry attempts
     })
     jwksCacheTime = now
   }
