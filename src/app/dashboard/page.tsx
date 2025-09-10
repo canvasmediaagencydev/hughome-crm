@@ -42,7 +42,7 @@ const UserProfile = memo(({ user, imageError, onImageError }: {
 UserProfile.displayName = 'UserProfile'
 
 const PointsCard = memo(({ points }: { points: number }) => (
-  <div className="bg-red-600 rounded-2xl p-6 mt-10 mb-6 shadow-lg">
+  <div className="bg-red-600 rounded-2xl p-6 mt-5 mb-6 shadow-lg">
     <div className="flex justify-between items-center px-5">
       <div className="flex items-center justify-between w-full">
         <h3 className="text-white text-2xl font-bold mb-1">User <br /> Point</h3>
@@ -59,8 +59,8 @@ const PointsCard = memo(({ points }: { points: number }) => (
 PointsCard.displayName = 'PointsCard'
 
 const UploadButton = memo(() => (
-  <div className="mb-6 mt-45 mx-auto text-center">
-    <button className="w-3/5 bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-6 rounded-full shadow-lg transition-colors text-lg">
+  <div className="mb-6 mx-auto text-center">
+    <button className="w-4/5 bg-red-600 text-nowrap hover:bg-red-700 text-white font-medium py-3 px- rounded-full shadow-lg transition-colors text-lg">
       อัพโหลดใบเสร็จ
     </button>
     <p className="text-gray-500 text-sm mt-2">คุณสามารถอัพโหลดใบเสร็จเพื่อแลกแต้มได้ที่นี่</p>
@@ -69,7 +69,7 @@ const UploadButton = memo(() => (
 UploadButton.displayName = 'UploadButton'
 
 const BottomNavigation = memo(() => (
-  <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 safe-area-pb">
+  <div className="fixed bottom-0 left-0 right-0 border-t border-gray-200 px-4 py-2 safe-area-pb">
     <div className="flex justify-around items-center pb-3">
       
       <button className="flex flex-col items-center py-2 px-3">
@@ -151,20 +151,25 @@ function DashboardPage() {
         </div>
 
         {/* Main Content */}
-        <div className="px-4 pb-20 rounded-xl -mt-8 relative z-10">
-          
-          {/* User Profile Section */}
-          <UserProfile
-            user={user}
-            imageError={imageError}
-            onImageError={handleImageError}
-          />
+        <div className="px-4 pb-20 justify-between flex flex-col rounded-xl -mt-8 relative z-10">
+          <div className='flex flex-col'>
+            {/* User Profile Section */}
+            <UserProfile
+              user={user}
+              imageError={imageError}
+              onImageError={handleImageError}
+            />
 
-          {/* Points Card */}
-          <PointsCard points={userPoints} />
+            {/* Points Card */}
+            <PointsCard points={userPoints} />
+          </div>
+        </div>
 
-          {/* Quick Action Button */}
-          <UploadButton />
+        {/* Upload Button fixed above nav */}
+        <div className="fixed left-0 right-0 bottom-20 flex justify-center z-30 pointer-events-none">
+          <div className="pointer-events-auto w-full flex justify-center">
+            <UploadButton />
+          </div>
         </div>
 
         {/* Bottom Navigation */}
