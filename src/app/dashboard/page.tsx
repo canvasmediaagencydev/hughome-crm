@@ -59,7 +59,7 @@ const PointsCard = memo(({ points }: { points: number }) => (
 PointsCard.displayName = 'PointsCard'
 
 const UploadButton = memo(() => (
-  <div className="mb-6 mt-50 mx-auto text-center">
+  <div className="mb-6 mt-45 mx-auto text-center">
     <button className="w-3/5 bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-6 rounded-full shadow-lg transition-colors text-lg">
       อัพโหลดใบเสร็จ
     </button>
@@ -70,7 +70,7 @@ UploadButton.displayName = 'UploadButton'
 
 const BottomNavigation = memo(() => (
   <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 safe-area-pb">
-    <div className="flex justify-around items-center">
+    <div className="flex justify-around items-center pb-3">
       
       <button className="flex flex-col items-center py-2 px-3">
         <div className="w-6 h-6 mb-1">
