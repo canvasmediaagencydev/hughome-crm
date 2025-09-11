@@ -38,12 +38,12 @@ const UserProfile = memo(({ user, imageError, onImageError }: {
           priority
         />
       ) : (
-        <div className="w-25 h-25 rounded-full bg-gray-300 flex items-center justify-center text-white text-xl font-bold border-4 border-white shadow-lg">
+        <div className="w-25 h-25 rounded-full bg-red-500 flex items-center justify-center text-white text-xl font-bold border-4 border-white shadow-lg">
           {(user.first_name || 'U').charAt(0).toUpperCase()}
         </div>
       )}
     </div>
-    <div className="ml-24 mt-7 px-4 py-2 ">
+    <div className="ml-24 mt-9 px-4 py-2 ">
       <h2 className="text-lg font-bold text-gray-600">
         {user.first_name} {user.last_name}
       </h2>
@@ -57,27 +57,50 @@ const PointsCard = memo(({ points, isRefreshing, onRefresh }: {
   isRefreshing?: boolean,
   onRefresh?: () => void 
 }) => (
-  <div className="bg-red-600 rounded-2xl relative p-6 mt-5 mb-6 shadow-lg">
-    <div className="flex justify-between items-center px-5">
-      <div className="flex items-center justify-between w-full">
-        <h3 className="text-white text-2xl font-bold mb-1">User <br /> Point</h3>
-        <div className="flex items-center">
-          <div className="flex items-baseline">
-            <span className="text-white text-4xl font-bold">
-              {points || 0}
-            </span>
-            <span className="text-white text-lg ml-2">แต้ม</span>
-          </div>
-          <button
-            onClick={onRefresh}
-            disabled={isRefreshing}
-            className="ml-3 p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-full transition-colors disabled:opacity-50 absolute top-0 right-0"
-            title="รีเฟรชแต้ม"
-          >
-            <IoMdRefresh 
-              className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`}
+  <div className="relative overflow-hidden">
+    {/* Background with gradient */}
+    <div className="bg-gradient-to-br from-red-500 via-red-600 to-red-700 rounded-3xl p-6 mt-3 mb-6">
+      <button
+        onClick={onRefresh}
+        disabled={isRefreshing}
+        className="absolute top-4 right-4 py-4 px-2 text-white/80 hover:text-white hover:bg-white/20 rounded-full transition-all duration-200 disabled:opacity-50 z-10"
+        title="รีเฟรชแต้ม"
+      >
+        <IoMdRefresh 
+          className={`w-8 h-8 ${isRefreshing ? 'animate-spin' : ''}`}
+        />
+      </button>
+
+      {/* Content */}
+      <div className="relative z-10">
+        {/* Header */}
+        <div className="flex items-center mb-4">
+          <div className="w-10 h-10  bg-white/20 rounded-lg flex items-center justify-center mr-3">
+            <Image
+              src="/image/wired-lineal-290-coin-morph-coins.gif"
+              alt="Coins"
+              width={32}
+              height={32}
+              className="w-8 h-8"
             />
-          </button>
+          </div>
+          <h3 className="text-white/90 text-lg font-medium">คะแนนสะสม</h3>
+        </div>
+
+        {/* Points display */}
+        <div className="flex items-baseline mb-2">
+          <span className="text-white text-5xl font-bold tracking-tight">
+            {points?.toLocaleString() || '0'}
+          </span>
+          <span className="text-white/80 text-xl ml-3 font-medium">แต้ม</span>
+        </div>
+
+        {/* Status indicator */}
+        <div className="flex items-center justify-end mt-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+          <span className="text-white/70 text-sm">
+            {isRefreshing ? 'กำลังอัพเดต...' : 'อัพเดตล่าสุด'}
+          </span>
         </div>
       </div>
     </div>
@@ -107,8 +130,14 @@ const BottomNavigation = memo(() => (
       </button>
 
       <button className="flex flex-col items-center py-2 px-3">
-        <div className="w-6 h-6 mb-1">
-          <FaGift className="w-full h-full text-gray-400" />
+        <div className="w-8 h-8 mb-1">
+          <Image
+            src="/image/wired-outline-412-gift-morph-open(1).gif"
+            alt="Gift"
+            width={32}
+            height={32}
+            className="w-full h-full"
+          />
         </div>
         <span className="text-xs text-gray-400">แลกของรางวัล</span>
       </button>
@@ -230,7 +259,7 @@ function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen ">
       {/* Banner Header */}
       <div className="relative">
         <Image
@@ -259,6 +288,7 @@ function DashboardPage() {
             isRefreshing={isRefreshing} 
             onRefresh={refreshUserData}
           />
+         
         </div>
       </div>
 

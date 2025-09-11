@@ -9,6 +9,9 @@ interface RefreshResponse {
   success: boolean
   updates?: {
     points_balance: number
+    first_name: string
+    last_name: string
+    picture_url: string | null
   }
   error?: string
 }
@@ -30,7 +33,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<RefreshRe
     
     const { data: userProfile, error } = await supabase
       .from('user_profiles')
-      .select('points_balance')
+      .select('points_balance, first_name, last_name, picture_url')
       .eq('id', userId)
       .single()
 
@@ -44,7 +47,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<RefreshRe
     return NextResponse.json({
       success: true,
       updates: {
-        points_balance: userProfile.points_balance || 0
+        points_balance: userProfile.points_balance || 0,
+        first_name: userProfile.first_name || '',
+        last_name: userProfile.last_name || '',
+        picture_url: userProfile.picture_url || null
       }
     })
 
