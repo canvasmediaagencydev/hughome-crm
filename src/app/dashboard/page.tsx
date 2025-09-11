@@ -195,8 +195,28 @@ function DashboardPage() {
           }
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.warn('Failed to refresh user data:', error)
+      
+      // If user not found in database (404), logout and redirect to login
+      if (error.response?.status === 404) {
+        console.log('User not found in database, logging out and redirecting to login')
+        UserSessionManager.clearSession()
+        
+        // Logout from LINE LIFF and redirect to login page
+        try {
+          const liff = (await import('@line/liff')).default
+          await liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID || "2000719050-rGVOBePm" })
+          if (liff.isLoggedIn()) {
+            liff.logout()
+          }
+        } catch (liffError) {
+          console.warn('LIFF logout failed:', liffError)
+        }
+        
+        router.push('/')
+        return
+      }
     } finally {
       setIsRefreshing(false)
     }

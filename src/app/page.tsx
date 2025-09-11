@@ -48,8 +48,28 @@ export default function Home() {
         return true
       }
       return false
-    } catch (apiError) {
+    } catch (apiError: any) {
       console.error('API authentication failed:', apiError)
+      
+      // If user not found in database, logout and retry login
+      if (apiError.response?.status === 404) {
+        console.log('User not found in database during login, logging out and retrying')
+        UserSessionManager.clearSession()
+        
+        // Logout from LINE LIFF to force fresh login
+        try {
+          if (liff.isLoggedIn()) {
+            liff.logout()
+            // After logout, LIFF will redirect to login automatically
+            return false
+          }
+        } catch (liffError) {
+          console.warn('LIFF logout failed:', liffError)
+        }
+        
+        return false
+      }
+      
       return false
     }
   }
