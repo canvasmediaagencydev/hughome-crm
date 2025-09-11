@@ -19,7 +19,9 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
-  const authenticateWithBackend = async (profile: any, forceValidation = false) => {
+  const authenticateWithBackend = async (profile: any, forceValidation = false, retryCount = 0) => {
+    const maxRetries = 2
+    
     try {
       const idToken = liff.getIDToken()
       const response = await axios.post('/api/liff/login', {
@@ -68,6 +70,14 @@ export default function Home() {
         }
         
         return false
+      }
+      
+      // Retry for 500 errors (server errors)
+      if (apiError.response?.status === 500 && retryCount < maxRetries) {
+        console.log(`Login API 500 error, retrying... (${retryCount + 1}/${maxRetries})`)
+        // Wait a bit before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)))
+        return authenticateWithBackend(profile, forceValidation, retryCount + 1)
       }
       
       return false
