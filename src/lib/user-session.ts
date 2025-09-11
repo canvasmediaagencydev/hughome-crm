@@ -111,11 +111,24 @@ export class UserSessionManager {
     return session?.user || null
   }
   
+  static isUserDataComplete(user: CachedUserSession['user']): boolean {
+    return !!(
+      user.first_name &&
+      user.last_name &&
+      user.phone &&
+      user.role
+    )
+  }
+  
   static updateUserData(updates: Partial<CachedUserSession['user']>): void {
     const session = this.getCachedSession()
     if (!session) return
     
     session.user = { ...session.user, ...updates }
+    
+    // Auto-calculate is_onboarded based on data completeness
+    session.user.is_onboarded = this.isUserDataComplete(session.user)
+    
     session.timestamp = Date.now()
     
     try {

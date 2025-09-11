@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { IoHome } from "react-icons/io5";
 import { FaUsers } from "react-icons/fa";
 import axios from 'axios'
+import { UserSessionManager } from '@/lib/user-session'
 
 interface OnboardingFormData {
   role: 'homeowner' | 'contractor'
@@ -75,11 +76,17 @@ export default function OnboardingForm() {
       const data = response.data
       
       if (data.success && data.user) {
-        // Update localStorage with complete user data
-        localStorage.setItem('user', JSON.stringify({
+        // Update localStorage with complete user data including is_onboarded
+        const updatedUserData = {
           ...userData,
-          ...data.user
-        }))
+          ...data.user,
+          is_onboarded: true
+        }
+        
+        localStorage.setItem('user', JSON.stringify(updatedUserData))
+        
+        // Also update UserSessionManager
+        UserSessionManager.saveSession(updatedUserData)
         
         // Redirect to dashboard
         router.push('/dashboard')

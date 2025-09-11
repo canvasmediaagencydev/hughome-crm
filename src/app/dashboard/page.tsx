@@ -187,6 +187,12 @@ function DashboardPage() {
           const updatedUser = { ...cachedSession.user, ...response.data.updates }
           UserSessionManager.updateUserData(updatedUser)
           setUserData(transformUserData(updatedUser))
+          
+          // Check if user needs to complete onboarding after refresh
+          if (!updatedUser.is_onboarded) {
+            router.push('/onboarding')
+            return
+          }
         }
       }
     } catch (error) {

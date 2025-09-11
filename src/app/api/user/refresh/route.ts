@@ -12,6 +12,7 @@ interface RefreshResponse {
     first_name: string
     last_name: string
     picture_url: string | null
+    is_onboarded: boolean
   }
   error?: string
 }
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<RefreshRe
     
     const { data: userProfile, error } = await supabase
       .from('user_profiles')
-      .select('points_balance, first_name, last_name, picture_url')
+      .select('points_balance, first_name, last_name, picture_url, role, phone')
       .eq('id', userId)
       .single()
 
@@ -44,13 +45,22 @@ export async function POST(request: NextRequest): Promise<NextResponse<RefreshRe
       )
     }
 
+    // Check if user data is complete for onboarding
+    const is_onboarded = !!(
+      userProfile.first_name &&
+      userProfile.last_name &&
+      userProfile.phone &&
+      userProfile.role
+    )
+
     return NextResponse.json({
       success: true,
       updates: {
         points_balance: userProfile.points_balance || 0,
         first_name: userProfile.first_name || '',
         last_name: userProfile.last_name || '',
-        picture_url: userProfile.picture_url || null
+        picture_url: userProfile.picture_url || null,
+        is_onboarded
       }
     })
 
