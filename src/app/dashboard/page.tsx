@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { IoMdHome } from "react-icons/io";
 import { FaGift } from "react-icons/fa6";
 import { FaUser } from "react-icons/fa";
+import { IoMdRefresh } from "react-icons/io";
 import { UserSessionManager } from '@/lib/user-session'
 import axios from 'axios'
 
@@ -51,19 +52,32 @@ const UserProfile = memo(({ user, imageError, onImageError }: {
 ))
 UserProfile.displayName = 'UserProfile'
 
-const PointsCard = memo(({ points, isRefreshing }: { points: number, isRefreshing?: boolean }) => (
-  <div className="bg-red-600 rounded-2xl p-6 mt-5 mb-6 shadow-lg">
+const PointsCard = memo(({ points, isRefreshing, onRefresh }: { 
+  points: number, 
+  isRefreshing?: boolean,
+  onRefresh?: () => void 
+}) => (
+  <div className="bg-red-600 rounded-2xl relative p-6 mt-5 mb-6 shadow-lg">
     <div className="flex justify-between items-center px-5">
       <div className="flex items-center justify-between w-full">
         <h3 className="text-white text-2xl font-bold mb-1">User <br /> Point</h3>
-        <div className="flex items-baseline">
-          <span className="text-white text-4xl font-bold">
-            {points || 0}
-          </span>
-          <span className="text-white text-lg ml-2">แต้ม</span>
-          {isRefreshing && (
-            <div className="ml-2 w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-          )}
+        <div className="flex items-center">
+          <div className="flex items-baseline">
+            <span className="text-white text-4xl font-bold">
+              {points || 0}
+            </span>
+            <span className="text-white text-lg ml-2">แต้ม</span>
+          </div>
+          <button
+            onClick={onRefresh}
+            disabled={isRefreshing}
+            className="ml-3 p-2 text-white hover:bg-white hover:bg-opacity-20 rounded-full transition-colors disabled:opacity-50 absolute top-0 right-0"
+            title="รีเฟรชแต้ม"
+          >
+            <IoMdRefresh 
+              className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`}
+            />
+          </button>
         </div>
       </div>
     </div>
@@ -134,11 +148,8 @@ function DashboardPage() {
     
     setIsRefreshing(true)
     try {
-      // Get fresh data from API (this could be a new endpoint just for data refresh)
       const cachedSession = UserSessionManager.getCachedSession()
       if (cachedSession) {
-        // In a real implementation, you might want to create a separate API endpoint
-        // for refreshing just the points balance and other dynamic data
         const response = await axios.post('/api/user/refresh', {
           userId: cachedSession.user.id
         })
@@ -154,7 +165,7 @@ function DashboardPage() {
     } finally {
       setIsRefreshing(false)
     }
-  }, [isRefreshing]) // Remove userData dependency to prevent loops
+  }, [isRefreshing])
 
   useEffect(() => {
     // Instant loading with cached data
@@ -165,10 +176,8 @@ function DashboardPage() {
       setUserData(transformUserData(cachedUser))
       setIsLoading(false)
       
-      // Background refresh if data is getting old
-      if (UserSessionManager.needsValidation()) {
-        setTimeout(() => refreshUserData(), 500)
-      }
+      // Always refresh points_balance when user comes back
+      setTimeout(() => refreshUserData(), 500)
     } else {
       // Fallback to old localStorage method for backward compatibility
       const storedUser = localStorage.getItem('user')
@@ -179,6 +188,8 @@ function DashboardPage() {
           setUserData(userData)
           // Migrate to new session system
           UserSessionManager.saveSession(user)
+          // Also refresh points after showing cached data
+          setTimeout(() => refreshUserData(), 500)
         } catch (error) {
           console.error('Error parsing user data:', error)
           router.push('/')
@@ -243,7 +254,11 @@ function DashboardPage() {
           />
 
           {/* Points Card */}
-          <PointsCard points={userData.points_balance} isRefreshing={isRefreshing} />
+          <PointsCard 
+            points={userData.points_balance} 
+            isRefreshing={isRefreshing} 
+            onRefresh={refreshUserData}
+          />
         </div>
       </div>
 
