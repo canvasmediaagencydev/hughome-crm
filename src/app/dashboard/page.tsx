@@ -159,6 +159,7 @@ function DashboardPage() {
   const [userData, setUserData] = useState<UserData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [hasInitialRefresh, setHasInitialRefresh] = useState(false)
   const router = useRouter()
 
   const handleImageError = useCallback(() => {
@@ -220,9 +221,12 @@ function DashboardPage() {
     } finally {
       setIsRefreshing(false)
     }
-  }, [isRefreshing])
+  }, [isRefreshing, router])
 
   useEffect(() => {
+    // Only run initial load logic once
+    if (hasInitialRefresh) return
+    
     // Instant loading with cached data
     const cachedUser = UserSessionManager.getCachedUser()
     
@@ -231,8 +235,11 @@ function DashboardPage() {
       setUserData(transformUserData(cachedUser))
       setIsLoading(false)
       
-      // Always refresh points_balance when user comes back
-      setTimeout(() => refreshUserData(), 500)
+      // Always refresh points_balance when user comes back (only once)
+      setTimeout(() => {
+        refreshUserData()
+        setHasInitialRefresh(true)
+      }, 500)
     } else {
       // Fallback to old localStorage method for backward compatibility
       const storedUser = localStorage.getItem('user')
@@ -243,8 +250,11 @@ function DashboardPage() {
           setUserData(userData)
           // Migrate to new session system
           UserSessionManager.saveSession(user)
-          // Also refresh points after showing cached data
-          setTimeout(() => refreshUserData(), 500)
+          // Also refresh points after showing cached data (only once)
+          setTimeout(() => {
+            refreshUserData()
+            setHasInitialRefresh(true)
+          }, 500)
         } catch (error) {
           console.error('Error parsing user data:', error)
           router.push('/')
@@ -254,8 +264,9 @@ function DashboardPage() {
         router.push('/')
       }
       setIsLoading(false)
+      setHasInitialRefresh(true)
     }
-  }, [router]) // Remove refreshUserData from dependencies
+  }, [hasInitialRefresh, refreshUserData, router])
 
   if (isLoading) {
     return (
