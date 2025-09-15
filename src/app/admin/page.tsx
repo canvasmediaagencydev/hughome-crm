@@ -1,162 +1,110 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAdminAuth } from '@/hooks/useAdminAuth'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Users, Receipt, Gift, BarChart3, TrendingUp } from 'lucide-react'
+import Link from 'next/link'
+import { useAdminAuth } from '@/hooks/useAdminAuth'
 
 export default function AdminDashboard() {
-  const { user, loading, signOut } = useAdminAuth()
-  const router = useRouter()
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/admin/login')
-    }
-  }, [user, loading, router])
-
-  const handleLogout = async () => {
-    try {
-      await signOut()
-      router.push('/admin/login')
-    } catch (error) {
-      console.error('Logout error:', error)
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div>กำลังโหลด...</div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return null // Will redirect to login
-  }
+  const { user } = useAdminAuth()
+  const dashboardCards = [
+    {
+      title: 'จัดการผู้ใช้',
+      description: 'ดูและจัดการข้อมูลผู้ใช้งาน',
+      href: '/admin/users',
+      icon: Users,
+      stats: 'เร็วๆ นี้',
+    },
+    {
+      title: 'อนุมัติใบเสร็จ',
+      description: 'ตรวจสอบและอนุมัติใบเสร็จ',
+      href: '/admin/receipts',
+      icon: Receipt,
+      stats: 'เร็วๆ นี้',
+    },
+    {
+      title: 'จัดการรางวัล',
+      description: 'สร้างและแก้ไขรางวัล',
+      href: '/admin/rewards',
+      icon: Gift,
+      stats: 'เร็วๆ นี้',
+    },
+    {
+      title: 'รายงาน',
+      description: 'ดูรายงานและสถิติต่างๆ',
+      href: '/admin/reports',
+      icon: BarChart3,
+      stats: 'เร็วๆ นี้',
+    },
+  ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-xl font-semibold text-gray-900">
-              Admin Dashboard
-            </h1>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
-                {user.email}
-              </span>
-              <Button
-                variant="outline"
-                onClick={handleLogout}
-              >
-                ออกจากระบบ
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="space-y-6">
+      {/* Welcome Section */}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-600 mt-1">ยินดีต้อนรับสู่ระบบจัดการผู้ดูแล Hughome CRM</p>
+        <p className="text-sm text-blue-600 mt-2 font-medium">เข้าสู่ระบบด้วย: {user?.email}</p>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Welcome Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle>ยินดีต้อนรับ</CardTitle>
-                <CardDescription>
-                  ระบบจัดการผู้ดูแล Hughome CRM
-                </CardDescription>
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {dashboardCards.map((card) => {
+          const Icon = card.icon
+          return (
+            <Card key={card.title} className="hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {card.title}
+                </CardTitle>
+                <Icon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-gray-600">
-                  เข้าสู่ระบบสำเร็จ! คุณสามารถเริ่มจัดการระบบได้แล้ว
+                <div className="text-2xl font-bold">{card.stats}</div>
+                <p className="text-xs text-muted-foreground">
+                  {card.description}
                 </p>
+                <Link href={card.href}>
+                  <Button className="w-full mt-4" variant="outline" size="sm">
+                    เข้าสู่หน้า
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
+          )
+        })}
+      </div>
 
-            {/* User Management Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle>จัดการผู้ใช้</CardTitle>
-                <CardDescription>
-                  ดูและจัดการข้อมูลผู้ใช้งาน
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button className="w-full" variant="outline">
-                  เข้าสู่หน้าจัดการผู้ใช้
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Receipts Management Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle>อนุมัติใบเสร็จ</CardTitle>
-                <CardDescription>
-                  ตรวจสอบและอนุมัติใบเสร็จ
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button className="w-full" variant="outline">
-                  เข้าสู่หน้าอนุมัติใบเสร็จ
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Rewards Management Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle>จัดการรางวัล</CardTitle>
-                <CardDescription>
-                  สร้างและแก้ไขรางวัล
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button className="w-full" variant="outline">
-                  เข้าสู่หน้าจัดการรางวัล
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Reports Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle>รายงาน</CardTitle>
-                <CardDescription>
-                  ดูรายงานและสถิติต่างๆ
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button className="w-full" variant="outline">
-                  เข้าสู่หน้ารายงาน
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Settings Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle>ตั้งค่าระบบ</CardTitle>
-                <CardDescription>
-                  กำหนดค่าต่างๆ ของระบบ
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button className="w-full" variant="outline">
-                  เข้าสู่หน้าตั้งค่า
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </main>
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>การดำเนินการด่วน</CardTitle>
+          <CardDescription>
+            ฟีเจอร์ที่ใช้บ่อยสำหรับการจัดการระบบ
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Link href="/admin/users">
+            <Button variant="outline" className="w-full">
+              <Users className="mr-2 h-4 w-4" />
+              ดูผู้ใช้ทั้งหมด
+            </Button>
+          </Link>
+          <Link href="/admin/receipts">
+            <Button variant="outline" className="w-full">
+              <Receipt className="mr-2 h-4 w-4" />
+              ใบเสร็จรอการอนุมัติ
+            </Button>
+          </Link>
+          <Link href="/admin/rewards">
+            <Button variant="outline" className="w-full">
+              <Gift className="mr-2 h-4 w-4" />
+              เพิ่มรางวัลใหม่
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
     </div>
   )
 }

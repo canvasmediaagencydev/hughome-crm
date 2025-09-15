@@ -32,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="th">
       <body
-        className={`${notoSansThai.variable} font-sans overflow-hidden antialiased bg-gray-50`}
+        className={`${notoSansThai.variable} font-sans antialiased bg-gray-50`}
       >
         {children}
       </body>

@@ -391,16 +391,6 @@ export type Database = {
       }
     }
     Views: {
-      admin_summary: {
-        Row: {
-          onboarded_users: number | null
-          total_points_outstanding: number | null
-          total_users: number | null
-          users_today: number | null
-          users_week: number | null
-        }
-        Relationships: []
-      }
       user_dashboard: {
         Row: {
           created_at: string | null
