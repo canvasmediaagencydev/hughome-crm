@@ -1,12 +1,11 @@
 'use client'
 
-import { useState, memo, useCallback, useEffect } from 'react'
+import { useState, memo, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { IoMdHome } from "react-icons/io";
-import { FaGift } from "react-icons/fa6";
-import { FaUser } from "react-icons/fa";
-import { IoMdRefresh } from "react-icons/io";
+import { IoMdHome, IoMdRefresh, IoMdTrendingUp, IoMdCamera } from "react-icons/io";
+import { FaUser, FaHistory, FaWallet, FaStar } from "react-icons/fa";
+import { HiOutlineUpload, HiOutlineGift, HiOutlineBell, HiOutlineMenu } from "react-icons/hi";
 import { UserSessionManager } from '@/lib/user-session'
 import axios from 'axios'
 
@@ -20,168 +19,197 @@ interface UserData {
   pictureUrl?: string
 }
 
-const UserProfile = memo(({ user, imageError, onImageError }: {
+const BannerSlider = memo(() => {
+  const [currentSlide, setCurrentSlide] = useState(0)
+  const slideInterval = useRef<NodeJS.Timeout | null>(null)
+
+  // Mock multiple banners - ในอนาคตจะ fetch จาก API
+  const banners = [
+    '/image/banner.svg',
+    '/image/banner.svg', // ใช้ไฟล์เดียวก่อน
+    '/image/banner.svg',
+  ]
+
+  const startSlideShow = useCallback(() => {
+    slideInterval.current = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % banners.length)
+    }, 4000) // เปลี่ยนทุก 4 วินาที
+  }, [banners.length])
+
+  const stopSlideShow = useCallback(() => {
+    if (slideInterval.current) {
+      clearInterval(slideInterval.current)
+      slideInterval.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    startSlideShow()
+    return () => stopSlideShow()
+  }, [startSlideShow, stopSlideShow])
+
+  return (
+    <div className="relative h-48 overflow-hidden">
+      <div
+        className="flex transition-transform duration-500 ease-in-out h-full"
+        style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+      >
+        {banners.map((banner, index) => (
+          <div key={index} className="w-full flex-shrink-0 h-full relative">
+            <Image
+              src={banner}
+              alt={`Banner ${index + 1}`}
+              fill
+              className="object-cover"
+              priority={index === 0}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Dots indicator */}
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+        {banners.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => setCurrentSlide(index)}
+            className={`w-2 h-2 rounded-full transition-all duration-200 ${index === currentSlide ? 'bg-white' : 'bg-white/50'
+              }`}
+          />
+        ))}
+      </div>
+    </div>
+  )
+})
+
+const HeaderSection = memo(({ user, imageError, onImageError }: {
   user: any
   imageError: boolean
   onImageError: () => void
 }) => (
-  <div className="flex items-center mb-6">
-    <div className="absolute">
-      {user.picture_url && !imageError ? (
-        <Image
-          src={user.picture_url}
-          alt="Profile"
-          width={100}
-          height={100}
-          className="w-25 h-25 rounded-full border-4 border-white shadow-lg"
-          onError={onImageError}
-          priority
-        />
-      ) : (
-        <div className="w-25 h-25 rounded-full bg-red-500 flex items-center justify-center text-white text-xl font-bold border-4 border-white shadow-lg">
-          {(user.first_name || 'U').charAt(0).toUpperCase()}
+  <div className="bg-white">
+    <div className="flex items-center justify-between p-4 pt-12">
+      <div className="flex items-center space-x-3">
+        <div className="relative">
+          {user.picture_url && !imageError ? (
+            <Image
+              src={user.picture_url}
+              alt="Profile"
+              width={68}
+              height={68}
+              className="w-30 h-30 rounded-full object-cover"
+              onError={onImageError}
+              priority
+            />
+          ) : (
+            <div className="w-30 h-30 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 text-sm font-medium">
+              {(user.first_name || 'U').charAt(0).toUpperCase()}
+            </div>
+          )}
         </div>
-      )}
-    </div>
-    <div className="ml-24 mt-9 px-4 py-2 ">
-      <h2 className="text-lg font-bold text-gray-600">
-        {user.first_name} {user.last_name}
-      </h2>
+        <div>
+          <h2 className="text-gray-900 text-base font-medium">
+            {user.first_name} {user.last_name}
+          </h2>
+        </div>
+      </div>
     </div>
   </div>
 ))
-UserProfile.displayName = 'UserProfile'
+HeaderSection.displayName = 'HeaderSection'
 
-const PointsCard = memo(({ points, isRefreshing, onRefresh }: {
+const StatusCard = memo(({ points, isRefreshing, onRefresh }: {
   points: number,
   isRefreshing?: boolean,
   onRefresh?: () => void
 }) => (
-  <div className="relative mt-3 mb-8 mx-2">
-    {/* Premium card with sophisticated design */}
-    <div className="relative bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.1)] border border-gray-100/50 overflow-hidden backdrop-blur-xl">
-
-      {/* Gradient background overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-red-50/80 via-white to-red-50/40"></div>
-
-      {/* Subtle pattern overlay */}
-      <div className="absolute inset-0 opacity-[0.02]" style={{
-        backgroundImage: `radial-gradient(circle at 2px 2px, rgba(0,0,0,0.15) 1px, transparent 0)`,
-        backgroundSize: '20px 20px'
-      }}></div>
-
-      {/* Top colored accent bar */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 via-red-600 to-red-500"></div>
-
-      {/* Refresh button */}
-      <button
-        onClick={onRefresh}
-        disabled={isRefreshing}
-        className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-all duration-200 disabled:opacity-50 z-20 group"
-        title="รีเฟรชแต้ม"
-      >
-        <IoMdRefresh
-          className={`w-5 h-5 transition-transform duration-200 group-hover:scale-110 ${isRefreshing ? 'animate-spin' : ''}`}
-        />
-      </button>
-
-      {/* Content */}
-      <div className="relative z-10 p-8">
-        {/* Header section */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg shadow-red-500/25">
-              <Image
-                src="/image/wired-lineal-290-coin-morph-coins.gif"
-                alt="Coins"
-                width={32}
-                height={32}
-                className="w-8 h-8"
-              />
-            </div>
-            <div>
-              <h3 className="text-gray-900 text-xl font-bold tracking-tight">คะแนนสะสม</h3>
-              <p className="text-gray-500 text-sm font-medium">Total Points Balance</p>
-            </div>
-          </div>
+  <div className="bg-white mx-4 mb-4">
+    <div className="bg-gray-900 rounded-2xl p-6">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center space-x-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+          <span className="text-green-500 text-xs font-medium uppercase tracking-wide">ACTIVE</span>
         </div>
+        <button
+          onClick={onRefresh}
+          disabled={isRefreshing}
+          className="text-gray-400 hover:text-white"
+        >
+          <IoMdRefresh className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
 
-        {/* Points display - premium typography */}
-        <div className="mb-6">
-          <div className="flex items-baseline space-x-3">
-            <span className="text-gray-900 text-7xl font-black tracking-tighter leading-none">
-              {points?.toLocaleString() || '0'}
-            </span>
-            <div className="flex flex-col">
-              <span className="text-red-600 text-xl font-bold uppercase tracking-wider">แต้ม</span>
-              <span className="text-gray-400 text-xs font-medium">POINTS</span>
-            </div>
-          </div>
-        </div>
+      <div className="text-white mb-4">
+        <h3 className="text-lg font-medium mb-1">คะแนนสะสม</h3>
+        <p className="text-sm text-gray-400">Total Points</p>
+      </div>
 
-        {/* Statistics row */}
-        <div className="flex items-center justify-between pt-6 border-t border-gray-100">
-          <div className="flex items-center space-x-3">
-            <div className={`w-3 h-3 rounded-full ${isRefreshing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'} shadow-sm`}></div>
-            <span className="text-gray-600 text-sm font-medium">
-              {isRefreshing ? 'กำลังอัพเดต...' : 'ข้อมูลล่าสุด'}
-            </span>
-          </div>
-
-          <div className="flex items-center space-x-2 text-gray-400">
-            <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
-            <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
-            <div className="w-1 h-1 bg-red-400 rounded-full"></div>
-          </div>
+      <div className="mb-4">
+        <div className="w-full bg-gray-700 rounded-full h-2">
+          <div
+            className="bg-green-500 h-2 rounded-full"
+            style={{ width: `${Math.min((points / 500000) * 100, 100)}%` }}
+          ></div>
         </div>
       </div>
 
-      {/* Subtle inner shadow for depth */}
-      <div className="absolute inset-0 rounded-3xl shadow-inner shadow-black/5 pointer-events-none"></div>
+      <div className="flex justify-between text-sm">
+        <div>
+          <span className="text-gray-400">ยอดรวม</span>
+          <div className="text-white font-medium text-xl">{points?.toLocaleString() || '0'} แต้ม</div>
+        </div>
+        <div className="text-right">
+          <div className="text-white font-medium text-xs">
+            <span className="text-gray-400">สถานะ</span>
+            <div className="text-white font-medium">{isRefreshing ? 'อัพเดต...' : 'ล่าสุด'}</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 ))
-PointsCard.displayName = 'PointsCard'
+StatusCard.displayName = 'StatusCard'
 
-const UploadButton = memo(() => (
-  <div className="mb-6 mx-auto text-center">
-    <button className="w-4/5 bg-red-600 text-nowrap hover:bg-red-700 text-white font-medium py-3 px- rounded-full shadow-lg transition-colors text-lg">
-      อัพโหลดใบเสร็จ
+
+const UploadSection = memo(() => (
+  <div className="bg-white px-4 pb-20">
+    <button className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-4 rounded-xl transition-colors flex items-center justify-center space-x-2">
+      <IoMdCamera className="w-5 h-5" />
+      <span>อัพโหลดใบเสร็จ</span>
     </button>
-    <p className="text-gray-500 text-sm mt-2">คุณสามารถอัพโหลดใบเสร็จเพื่อแลกแต้มได้ที่นี่</p>
   </div>
 ))
-UploadButton.displayName = 'UploadButton'
 
 const BottomNavigation = memo(() => (
-  <div className="fixed bottom-0 left-0 right-0 border-t border-gray-200 px-4 py-2 safe-area-pb">
-    <div className="flex justify-around items-center pb-3">
-      
-      <button className="flex flex-col items-center py-2 px-3">
+  <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
+    <div className="flex justify-around items-center py-3 safe-area-pb">
+
+      <button className="flex flex-col items-center py-2">
         <div className="w-6 h-6 mb-1">
           <IoMdHome className="w-full h-full text-red-500" />
         </div>
         <span className="text-xs text-red-600 font-medium">หน้าหลัก</span>
       </button>
 
-      <button className="flex flex-col items-center py-2 px-3">
-        <div className="w-8 h-8 mb-1">
-          <Image
-            src="/image/wired-outline-412-gift-morph-open(1).gif"
-            alt="Gift"
-            width={32}
-            height={32}
-            className="w-full h-full"
-          />
+      <button className="flex flex-col items-center py-2">
+        <div className="w-6 h-6 mb-1">
+          <HiOutlineGift className="w-full h-full text-gray-400" />
         </div>
-        <span className="text-xs text-gray-400">แลกของรางวัล</span>
+        <span className="text-xs text-gray-400">รางวัล</span>
       </button>
 
-      <button className="flex flex-col items-center py-2 px-3">
+      <button className="flex flex-col items-center py-2">
+        <div className="w-6 h-6 mb-1">
+          <FaHistory className="w-full h-full text-gray-400" />
+        </div>
+        <span className="text-xs text-gray-400">ประวัติ</span>
+      </button>
+
+      <button className="flex flex-col items-center py-2">
         <div className="w-6 h-6 mb-1">
           <FaUser className="w-full h-full text-gray-400" />
         </div>
-        <span className="text-xs text-gray-400">ข้อมูลผู้ใช้งาน</span>
+        <span className="text-xs text-gray-400">โปรไฟล์</span>
       </button>
 
     </div>
@@ -210,7 +238,7 @@ function DashboardPage() {
 
   const refreshUserData = useCallback(async () => {
     if (isRefreshing) return
-    
+
     setIsRefreshing(true)
     try {
       const cachedSession = UserSessionManager.getCachedSession()
@@ -218,12 +246,12 @@ function DashboardPage() {
         const response = await axios.post('/api/user/refresh', {
           userId: cachedSession.user.id
         })
-        
+
         if (response.data.success) {
           const updatedUser = { ...cachedSession.user, ...response.data.updates }
           UserSessionManager.updateUserData(updatedUser)
           setUserData(transformUserData(updatedUser))
-          
+
           // Check if user needs to complete onboarding after refresh
           if (!updatedUser.is_onboarded) {
             router.push('/onboarding')
@@ -233,12 +261,12 @@ function DashboardPage() {
       }
     } catch (error: any) {
       console.warn('Failed to refresh user data:', error)
-      
+
       // If user not found in database (404), logout and redirect to login
       if (error.response?.status === 404) {
         console.log('User not found in database, logging out and redirecting to login')
         UserSessionManager.clearSession()
-        
+
         // Logout from LINE LIFF and redirect to login page
         try {
           const liff = (await import('@line/liff')).default
@@ -249,7 +277,7 @@ function DashboardPage() {
         } catch (liffError) {
           console.warn('LIFF logout failed:', liffError)
         }
-        
+
         router.push('/')
         return
       }
@@ -261,15 +289,15 @@ function DashboardPage() {
   useEffect(() => {
     // Only run initial load logic once
     if (hasInitialRefresh) return
-    
+
     // Instant loading with cached data
     const cachedUser = UserSessionManager.getCachedUser()
-    
+
     if (cachedUser) {
       // Show cached data immediately
       setUserData(transformUserData(cachedUser))
       setIsLoading(false)
-      
+
       // Always refresh points_balance when user comes back (only once)
       setTimeout(() => {
         refreshUserData()
@@ -319,7 +347,7 @@ function DashboardPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
           <p className="text-gray-600">ไม่พบข้อมูลผู้ใช้</p>
-          <button 
+          <button
             onClick={() => router.push('/')}
             className="bg-red-500 text-white px-4 py-2 rounded"
           >
@@ -331,45 +359,26 @@ function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen ">
-      {/* Banner Header */}
-      <div className="relative">
-        <Image
-          src="/image/banner.svg" 
-          alt="Hughome Banner"
-          width={400}
-          height={192}
-          className="w-full h-48 object-cover"
-          priority
-        />
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Banner Slider */}
+      <BannerSlider />
 
-      {/* Main Content */}
-      <div className="px-4 pb-20 justify-between flex flex-col rounded-xl -mt-8 relative z-10">
-        <div className='flex flex-col'>
-          {/* User Profile Section */}
-          <UserProfile
-            user={userData}
-            imageError={imageError}
-            onImageError={handleImageError}
-          />
+      {/* Header */}
+      <HeaderSection
+        user={userData}
+        imageError={imageError}
+        onImageError={handleImageError}
+      />
 
-          {/* Points Card */}
-          <PointsCard 
-            points={userData.points_balance} 
-            isRefreshing={isRefreshing} 
-            onRefresh={refreshUserData}
-          />
-         
-        </div>
-      </div>
+      {/* Status Card */}
+      <StatusCard
+        points={userData.points_balance}
+        isRefreshing={isRefreshing}
+        onRefresh={refreshUserData}
+      />
 
-      {/* Upload Button fixed above nav */}
-      <div className="fixed left-0 right-0 bottom-20 flex justify-center z-30 pointer-events-none">
-        <div className="pointer-events-auto w-full flex justify-center">
-          <UploadButton />
-        </div>
-      </div>
+      {/* Upload Section */}
+      <UploadSection />
 
       {/* Bottom Navigation */}
       <BottomNavigation />
