@@ -52,57 +52,92 @@ const UserProfile = memo(({ user, imageError, onImageError }: {
 ))
 UserProfile.displayName = 'UserProfile'
 
-const PointsCard = memo(({ points, isRefreshing, onRefresh }: { 
-  points: number, 
+const PointsCard = memo(({ points, isRefreshing, onRefresh }: {
+  points: number,
   isRefreshing?: boolean,
-  onRefresh?: () => void 
+  onRefresh?: () => void
 }) => (
-  <div className="relative overflow-hidden">
-    {/* Background with gradient */}
-    <div className="bg-gradient-to-br from-red-500 via-red-600 to-red-700 rounded-3xl p-6 mt-3 mb-6">
+  <div className="relative mt-3 mb-8 mx-2">
+    {/* Premium card with sophisticated design */}
+    <div className="relative bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.1)] border border-gray-100/50 overflow-hidden backdrop-blur-xl">
+
+      {/* Gradient background overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-red-50/80 via-white to-red-50/40"></div>
+
+      {/* Subtle pattern overlay */}
+      <div className="absolute inset-0 opacity-[0.02]" style={{
+        backgroundImage: `radial-gradient(circle at 2px 2px, rgba(0,0,0,0.15) 1px, transparent 0)`,
+        backgroundSize: '20px 20px'
+      }}></div>
+
+      {/* Top colored accent bar */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 via-red-600 to-red-500"></div>
+
+      {/* Refresh button */}
       <button
         onClick={onRefresh}
         disabled={isRefreshing}
-        className="absolute top-4 right-4 py-4 px-2 text-white/80 hover:text-white hover:bg-white/20 rounded-full transition-all duration-200 disabled:opacity-50 z-10"
+        className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-all duration-200 disabled:opacity-50 z-20 group"
         title="รีเฟรชแต้ม"
       >
-        <IoMdRefresh 
-          className={`w-8 h-8 ${isRefreshing ? 'animate-spin' : ''}`}
+        <IoMdRefresh
+          className={`w-5 h-5 transition-transform duration-200 group-hover:scale-110 ${isRefreshing ? 'animate-spin' : ''}`}
         />
       </button>
 
       {/* Content */}
-      <div className="relative z-10">
-        {/* Header */}
-        <div className="flex items-center mb-4">
-          <div className="w-10 h-10  bg-white/20 rounded-lg flex items-center justify-center mr-3">
-            <Image
-              src="/image/wired-lineal-290-coin-morph-coins.gif"
-              alt="Coins"
-              width={32}
-              height={32}
-              className="w-8 h-8"
-            />
+      <div className="relative z-10 p-8">
+        {/* Header section */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-4">
+            <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg shadow-red-500/25">
+              <Image
+                src="/image/wired-lineal-290-coin-morph-coins.gif"
+                alt="Coins"
+                width={32}
+                height={32}
+                className="w-8 h-8"
+              />
+            </div>
+            <div>
+              <h3 className="text-gray-900 text-xl font-bold tracking-tight">คะแนนสะสม</h3>
+              <p className="text-gray-500 text-sm font-medium">Total Points Balance</p>
+            </div>
           </div>
-          <h3 className="text-white/90 text-lg font-medium">คะแนนสะสม</h3>
         </div>
 
-        {/* Points display */}
-        <div className="flex items-baseline mb-2">
-          <span className="text-white text-5xl font-bold tracking-tight">
-            {points?.toLocaleString() || '0'}
-          </span>
-          <span className="text-white/80 text-xl ml-3 font-medium">แต้ม</span>
+        {/* Points display - premium typography */}
+        <div className="mb-6">
+          <div className="flex items-baseline space-x-3">
+            <span className="text-gray-900 text-7xl font-black tracking-tighter leading-none">
+              {points?.toLocaleString() || '0'}
+            </span>
+            <div className="flex flex-col">
+              <span className="text-red-600 text-xl font-bold uppercase tracking-wider">แต้ม</span>
+              <span className="text-gray-400 text-xs font-medium">POINTS</span>
+            </div>
+          </div>
         </div>
 
-        {/* Status indicator */}
-        <div className="flex items-center justify-end mt-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-          <span className="text-white/70 text-sm">
-            {isRefreshing ? 'กำลังอัพเดต...' : 'อัพเดตล่าสุด'}
-          </span>
+        {/* Statistics row */}
+        <div className="flex items-center justify-between pt-6 border-t border-gray-100">
+          <div className="flex items-center space-x-3">
+            <div className={`w-3 h-3 rounded-full ${isRefreshing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'} shadow-sm`}></div>
+            <span className="text-gray-600 text-sm font-medium">
+              {isRefreshing ? 'กำลังอัพเดต...' : 'ข้อมูลล่าสุด'}
+            </span>
+          </div>
+
+          <div className="flex items-center space-x-2 text-gray-400">
+            <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
+            <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
+            <div className="w-1 h-1 bg-red-400 rounded-full"></div>
+          </div>
         </div>
       </div>
+
+      {/* Subtle inner shadow for depth */}
+      <div className="absolute inset-0 rounded-3xl shadow-inner shadow-black/5 pointer-events-none"></div>
     </div>
   </div>
 ))
