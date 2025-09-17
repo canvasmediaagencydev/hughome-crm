@@ -87,30 +87,31 @@ const HeaderSection = memo(({ user, imageError, onImageError }: {
   imageError: boolean
   onImageError: () => void
 }) => (
-  <div className="bg-white">
-    <div className="flex items-center justify-between p-4 pt-12">
-      <div className="flex items-center space-x-3">
+  <div className="bg-white shadow-xs rounded-b-2xl">
+    <div className="flex items-center justify-between p-4 px-6">
+      <div className="flex items-center space-x-4">
         <div className="relative">
           {user.picture_url && !imageError ? (
             <Image
               src={user.picture_url}
               alt="Profile"
-              width={68}
-              height={68}
-              className="w-30 h-30 rounded-full object-cover"
+              width={64}
+              height={64}
+              className="w-16 h-16 rounded-full object-cover ring-2 ring-gray-100"
               onError={onImageError}
               priority
             />
           ) : (
-            <div className="w-30 h-30 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 text-sm font-medium">
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white text-lg font-semibold shadow-lg">
               {(user.first_name || 'U').charAt(0).toUpperCase()}
             </div>
           )}
         </div>
         <div>
-          <h2 className="text-gray-900 text-base font-medium">
+          <h2 className="text-gray-900 text-lg font-semibold leading-tight">
             {user.first_name} {user.last_name}
           </h2>
+          <p className="text-gray-500 text-sm mt-1">ยินดีต้อนรับกลับมา</p>
         </div>
       </div>
     </div>
@@ -123,7 +124,7 @@ const StatusCard = memo(({ points, isRefreshing, onRefresh }: {
   isRefreshing?: boolean,
   onRefresh?: () => void
 }) => (
-  <div className="bg-white mx-4 mb-4">
+  <div className=" mt-5 mx-4 mb-4">
     <div className="bg-gray-900 rounded-2xl p-6">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center space-x-2">
@@ -135,7 +136,7 @@ const StatusCard = memo(({ points, isRefreshing, onRefresh }: {
           disabled={isRefreshing}
           className="text-gray-400 hover:text-white"
         >
-          <IoMdRefresh className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <IoMdRefresh className={`w-6 h-6 ${isRefreshing ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
@@ -172,44 +173,65 @@ StatusCard.displayName = 'StatusCard'
 
 
 const UploadSection = memo(() => (
-  <div className="bg-white px-4 pb-20">
-    <button className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-4 rounded-xl transition-colors flex items-center justify-center space-x-2">
-      <IoMdCamera className="w-5 h-5" />
-      <span>อัพโหลดใบเสร็จ</span>
-    </button>
+  <div className="bg-gray-50 px-6 pb-24">
+    <div className="space-y-4">
+      <div className="text-center mb-6">
+        <p className="text-sm text-gray-600">ถ่ายรูปหรือเลือกรูปใบเสร็จเพื่อสะสมแต้ม</p>
+      </div>
+
+      <button className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold py-4 px-6 rounded-2xl transition-all duration-200 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]">
+        <div className="bg-white/20 p-2 rounded-full">
+          <IoMdCamera className="w-6 h-6" />
+        </div>
+        <span className="text-lg">อัพโหลดใบเสร็จ</span>
+      </button>
+
+      {/* <div className="grid grid-cols-2 gap-3 mt-4">
+        <button className="bg-white border border-gray-200 hover:border-gray-300 text-gray-700 font-medium py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 hover:shadow-md">
+          <FaHistory className="w-4 h-4 text-gray-500" />
+          <span className="text-sm">ประวัติการอัพโหลด</span>
+        </button>
+
+        <button className="bg-white border border-gray-200 hover:border-gray-300 text-gray-700 font-medium py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 hover:shadow-md">
+          <HiOutlineGift className="w-4 h-4 text-gray-500" />
+          <span className="text-sm">ดูรางวัล</span>
+        </button>
+      </div> */}
+    </div>
   </div>
 ))
 
 const BottomNavigation = memo(() => (
-  <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
-    <div className="flex justify-around items-center py-3 safe-area-pb">
+  <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl border-t border-gray-100 shadow-2xl backdrop-blur-lg">
+    <div className="flex justify-around items-center py-2 px-4 safe-area-pb">
 
-      <button className="flex flex-col items-center py-2">
-        <div className="w-6 h-6 mb-1">
+      <button className="flex flex-col items-center py-3 px-2 rounded-xl transition-all duration-200 hover:bg-red-50 active:scale-95">
+        <div className="w-6 h-6 mb-1 relative">
           <IoMdHome className="w-full h-full text-red-500" />
+          <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
         </div>
-        <span className="text-xs text-red-600 font-medium">หน้าหลัก</span>
+        <span className="text-xs text-red-600 font-semibold">หน้าหลัก</span>
       </button>
 
-      <button className="flex flex-col items-center py-2">
+      <button className="flex flex-col items-center py-3 px-2 rounded-xl transition-all duration-200 hover:bg-gray-50 active:scale-95">
         <div className="w-6 h-6 mb-1">
-          <HiOutlineGift className="w-full h-full text-gray-400" />
+          <HiOutlineGift className="w-full h-full text-gray-500" />
         </div>
-        <span className="text-xs text-gray-400">รางวัล</span>
+        <span className="text-xs text-gray-500 font-medium">รางวัล</span>
       </button>
 
-      <button className="flex flex-col items-center py-2">
+      <button className="flex flex-col items-center py-3 px-2 rounded-xl transition-all duration-200 hover:bg-gray-50 active:scale-95">
         <div className="w-6 h-6 mb-1">
-          <FaHistory className="w-full h-full text-gray-400" />
+          <FaHistory className="w-full h-full text-gray-500" />
         </div>
-        <span className="text-xs text-gray-400">ประวัติ</span>
+        <span className="text-xs text-gray-500 font-medium">ประวัติ</span>
       </button>
 
-      <button className="flex flex-col items-center py-2">
+      <button className="flex flex-col items-center py-3 px-2 rounded-xl transition-all duration-200 hover:bg-gray-50 active:scale-95">
         <div className="w-6 h-6 mb-1">
-          <FaUser className="w-full h-full text-gray-400" />
+          <FaUser className="w-full h-full text-gray-500" />
         </div>
-        <span className="text-xs text-gray-400">โปรไฟล์</span>
+        <span className="text-xs text-gray-500 font-medium">โปรไฟล์</span>
       </button>
 
     </div>
