@@ -15,13 +15,16 @@ export default function ReceiptCamera({ isOpen, onClose, onCapture }: ReceiptCam
   const [hasFlash, setHasFlash] = useState(false)
   const [flashEnabled, setFlashEnabled] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [capturedImage, setCapturedImage] = useState<string | null>(null)
+  const [capturedFile, setCapturedFile] = useState<File | null>(null)
+  const [isPreviewMode, setIsPreviewMode] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Start camera when component opens
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !isPreviewMode) {
       startCamera()
     } else {
       stopCamera()
@@ -29,6 +32,15 @@ export default function ReceiptCamera({ isOpen, onClose, onCapture }: ReceiptCam
 
     return () => {
       stopCamera()
+    }
+  }, [isOpen, isPreviewMode])
+
+  // Reset states when component closes
+  useEffect(() => {
+    if (!isOpen) {
+      setCapturedImage(null)
+      setCapturedFile(null)
+      setIsPreviewMode(false)
     }
   }, [isOpen])
 
@@ -57,9 +69,16 @@ export default function ReceiptCamera({ isOpen, onClose, onCapture }: ReceiptCam
       const capabilities = videoTrack.getCapabilities()
       setHasFlash('torch' in capabilities)
 
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error accessing camera:', err)
-      setError('ไม่สามารถเข้าถึงกล้องได้ กรุณาอนุญาตการใช้งานกล้อง')
+
+      if (err.name === 'NotAllowedError') {
+        setError('กล้องถูกปฏิเสธ กรุณาอนุญาตการใช้งานกล้องและรีเฟรชหน้า')
+      } else if (err.name === 'NotFoundError') {
+        setError('ไม่พบกล้อง กรุณาตรวจสอบอุปกรณ์')
+      } else {
+        setError('ไม่สามารถเข้าถึงกล้องได้ กรุณาลองใหม่อีกครั้ง')
+      }
     }
   }
 
@@ -106,17 +125,39 @@ export default function ReceiptCamera({ isOpen, onClose, onCapture }: ReceiptCam
         const file = new File([blob], `receipt-${Date.now()}.jpg`, {
           type: 'image/jpeg'
         })
-        onCapture(file)
-        onClose()
+        const imageUrl = URL.createObjectURL(blob)
+
+        // Store captured image and file
+        setCapturedImage(imageUrl)
+        setCapturedFile(file)
+        setIsPreviewMode(true)
       }
     }, 'image/jpeg', 0.9)
-  }, [onCapture, onClose])
+  }, [])
+
+  const confirmCapture = useCallback(() => {
+    if (capturedFile) {
+      onCapture(capturedFile)
+      onClose()
+    }
+  }, [capturedFile, onCapture, onClose])
+
+  const retakePhoto = useCallback(() => {
+    if (capturedImage) {
+      URL.revokeObjectURL(capturedImage)
+    }
+    setCapturedImage(null)
+    setCapturedFile(null)
+    setIsPreviewMode(false)
+  }, [capturedImage])
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file && file.type.startsWith('image/')) {
-      onCapture(file)
-      onClose()
+      const imageUrl = URL.createObjectURL(file)
+      setCapturedImage(imageUrl)
+      setCapturedFile(file)
+      setIsPreviewMode(true)
     }
   }
 
@@ -135,8 +176,12 @@ export default function ReceiptCamera({ isOpen, onClose, onCapture }: ReceiptCam
           </button>
 
           <div className="text-white text-center">
-            <h2 className="text-lg font-semibold">ถ่ายรูปใบเสร็จ</h2>
-            <p className="text-sm opacity-80">จัดให้ใบเสร็จอยู่ในกรอบ</p>
+            <h2 className="text-lg font-semibold">
+              {isPreviewMode ? 'ตัวอย่างใบเสร็จ' : 'ถ่ายรูปใบเสร็จ'}
+            </h2>
+            <p className="text-sm opacity-80">
+              {isPreviewMode ? 'ตรวจสอบภาพและยืนยัน' : 'จัดให้ใบเสร็จอยู่ในกรอบ'}
+            </p>
           </div>
 
           {hasFlash && (
@@ -150,9 +195,20 @@ export default function ReceiptCamera({ isOpen, onClose, onCapture }: ReceiptCam
         </div>
       </div>
 
-      {/* Camera View */}
-      <div className="relative w-full h-full flex  items-center justify-center">
-        {error ? (
+      {/* Camera View or Preview */}
+      <div className="relative w-full h-full flex items-center justify-center">
+        {isPreviewMode && capturedImage ? (
+          /* Preview Mode */
+          <div className="relative w-full h-full">
+            <img
+              src={capturedImage}
+              alt="Captured receipt"
+              className="w-full h-full object-cover"
+            />
+            {/* Preview overlay */}
+            <div className="absolute inset-0 bg-black/20" />
+          </div>
+        ) : error ? (
           <div className="text-white text-center p-8">
             <p className="mb-4">{error}</p>
             <button
@@ -196,7 +252,7 @@ export default function ReceiptCamera({ isOpen, onClose, onCapture }: ReceiptCam
                 </div>
 
                 {/* Helper text */}
-               
+
               </div>
             </div>
           </>
@@ -205,31 +261,53 @@ export default function ReceiptCamera({ isOpen, onClose, onCapture }: ReceiptCam
 
       {/* Bottom Controls */}
       <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/60 to-transparent p-6 pb-8">
-        <div className="flex items-center justify-center space-x-8">
-          {/* Gallery Button */}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="p-4 rounded-full bg-white/20 backdrop-blur-sm"
-          >
-            <HiOutlinePhotograph className="w-8 h-8 text-white" />
-          </button>
+        {isPreviewMode ? (
+          /* Preview Controls */
+          <div className="flex items-center justify-center space-x-6">
+            <button
+              onClick={retakePhoto}
+              className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm text-white px-6 py-3 rounded-full font-medium"
+            >
+              <IoMdCamera className="w-5 h-5" />
+              <span>ถ่ายใหม่</span>
+            </button>
 
-          {/* Capture Button */}
-          <button
-            onClick={capturePhoto}
-            disabled={!!error}
-            className="relative p-2 rounded-full bg-white border-3 border-gray-300 disabled:opacity-50"
-          >
-            <div className="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center">
-              <IoMdCamera className="w-6 h-6 text-white" />
-            </div>
-          </button>
-
-          {/* Placeholder for symmetry */}
-          <div className="p-4 rounded-full opacity-0">
-            <HiOutlinePhotograph className="w-8 h-8" />
+            <button
+              onClick={confirmCapture}
+              className="flex items-center space-x-2 bg-green-500 text-white px-8 py-3 rounded-full font-medium shadow-lg"
+            >
+              <span>✓</span>
+              <span>ใช้รูปนี้</span>
+            </button>
           </div>
-        </div>
+        ) : (
+          /* Camera Controls */
+          <div className="flex items-center justify-center space-x-8">
+            {/* Gallery Button */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="p-4 rounded-full bg-white/20 backdrop-blur-sm"
+            >
+              <HiOutlinePhotograph className="w-8 h-8 text-white" />
+            </button>
+
+            {/* Capture Button */}
+            <button
+              onClick={capturePhoto}
+              disabled={!!error}
+              className="relative p-2 rounded-full bg-white border-3 border-gray-300 disabled:opacity-50"
+            >
+              <div className="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center">
+                <IoMdCamera className="w-6 h-6 text-white" />
+              </div>
+            </button>
+
+            {/* Placeholder for symmetry */}
+            <div className="p-4 rounded-full opacity-0">
+              <HiOutlinePhotograph className="w-8 h-8" />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Hidden file input */}
