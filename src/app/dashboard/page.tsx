@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { IoMdHome, IoMdRefresh, IoMdTrendingUp, IoMdCamera } from "react-icons/io";
 import { FaUser, FaHistory, FaWallet, FaStar } from "react-icons/fa";
-import { HiOutlineUpload, HiOutlineGift, HiOutlineBell, HiOutlineMenu } from "react-icons/hi";
+import { HiOutlineUpload, HiOutlineGift, HiOutlineMenu } from "react-icons/hi";
 import { UserSessionManager } from '@/lib/user-session'
 import axios from 'axios'
 
@@ -87,7 +87,7 @@ const HeaderSection = memo(({ user, imageError, onImageError }: {
   imageError: boolean
   onImageError: () => void
 }) => (
-  <div className="bg-white shadow-xs rounded-b-2xl">
+  <div className="bg-white shadow-sm rounded-2xl my-4 mx-5">
     <div className="flex items-center justify-between p-4 px-6">
       <div className="flex items-center space-x-4">
         <div className="relative">
@@ -97,7 +97,7 @@ const HeaderSection = memo(({ user, imageError, onImageError }: {
               alt="Profile"
               width={64}
               height={64}
-              className="w-16 h-16 rounded-full object-cover ring-2 ring-gray-100"
+              className="w-16 h-16 rounded-full object-cover ring-4 ring-gray-300"
               onError={onImageError}
               priority
             />
@@ -106,12 +106,13 @@ const HeaderSection = memo(({ user, imageError, onImageError }: {
               {(user.first_name || 'U').charAt(0).toUpperCase()}
             </div>
           )}
+          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-2 border-white rounded-full"></div>
         </div>
         <div>
           <h2 className="text-gray-900 text-lg font-semibold leading-tight">
             {user.first_name} {user.last_name}
           </h2>
-          <p className="text-gray-500 text-sm mt-1">ยินดีต้อนรับกลับมา</p>
+          <p className="text-gray-500 text-sm mt-0.5">ยินดีต้อนรับกลับมา</p>
         </div>
       </div>
     </div>
@@ -124,45 +125,55 @@ const StatusCard = memo(({ points, isRefreshing, onRefresh }: {
   isRefreshing?: boolean,
   onRefresh?: () => void
 }) => (
-  <div className=" mt-5 mx-4 mb-4">
-    <div className="bg-gray-900 rounded-2xl p-6">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-          <span className="text-green-500 text-xs font-medium uppercase tracking-wide">ACTIVE</span>
-        </div>
-        <button
-          onClick={onRefresh}
-          disabled={isRefreshing}
-          className="text-gray-400 hover:text-white"
-        >
-          <IoMdRefresh className={`w-6 h-6 ${isRefreshing ? 'animate-spin' : ''}`} />
-        </button>
-      </div>
+  <div className="mt-5 mx-4 mb-4">
+    <div className="relative bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 rounded-2xl p-6 shadow-2xl border border-gray-700/50 overflow-hidden">
+      {/* Premium background pattern */}
+      <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-transparent to-amber-500/10"></div>
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-radial from-red-500/20 to-transparent rounded-full -translate-y-16 translate-x-16"></div>
+      <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-radial from-amber-500/20 to-transparent rounded-full translate-y-12 -translate-x-12"></div>
 
-      <div className="text-white mb-4">
-        <h3 className="text-lg font-medium mb-1">คะแนนสะสม</h3>
-        <p className="text-sm text-gray-400">Total Points</p>
-      </div>
-
-      <div className="mb-4">
-        <div className="w-full bg-gray-700 rounded-full h-2">
-          <div
-            className="bg-green-500 h-2 rounded-full"
-            style={{ width: `${Math.min((points / 500000) * 100, 100)}%` }}
-          ></div>
+      {/* Content */}
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+            <span className="text-emerald-400 text-xs font-semibold uppercase tracking-wider">PREMIUM</span>
+          </div>
+          <button
+            onClick={onRefresh}
+            disabled={isRefreshing}
+            className="text-gray-400 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
+          >
+            <IoMdRefresh className={`w-6 h-6 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
         </div>
-      </div>
 
-      <div className="flex justify-between text-sm">
-        <div>
-          <span className="text-gray-400">ยอดรวม</span>
-          <div className="text-white font-medium text-xl">{points?.toLocaleString() || '0'} แต้ม</div>
+        <div className="text-white mb-5">
+          <h3 className="text-xl font-bold mb-1 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">คะแนนสะสม</h3>
+          <p className="text-sm text-gray-400">Total Loyalty Points</p>
         </div>
-        <div className="text-right">
-          <div className="text-white font-medium text-xs">
-            <span className="text-gray-400">สถานะ</span>
-            <div className="text-white font-medium">{isRefreshing ? 'อัพเดต...' : 'ล่าสุด'}</div>
+
+        <div className="mb-5">
+          <div className="w-full bg-gray-700/60 rounded-full h-2.5 backdrop-blur-sm">
+            <div
+              className="bg-gradient-to-r from-emerald-400 to-green-500 h-2.5 rounded-full shadow-lg transition-all duration-1000"
+              style={{ width: `${Math.min((points / 500000) * 100, 100)}%` }}
+            ></div>
+          </div>
+        </div>
+
+        <div className="flex justify-between items-end">
+          <div>
+            <span className="text-gray-400 text-sm">ยอดรวม</span>
+            <div className="text-white font-bold text-2xl bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent">
+              {points?.toLocaleString() || '0'} <span className="text-lg text-amber-400">แต้ม</span>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-gray-400 text-xs">สถานะ</span>
+            <div className="text-emerald-400 font-semibold text-sm">
+              {isRefreshing ? 'อัพเดต...' : '✨ อัพเดตล่าสุด'}
+            </div>
           </div>
         </div>
       </div>
@@ -173,7 +184,7 @@ StatusCard.displayName = 'StatusCard'
 
 
 const UploadSection = memo(() => (
-  <div className="bg-gray-50 px-6 pb-24">
+  <div className="bg-gray-50 px-6 mt-10 pb-24">
     <div className="space-y-4">
       <div className="text-center mb-6">
         <p className="text-sm text-gray-600">ถ่ายรูปหรือเลือกรูปใบเสร็จเพื่อสะสมแต้ม</p>
@@ -386,11 +397,11 @@ function DashboardPage() {
       <BannerSlider />
 
       {/* Header */}
-      <HeaderSection
+      {/* <HeaderSection
         user={userData}
         imageError={imageError}
         onImageError={handleImageError}
-      />
+      /> */}
 
       {/* Status Card */}
       <StatusCard
