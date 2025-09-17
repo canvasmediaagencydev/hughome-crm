@@ -10,6 +10,7 @@ interface AdminAuthContextType {
   loading: boolean
   error: string | null
   signIn: (email: string, password: string) => Promise<{ data: any; error: any }>
+  signUp: (email: string, password: string) => Promise<{ data: any; error: any }>
   signOut: () => Promise<{ error: any }>
   clearError: () => void
   isAuthenticated: boolean
@@ -71,6 +72,26 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     return { data, error }
   }
 
+  const signUp = async (email: string, password: string) => {
+    setLoading(true)
+    setError(null)
+
+    const { data, error } = await supabaseAdmin.auth.signUp({
+      email,
+      password,
+    })
+
+    if (error) {
+      setError(error.message)
+      toast.error(`สมัครสมาชิกไม่สำเร็จ: ${error.message}`)
+    } else {
+      toast.success('สมัครสมาชิกสำเร็จ')
+    }
+
+    setLoading(false)
+    return { data, error }
+  }
+
   const signOut = async () => {
     setLoading(true)
     setError(null)
@@ -92,6 +113,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     error,
     signIn,
+    signUp,
     signOut,
     clearError,
     isAuthenticated: !!user && !loading,
