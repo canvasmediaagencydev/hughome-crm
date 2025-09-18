@@ -70,7 +70,12 @@ export async function processReceiptWithGemini(imageFile: File): Promise<OCRResu
 
     // Extract text response from Gemini API
     let textResponse: string
-    if (response.candidates && response.candidates[0]) {
+    if (response.candidates &&
+        response.candidates[0] &&
+        response.candidates[0].content &&
+        response.candidates[0].content.parts &&
+        response.candidates[0].content.parts[0] &&
+        response.candidates[0].content.parts[0].text) {
       textResponse = response.candidates[0].content.parts[0].text
     } else {
       throw new Error('No valid response from Gemini API')
