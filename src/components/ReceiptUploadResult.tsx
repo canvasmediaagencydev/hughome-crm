@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { IoMdCheckmarkCircle, IoMdCloseCircle, IoMdCamera, IoMdClose } from 'react-icons/io'
 import { HiOutlineReceiptRefund } from 'react-icons/hi'
 
@@ -33,25 +33,72 @@ export default function ReceiptUploadResult({
   if (!isOpen) return null
 
   if (isLoading) {
-    return (
-      <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center">
-        <div className="bg-white rounded-2xl p-8 mx-4 max-w-md w-full">
-          <div className="text-center">
-            <div className="relative mb-6">
-              <div className="w-20 h-20 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-              <HiOutlineReceiptRefund className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-red-500" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">กำลังประมวลผล</h3>
-            <p className="text-gray-600">กำลังอ่านข้อมูลจากใบเสร็จ...</p>
-            <div className="mt-4">
-              <div className="bg-gray-200 rounded-full h-2">
-                <div className="bg-red-500 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+    const LoadingWithProgress = () => {
+      const [progress, setProgress] = useState(0)
+      const [stage, setStage] = useState('เริ่มต้น...')
+
+      useEffect(() => {
+        const stages = [
+          { progress: 15, stage: 'อัพโหลดรูป...' },
+          { progress: 35, stage: 'วิเคราะห์ภาพ...' },
+          { progress: 65, stage: 'อ่านข้อความ...' },
+          { progress: 85, stage: 'ตรวจสอบร้าน...' },
+          { progress: 95, stage: 'เกือบเสร็จ...' }
+        ]
+
+        let currentStage = 0
+        const interval = setInterval(() => {
+          if (currentStage < stages.length) {
+            setProgress(stages[currentStage].progress)
+            setStage(stages[currentStage].stage)
+            currentStage++
+          }
+        }, 600) // เปลี่ยนทุก 600ms
+
+        return () => clearInterval(interval)
+      }, [])
+
+      return (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-white rounded-2xl p-8 mx-4 max-w-md w-full">
+            <div className="text-center">
+              <div className="relative mb-6">
+                <div className="w-20 h-20 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <HiOutlineReceiptRefund className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-red-500" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">กำลังประมวลผล</h3>
+              <p className="text-gray-600 mb-4">{stage}</p>
+
+              {/* Animated Progress Bar */}
+              <div className="relative">
+                <div className="bg-gray-200 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="h-3 rounded-full bg-gradient-to-r from-red-400 to-red-600 relative transition-all duration-300 ease-out"
+                    style={{ width: `${progress}%` }}
+                  >
+                    {/* Shine effect */}
+                    <div
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent"
+                      style={{
+                        animation: 'progressShine 1.5s linear infinite'
+                      }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Progress percentage */}
+                <div className="mt-2 flex justify-between items-center">
+                  <span className="text-sm text-gray-500 font-medium">{stage}</span>
+                  <span className="text-sm text-red-600 font-bold">{progress}%</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    )
+      )
+    }
+
+    return <LoadingWithProgress />
   }
 
   if (error) {
@@ -166,13 +213,29 @@ export default function ReceiptUploadResult({
                 {confidencePercentage}%
               </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 rounded-full h-3 relative overflow-hidden">
               <div
-                className={`h-2 rounded-full transition-all duration-1000 ${isHighConfidence ? 'bg-green-500' : 'bg-yellow-500'}`}
-                style={{ width: `${confidencePercentage}%` }}
-              ></div>
+                className={`h-3 rounded-full ${
+                  isHighConfidence ? 'bg-gradient-to-r from-green-400 to-green-600' : 'bg-gradient-to-r from-yellow-400 to-yellow-600'
+                }`}
+                style={{
+                  width: `${confidencePercentage}%`,
+                  animation: `progressFill 2s ease-out forwards`,
+                  '--progress-width': `${confidencePercentage}%`
+                } as React.CSSProperties}
+              >
+                {/* Progress bar shine effect */}
+                <div
+                  className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent"
+                  style={{
+                    animation: 'progressShine 2s infinite',
+                    animationDelay: '0.5s'
+                  }}
+                ></div>
+              </div>
+
             </div>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 mt-2">
               {isHighConfidence ? 'ความแม่นยำสูง' : 'ความแม่นยำปานกลาง'}
             </p>
           </div>

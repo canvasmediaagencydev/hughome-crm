@@ -134,3 +134,40 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Progress bar animations */
+@keyframes progressFill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: var(--progress-width);
+  }
+}
+
+@keyframes progressShine {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes loadingProgress {
+  0% {
+    width: 0%;
+  }
+  25% {
+    width: 30%;
+  }
+  50% {
+    width: 60%;
+  }
+  75% {
+    width: 85%;
+  }
+  100% {
+    width: 95%;
+  }
+}

@@ -276,6 +276,7 @@ function DashboardPage() {
   const [isUploadLoading, setIsUploadLoading] = useState(false)
   const [ocrResult, setOcrResult] = useState<OCRResult | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [capturedImageFile, setCapturedImageFile] = useState<File | null>(null)
 
   const router = useRouter()
 
@@ -296,6 +297,58 @@ function DashboardPage() {
       setIsUploadLoading(true)
       setUploadError(null)
       setIsUploadResultOpen(true)
+      setCapturedImageFile(imageFile) // Store image file for later upload
+
+      // Prepare form data for OCR only
+      const formData = new FormData()
+      formData.append('image', imageFile)
+
+      console.log('Processing OCR...', imageFile.name)
+
+      // Process OCR only (no database upload)
+      const response = await fetch('/api/receipts/ocr', {
+        method: 'POST',
+        body: formData
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'การประมวลผล OCR ล้มเหลว')
+      }
+
+      if (result.success && result.ocrResult) {
+        console.log('OCR processing successful:', result)
+        setOcrResult(result.ocrResult)
+      } else {
+        throw new Error('ไม่ได้รับข้อมูลผลลัพธ์จากเซิร์ฟเวอร์')
+      }
+
+    } catch (error) {
+      console.error('OCR processing error:', error)
+      setUploadError(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการประมวลผลใบเสร็จ')
+    } finally {
+      setIsUploadLoading(false)
+    }
+  }, [])
+
+  const handleUploadResultClose = useCallback(() => {
+    setIsUploadResultOpen(false)
+    setOcrResult(null)
+    setUploadError(null)
+    setCapturedImageFile(null)
+  }, [])
+
+  const handleUploadConfirm = useCallback(async () => {
+    if (!capturedImageFile || !ocrResult) {
+      alert('ไม่พบข้อมูลรูปภาพหรือผลการอ่าน OCR')
+      return
+    }
+
+    try {
+      // Show loading state during upload
+      setIsUploadLoading(true)
+      setUploadError(null)
 
       // Get user ID from session
       const cachedSession = UserSessionManager.getCachedSession()
@@ -303,14 +356,14 @@ function DashboardPage() {
         throw new Error('ไม่พบข้อมูล user session')
       }
 
-      // Prepare form data
+      // Prepare form data for database upload
       const formData = new FormData()
-      formData.append('image', imageFile)
+      formData.append('image', capturedImageFile)
       formData.append('userId', cachedSession.user.id)
 
-      console.log('Uploading receipt...', imageFile.name)
+      console.log('Uploading receipt to database...', capturedImageFile.name)
 
-      // Upload to API
+      // Upload to database
       const response = await fetch('/api/receipts/upload', {
         method: 'POST',
         body: formData
@@ -322,43 +375,35 @@ function DashboardPage() {
         throw new Error(result.error || 'การอัพโหลดล้มเหลว')
       }
 
-      if (result.success && result.receipt) {
-        console.log('Upload successful:', result)
-        setOcrResult(result.receipt.ocr_data)
+      if (result.success) {
+        console.log('Database upload successful:', result)
+
+        // Close result modal
+        setIsUploadResultOpen(false)
+        setOcrResult(null)
+        setUploadError(null)
+        setCapturedImageFile(null)
+
+        // Show success message
+        alert('บันทึกใบเสร็จเรียบร้อยแล้ว รอการอนุมัติจากแอดมิน')
       } else {
-        throw new Error('ไม่ได้รับข้อมูลผลลัพธ์จากเซิร์ฟเวอร์')
+        throw new Error('ไม่สามารถบันทึกข้อมูลได้')
       }
 
     } catch (error) {
-      console.error('Receipt upload error:', error)
-      setUploadError(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการอัพโหลดใบเสร็จ')
+      console.error('Database upload error:', error)
+      setUploadError(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการบันทึกใบเสร็จ')
     } finally {
       setIsUploadLoading(false)
     }
-  }, [])
-
-  const handleUploadResultClose = useCallback(() => {
-    setIsUploadResultOpen(false)
-    setOcrResult(null)
-    setUploadError(null)
-  }, [])
-
-  const handleUploadConfirm = useCallback(async () => {
-    // Close result modal
-    setIsUploadResultOpen(false)
-    setOcrResult(null)
-    setUploadError(null)
-
-    // Show success message
-    // In the future, redirect to receipt history page
-    alert('บันทึกใบเสร็จเรียบร้อยแล้ว รอการอนุมัติจากแอดมิน')
-  }, [])
+  }, [capturedImageFile, ocrResult])
 
   const handleUploadRetake = useCallback(() => {
     // Close result modal and reopen camera
     setIsUploadResultOpen(false)
     setOcrResult(null)
     setUploadError(null)
+    setCapturedImageFile(null)
     setIsCameraOpen(true)
   }, [])
 
