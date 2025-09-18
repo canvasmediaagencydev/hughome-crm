@@ -8,6 +8,7 @@ import { FaUser, FaHistory, FaWallet, FaStar } from "react-icons/fa";
 import { HiOutlineUpload, HiOutlineGift, HiOutlineMenu } from "react-icons/hi";
 import { UserSessionManager } from '@/lib/user-session'
 import ReceiptCamera from '@/components/ReceiptCamera'
+import ReceiptUploadResult from '@/components/ReceiptUploadResult'
 import axios from 'axios'
 
 // User data interface
@@ -254,6 +255,14 @@ const BottomNavigation = memo(() => (
 ))
 BottomNavigation.displayName = 'BottomNavigation'
 
+// OCR Result interface
+interface OCRResult {
+  ชื่อร้าน: boolean
+  ยอดรวม: number
+  วันที่: string
+  ความถูกต้อง: number
+}
+
 function DashboardPage() {
   const [imageError, setImageError] = useState(false)
   const [userData, setUserData] = useState<UserData | null>(null)
@@ -261,6 +270,13 @@ function DashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [hasInitialRefresh, setHasInitialRefresh] = useState(false)
   const [isCameraOpen, setIsCameraOpen] = useState(false)
+
+  // Receipt upload states
+  const [isUploadResultOpen, setIsUploadResultOpen] = useState(false)
+  const [isUploadLoading, setIsUploadLoading] = useState(false)
+  const [ocrResult, setOcrResult] = useState<OCRResult | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
   const router = useRouter()
 
   const handleImageError = useCallback(() => {
@@ -277,17 +293,73 @@ function DashboardPage() {
 
   const handleReceiptCapture = useCallback(async (imageFile: File) => {
     try {
-      // TODO: Implement receipt upload functionality
-      console.log('Receipt captured:', imageFile)
+      setIsUploadLoading(true)
+      setUploadError(null)
+      setIsUploadResultOpen(true)
 
-      // For now, just show a success message
-      // In the future, this will upload to the API and process with OCR
-      alert(`ได้รับภาพใบเสร็จแล้ว: ${imageFile.name}`)
+      // Get user ID from session
+      const cachedSession = UserSessionManager.getCachedSession()
+      if (!cachedSession?.user?.id) {
+        throw new Error('ไม่พบข้อมูล user session')
+      }
+
+      // Prepare form data
+      const formData = new FormData()
+      formData.append('image', imageFile)
+      formData.append('userId', cachedSession.user.id)
+
+      console.log('Uploading receipt...', imageFile.name)
+
+      // Upload to API
+      const response = await fetch('/api/receipts/upload', {
+        method: 'POST',
+        body: formData
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'การอัพโหลดล้มเหลว')
+      }
+
+      if (result.success && result.receipt) {
+        console.log('Upload successful:', result)
+        setOcrResult(result.receipt.ocr_data)
+      } else {
+        throw new Error('ไม่ได้รับข้อมูลผลลัพธ์จากเซิร์ฟเวอร์')
+      }
 
     } catch (error) {
       console.error('Receipt upload error:', error)
-      alert('เกิดข้อผิดพลาดในการอัพโหลดใบเสร็จ')
+      setUploadError(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการอัพโหลดใบเสร็จ')
+    } finally {
+      setIsUploadLoading(false)
     }
+  }, [])
+
+  const handleUploadResultClose = useCallback(() => {
+    setIsUploadResultOpen(false)
+    setOcrResult(null)
+    setUploadError(null)
+  }, [])
+
+  const handleUploadConfirm = useCallback(async () => {
+    // Close result modal
+    setIsUploadResultOpen(false)
+    setOcrResult(null)
+    setUploadError(null)
+
+    // Show success message
+    // In the future, redirect to receipt history page
+    alert('บันทึกใบเสร็จเรียบร้อยแล้ว รอการอนุมัติจากแอดมิน')
+  }, [])
+
+  const handleUploadRetake = useCallback(() => {
+    // Close result modal and reopen camera
+    setIsUploadResultOpen(false)
+    setOcrResult(null)
+    setUploadError(null)
+    setIsCameraOpen(true)
   }, [])
 
   const transformUserData = (user: any): UserData => ({
@@ -449,6 +521,17 @@ function DashboardPage() {
         isOpen={isCameraOpen}
         onClose={handleCameraClose}
         onCapture={handleReceiptCapture}
+      />
+
+      {/* Receipt Upload Result */}
+      <ReceiptUploadResult
+        isOpen={isUploadResultOpen}
+        onClose={handleUploadResultClose}
+        onConfirm={handleUploadConfirm}
+        onRetake={handleUploadRetake}
+        isLoading={isUploadLoading}
+        ocrResult={ocrResult}
+        error={uploadError}
       />
     </div>
   )

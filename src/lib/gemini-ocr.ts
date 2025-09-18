@@ -1,0 +1,148 @@
+import { GoogleGenAI } from '@google/genai'
+import mime from 'mime'
+
+interface OCRResult {
+  ชื่อร้าน: boolean
+  ยอดรวม: number
+  วันที่: string
+  ความถูกต้อง: number
+}
+
+export async function processReceiptWithGemini(imageFile: File): Promise<OCRResult> {
+  const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY
+
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY is not configured')
+  }
+
+  try {
+    // Initialize Google GenAI
+    const ai = new GoogleGenAI({
+      apiKey: apiKey,
+    })
+
+    // Convert file to base64
+    const arrayBuffer = await imageFile.arrayBuffer()
+    const base64 = Buffer.from(arrayBuffer).toString('base64')
+
+    // Get MIME type
+    const mimeType = imageFile.type || mime.getType(imageFile.name) || 'image/jpeg'
+
+    // Configure the model
+    const config = {
+      thinkingConfig: {
+        thinkingBudget: 0,
+      },
+    }
+
+    const model = 'gemini-2.5-flash-lite'
+
+    // Prepare the content
+    const contents = [
+      {
+        role: 'user' as const,
+        parts: [
+          {
+            text: `อ่านข้อมูลจากใบเสร็จและสรุปเป็น JSON เท่านั้น โดยมีฟิลด์ดังนี้:
+{
+  "ชื่อร้าน": true/false (ตรวจว่าชื่อร้านเป็น "ตั้งหง่วงเซ้ง" หรือ "TH"/"th"),
+  "ยอดรวม": <ตัวเลขรวมทั้งหมด เช่น 1040.00>,
+  "วันที่": <วันที่จากใบเสร็จ ในรูปแบบ dd/mm/yyyy หรือ พ.ศ.>,
+  "ความถูกต้อง": <ความมั่นใจในการอ่านข้อมูล เช่น 0.98 สูงสุด 1>
+}`
+          },
+          {
+            inlineData: {
+              mimeType: mimeType,
+              data: base64
+            }
+          }
+        ]
+      }
+    ]
+
+    // Generate content
+    const response = await ai.models.generateContent({
+      model,
+      config,
+      contents,
+    })
+
+    // Extract text response from Gemini API
+    let textResponse: string
+    if (response.candidates && response.candidates[0]) {
+      textResponse = response.candidates[0].content.parts[0].text
+    } else {
+      throw new Error('No valid response from Gemini API')
+    }
+
+    if (!textResponse) {
+      throw new Error('No response text from Gemini API')
+    }
+
+    // Parse JSON from response
+    let ocrResult: OCRResult
+    try {
+      // Clean the response to extract JSON
+      const jsonMatch = textResponse.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) {
+        throw new Error('No JSON found in response')
+      }
+
+      ocrResult = JSON.parse(jsonMatch[0])
+    } catch (parseError) {
+      console.error('Failed to parse Gemini response:', textResponse)
+      throw new Error('Invalid JSON response from Gemini')
+    }
+
+    // Validate the response structure
+    if (
+      typeof ocrResult.ชื่อร้าน !== 'boolean' ||
+      typeof ocrResult.ยอดรวม !== 'number' ||
+      typeof ocrResult.วันที่ !== 'string' ||
+      typeof ocrResult.ความถูกต้อง !== 'number'
+    ) {
+      throw new Error('Invalid response structure from Gemini')
+    }
+
+    // Ensure confidence is between 0 and 1
+    if (ocrResult.ความถูกต้อง > 1) {
+      ocrResult.ความถูกต้อง = ocrResult.ความถูกต้อง / 100
+    }
+
+    return ocrResult
+
+  } catch (error) {
+    console.error('Gemini OCR error:', error)
+    throw error
+  }
+}
+
+export function convertThaiDateToISO(thaiDate: string): string | null {
+  try {
+    // Handle different Thai date formats
+    // Examples: "15/09/2567", "15-09-2567", "15 ก.ย. 2567"
+
+    // Simple dd/mm/yyyy or dd-mm-yyyy format
+    const simpleMatch = thaiDate.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/)
+
+    if (simpleMatch) {
+      const [, day, month, year] = simpleMatch
+      const gregorianYear = parseInt(year) > 2400 ? parseInt(year) - 543 : parseInt(year)
+
+      // Create ISO date string (YYYY-MM-DD)
+      const isoDate = `${gregorianYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+
+      // Validate the date
+      const dateObj = new Date(isoDate)
+      if (dateObj.toISOString().slice(0, 10) === isoDate) {
+        return isoDate
+      }
+    }
+
+    return null
+  } catch (error) {
+    console.error('Date conversion error:', error)
+    return null
+  }
+}

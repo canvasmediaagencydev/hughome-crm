@@ -10,6 +10,7 @@
     "analyze": "ANALYZE=true next build && npx serve out"
   },
   "dependencies": {
+    "@google/genai": "^1.20.0",
     "@hookform/resolvers": "^5.2.2",
     "@line/liff": "^2.27.2",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -32,6 +33,7 @@
     "critters": "^0.0.23",
     "jose": "^6.1.0",
     "lucide-react": "^0.544.0",
+    "mime": "^4.1.0",
     "next": "15.5.2",
     "next-themes": "^0.4.6",
     "react": "19.1.0",

@@ -12,7 +12,7 @@ Hughome CRM is a loyalty platform with LINE Login integration built with Next.js
 # Development server (with Turbopack for faster builds)
 npm run dev
 
-# Production build (with Turbopack optimization)  
+# Production build (with Turbopack optimization)
 npm run build
 
 # Production server
@@ -26,6 +26,8 @@ supabase gen types typescript --project-id YOUR_PROJECT_ID > database.types.ts
 
 # TypeScript compilation check
 npx tsc --noEmit
+
+# Note: No test framework is currently configured
 ```
 
 ## Architecture & Technical Stack
@@ -104,7 +106,7 @@ This project follows a structured approach with:
 ### LINE Integration Requirements
 - **LIFF SDK**: Already installed, requires channel configuration
 - **Mobile-First**: UI designed for mobile LINE app usage
-- **Token Verification**: Server-side LINE JWKS verification is mandatory (currently uses simplified verification in `src/lib/line-auth.ts:8-22` - production requires full JWKS verification)
+- **Token Verification**: Server-side LINE JWKS verification is mandatory (currently uses simplified verification in `src/lib/line-auth.ts:8-22` - production requires full JWKS verification with LINE's official endpoint)
 
 ### OCR Workflow
 1. Receipt uploaded to Supabase Storage
