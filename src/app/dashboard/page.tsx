@@ -372,6 +372,11 @@ function DashboardPage() {
       const result = await response.json()
 
       if (!response.ok) {
+        // Handle duplicate receipt errors with specific messages
+        if (response.status === 409) {
+          const duplicateMessage = result.details || result.error || 'พบใบเสร็จซ้ำ'
+          throw new Error(duplicateMessage)
+        }
         throw new Error(result.error || 'การอัพโหลดล้มเหลว')
       }
 

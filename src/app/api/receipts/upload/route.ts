@@ -74,6 +74,56 @@ export async function POST(request: NextRequest) {
     // Convert Thai date to ISO format
     const isoDate = convertThaiDateToISO(ocrResult.วันที่)
 
+    // Check for duplicate receipts (business logic)
+    if (isoDate) {
+      // Check for duplicate based on user + date + amount + store
+      const { data: existingReceipts, error: duplicateError } = await supabase
+        .from('receipts')
+        .select('id, total_amount, receipt_date, ocr_data')
+        .eq('user_id', userId)
+        .eq('receipt_date', isoDate)
+        .eq('total_amount', ocrResult.ยอดรวม)
+
+      if (duplicateError) {
+        console.warn('Error checking for duplicates:', duplicateError)
+      } else if (existingReceipts && existingReceipts.length > 0) {
+        // Found potential duplicate - check store name match
+        const hasDuplicateStore = existingReceipts.some(receipt => {
+          const existingOcrData = receipt.ocr_data as any
+          return existingOcrData?.ชื่อร้าน === ocrResult.ชื่อร้าน
+        })
+
+        if (hasDuplicateStore) {
+          return NextResponse.json(
+            {
+              error: 'พบใบเสร็จซ้ำ',
+              details: 'ใบเสร็จนี้ถูกอัพโหลดแล้วในวันเดียวกันกับยอดเงินเดียวกัน'
+            },
+            { status: 409 } // Conflict
+          )
+        }
+      }
+    }
+
+    // Check for duplicate file hash
+    const { data: existingImage, error: hashError } = await supabase
+      .from('receipt_images')
+      .select('id, receipt_id')
+      .eq('sha256_hash', fileHash)
+      .single()
+
+    if (hashError && hashError.code !== 'PGRST116') {
+      console.warn('Error checking file hash:', hashError)
+    } else if (existingImage) {
+      return NextResponse.json(
+        {
+          error: 'ไฟล์รูปภาพซ้ำ',
+          details: 'รูปภาพนี้ถูกอัพโหลดแล้ว'
+        },
+        { status: 409 } // Conflict
+      )
+    }
+
     // Insert receipt record
     const { data: receiptData, error: receiptError } = await supabase
       .from('receipts')

@@ -102,13 +102,25 @@ export default function ReceiptUploadResult({
   }
 
   if (error) {
+    const isDuplicateError = error.includes('พบใบเสร็จซ้ำ') || error.includes('ไฟล์รูปภาพซ้ำ')
+
     return (
       <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center">
         <div className="bg-white rounded-2xl p-8 mx-4 max-w-md w-full">
           <div className="text-center">
-            <IoMdCloseCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">เกิดข้อผิดพลาด</h3>
+            <IoMdCloseCircle className={`w-16 h-16 mx-auto mb-4 ${isDuplicateError ? 'text-orange-500' : 'text-red-500'}`} />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              {isDuplicateError ? 'ใบเสร็จซ้ำ' : 'เกิดข้อผิดพลาด'}
+            </h3>
             <p className="text-gray-600 mb-6">{error}</p>
+
+            {isDuplicateError && (
+              <div className="mb-6 p-4 bg-orange-50 rounded-xl border border-orange-200">
+                <p className="text-orange-700 text-sm">
+                  💡 <strong>คำแนะนำ:</strong> กรุณาตรวจสอบใบเสร็จที่อัพโหลดแล้ว หรือลองถ่ายใบเสร็จใหม่
+                </p>
+              </div>
+            )}
 
             <div className="flex space-x-3">
               <button
