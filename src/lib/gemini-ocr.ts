@@ -78,11 +78,11 @@ export async function processReceiptWithGemini(imageFile: File): Promise<OCRResu
         response.candidates[0].content.parts[0].text) {
       textResponse = response.candidates[0].content.parts[0].text
     } else {
-      throw new Error('No valid response from Gemini API')
+      throw new Error('No valid response from API')
     }
 
     if (!textResponse) {
-      throw new Error('No response text from Gemini API')
+      throw new Error('No response text from API')
     }
 
     // Parse JSON from response
@@ -96,8 +96,8 @@ export async function processReceiptWithGemini(imageFile: File): Promise<OCRResu
 
       ocrResult = JSON.parse(jsonMatch[0])
     } catch (parseError) {
-      console.error('Failed to parse Gemini response:', textResponse)
-      throw new Error('Invalid JSON response from Gemini')
+      console.error('Failed to parse response:', textResponse)
+      throw new Error('Invalid JSON response')
     }
 
     // Validate the response structure
@@ -107,7 +107,7 @@ export async function processReceiptWithGemini(imageFile: File): Promise<OCRResu
       typeof ocrResult.วันที่ !== 'string' ||
       typeof ocrResult.ความถูกต้อง !== 'number'
     ) {
-      throw new Error('Invalid response structure from Gemini')
+      throw new Error('Invalid response structure')
     }
 
     // Ensure confidence is between 0 and 1
@@ -118,7 +118,7 @@ export async function processReceiptWithGemini(imageFile: File): Promise<OCRResu
     return ocrResult
 
   } catch (error) {
-    console.error('Gemini OCR error:', error)
+    console.error('OCR error:')
     throw error
   }
 }

@@ -51,3 +51,5 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+//TODO: receipt have 5 types
