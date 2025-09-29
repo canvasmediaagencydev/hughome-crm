@@ -385,7 +385,6 @@ export type Database = {
           picture_url: string | null
           points_balance: number | null
           role: string | null
-          total_points_earned: number | null
           total_receipts: number | null
           updated_at: string
         }
@@ -402,7 +401,6 @@ export type Database = {
           picture_url?: string | null
           points_balance?: number | null
           role?: string | null
-          total_points_earned?: number | null
           total_receipts?: number | null
           updated_at?: string
         }
@@ -419,7 +417,6 @@ export type Database = {
           picture_url?: string | null
           points_balance?: number | null
           role?: string | null
-          total_points_earned?: number | null
           total_receipts?: number | null
           updated_at?: string
         }
@@ -439,7 +436,6 @@ export type Database = {
           picture_url: string | null
           points_balance: number | null
           role: string | null
-          total_points_earned: number | null
           total_receipts: number | null
         }
         Relationships: []

@@ -342,8 +342,8 @@ export default function AdminDashboard() {
                 const ocrData = receipt.ocr_data
                 let storeName = 'ไม่ระบุร้าน'
 
-                if (ocrData) {
-                  const storeField = ocrData.ชื่อร้าน || ocrData["ชื่อร้าน"]
+                if (ocrData && typeof ocrData === 'object') {
+                  const storeField = (ocrData as any).ชื่อร้าน || (ocrData as any)["ชื่อร้าน"]
                   if (storeField === true) {
                     storeName = 'ตั้งหง่วงเซ้ง'
                   } else if (storeField === false) {

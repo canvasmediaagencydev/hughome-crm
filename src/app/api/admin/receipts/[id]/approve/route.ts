@@ -28,8 +28,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         *,
         user_profiles!receipts_user_id_fkey (
           id,
-          points_balance,
-          total_points_earned
+          points_balance
         )
       `)
       .eq("id", id)
@@ -53,9 +52,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Calculate new balances
+    // Calculate new balance
     const newPointsBalance = (user.points_balance || 0) + points_awarded;
-    const newTotalPointsEarned = (user.total_points_earned || 0) + points_awarded;
 
     // Update receipt status
     const { error: updateReceiptError } = await supabase
@@ -83,7 +81,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       .from("user_profiles")
       .update({
         points_balance: newPointsBalance,
-        total_points_earned: newTotalPointsEarned,
         updated_at: currentTime
       })
       .eq("id", user.id);

@@ -12,8 +12,7 @@ export async function POST(request: NextRequest) {
         *,
         user_profiles!receipts_user_id_fkey (
           id,
-          points_balance,
-          total_points_earned
+          points_balance
         )
       `)
       .eq("status", "pending");
@@ -46,9 +45,9 @@ export async function POST(request: NextRequest) {
     // Filter receipts that are from "ตั้งหง่วงเซ้ง" store
     const storeReceipts = receipts.filter(receipt => {
       const ocrData = receipt.ocr_data;
-      if (!ocrData) return false;
+      if (!ocrData || typeof ocrData !== 'object') return false;
 
-      const storeField = ocrData.ชื่อร้าน || ocrData["ชื่อร้าน"];
+      const storeField = (ocrData as any).ชื่อร้าน || (ocrData as any)["ชื่อร้าน"];
       return storeField === true; // Only approve if store field is exactly true
     });
 
@@ -78,7 +77,6 @@ export async function POST(request: NextRequest) {
         // Calculate points
         const pointsAwarded = Math.floor(receipt.total_amount / bahtPerPoint);
         const newPointsBalance = (user.points_balance || 0) + pointsAwarded;
-        const newTotalPointsEarned = (user.total_points_earned || 0) + pointsAwarded;
 
         // Update receipt status
         const { error: updateReceiptError } = await supabase
@@ -104,7 +102,6 @@ export async function POST(request: NextRequest) {
           .from("user_profiles")
           .update({
             points_balance: newPointsBalance,
-            total_points_earned: newTotalPointsEarned,
             updated_at: currentTime
           })
           .eq("id", user.id);
