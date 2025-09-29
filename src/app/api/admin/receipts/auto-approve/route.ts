@@ -76,7 +76,6 @@ export async function POST(request: NextRequest) {
 
         // Calculate points
         const pointsAwarded = Math.floor(receipt.total_amount / bahtPerPoint);
-        const newPointsBalance = (user.points_balance || 0) + pointsAwarded;
 
         // Update receipt status
         const { error: updateReceiptError } = await supabase
@@ -97,29 +96,15 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Update user points
-        const { error: updateUserError } = await supabase
-          .from("user_profiles")
-          .update({
-            points_balance: newPointsBalance,
-            updated_at: currentTime
-          })
-          .eq("id", user.id);
+        // Note: user_profiles.points_balance will be auto-updated by database trigger
 
-        if (updateUserError) {
-          errorCount++;
-          errors.push(`User ${user.id}: ${updateUserError.message}`);
-          continue;
-        }
-
-        // Create point transaction record
+        // Create point transaction record (trigger will auto-set balance_after and sync user_profiles)
         const { error: transactionError } = await supabase
           .from("point_transactions")
           .insert({
             user_id: user.id,
             type: "earned",
             points: pointsAwarded,
-            balance_after: newPointsBalance,
             description: "Points earned from auto-approved store receipt",
             reference_id: receipt.id,
             reference_type: "receipt",
