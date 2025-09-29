@@ -10,6 +10,7 @@ import { UserSessionManager } from '@/lib/user-session'
 import ReceiptCamera from '@/components/ReceiptCamera'
 import ReceiptUploadResult from '@/components/ReceiptUploadResult'
 import axios from 'axios'
+import { toast } from 'sonner'
 
 // User data interface
 interface UserData {
@@ -341,29 +342,34 @@ function DashboardPage() {
 
   const handleUploadConfirm = useCallback(async () => {
     if (!capturedImageFile || !ocrResult) {
-      alert('ไม่พบข้อมูลรูปภาพหรือผลการอ่าน OCR')
+      toast.error('ไม่พบข้อมูลรูปภาพหรือผลการอ่าน OCR')
       return
     }
 
     try {
-      // Show loading state during upload
-      setIsUploadLoading(true)
-      setUploadError(null)
-
       // Get user ID from session
       const cachedSession = UserSessionManager.getCachedSession()
       if (!cachedSession?.user?.id) {
         throw new Error('ไม่พบข้อมูล user session')
       }
 
-      // Prepare form data for database upload
+      // Close modal immediately and show success toast
+      setIsUploadResultOpen(false)
+      setOcrResult(null)
+      setUploadError(null)
+      setCapturedImageFile(null)
+
+      // Show immediate success toast
+      toast.success('ส่งใบเสร็จสำเร็จแล้ว! รอการอนุมัติจากแอดมิน')
+
+      // Upload to database in background (no loading state)
       const formData = new FormData()
       formData.append('image', capturedImageFile)
       formData.append('userId', cachedSession.user.id)
 
       console.log('Uploading receipt to database...', capturedImageFile.name)
 
-      // Upload to database
+      // Upload to database (background process)
       const response = await fetch('/api/receipts/upload', {
         method: 'POST',
         body: formData
@@ -372,34 +378,27 @@ function DashboardPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        // Handle duplicate receipt errors with specific messages
+        // Handle errors silently or show subtle notification
+        console.error('Upload error:', result.error)
         if (response.status === 409) {
-          const duplicateMessage = result.details || result.error || 'พบใบเสร็จซ้ำ'
-          throw new Error(duplicateMessage)
+          // Duplicate error - show warning toast
+          toast.warning('พบใบเสร็จซ้ำ กรุณาตรวจสอบใบเสร็จที่อัปโหลดแล้ว')
+        } else {
+          toast.error('เกิดข้อผิดพลาดในการอัปโหลดใบเสร็จ')
         }
-        throw new Error(result.error || 'การอัพโหลดล้มเหลว')
+        return
       }
 
       if (result.success) {
         console.log('Database upload successful:', result)
-
-        // Close result modal
-        setIsUploadResultOpen(false)
-        setOcrResult(null)
-        setUploadError(null)
-        setCapturedImageFile(null)
-
-        // Show success message
-        alert('บันทึกใบเสร็จเรียบร้อยแล้ว รอการอนุมัติจากแอดมิน')
       } else {
-        throw new Error('ไม่สามารถบันทึกข้อมูลได้')
+        console.error('Upload failed:', result)
+        toast.error('ไม่สามารถบันทึกข้อมูลได้')
       }
 
     } catch (error) {
       console.error('Database upload error:', error)
-      setUploadError(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการบันทึกใบเสร็จ')
-    } finally {
-      setIsUploadLoading(false)
+      toast.error('เกิดข้อผิดพลาดในการส่งใบเสร็จ')
     }
   }, [capturedImageFile, ocrResult])
 
