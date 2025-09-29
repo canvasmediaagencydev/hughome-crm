@@ -45,7 +45,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         status: "rejected",
         admin_notes,
         approved_at: currentTime,
-        approved_by: "admin", // In a real app, this would be the admin's user ID
+        approved_by: null, // TODO: In a real app, this would be the admin's user ID
         updated_at: currentTime,
         points_awarded: 0 // No points for rejected receipts
       })

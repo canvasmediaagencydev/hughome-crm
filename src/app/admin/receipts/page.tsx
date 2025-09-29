@@ -16,7 +16,8 @@ import {
   Filter,
   ChevronLeft,
   ChevronRight,
-  Calculator
+  Calculator,
+  Zap
 } from 'lucide-react'
 import { Tables } from '../../../../database.types'
 import { toast } from 'sonner'
@@ -56,6 +57,7 @@ export default function AdminReceipts() {
   const [receipts, setReceipts] = useState<ReceiptWithRelations[]>([])
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState<string | null>(null)
+  const [autoApproving, setAutoApproving] = useState(false)
   const [status, setStatus] = useState('pending')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -202,6 +204,36 @@ export default function AdminReceipts() {
     }
   }
 
+  const handleAutoApprove = async () => {
+    if (!confirm('คุณต้องการอนุมัติใบเสร็จของร้าน "ตั้งหง่วงเซ้ง" ทั้งหมดโดยอัตโนมัติหรือไม่?')) {
+      return
+    }
+
+    setAutoApproving(true)
+    try {
+      const response = await fetch('/api/admin/receipts/auto-approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        toast.success(`อนุมัติสำเร็จ ${result.approved_count} ใบเสร็จ`)
+        if (result.error_count > 0) {
+          toast.warning(`มีข้อผิดพลาด ${result.error_count} รายการ`)
+        }
+        fetchReceipts()
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'เกิดข้อผิดพลาด')
+      }
+    } catch (error) {
+      toast.error('เกิดข้อผิดพลาดในการอนุมัติอัตโนมัติ')
+    } finally {
+      setAutoApproving(false)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     const styles = {
       pending: 'bg-yellow-100 text-yellow-800',
@@ -230,6 +262,33 @@ export default function AdminReceipts() {
         <h1 className="text-2xl font-bold text-gray-900">Receipt Review</h1>
         <p className="text-gray-600">ตรวจสอบและอนุมัติใบเสร็จที่ผู้ใช้อัปโหลด</p>
       </div>
+
+      {/* Auto Approve Section */}
+      {status === 'pending' && (
+        <Card className="border-green-200 bg-green-50">
+          <CardHeader>
+            <CardTitle className="text-green-800 flex items-center justify-between">
+              <div className="flex items-center">
+                <Zap className="mr-2 h-5 w-5" />
+                อนุมัติอัตโนมัติ
+              </div>
+            </CardTitle>
+            <CardDescription>
+              อนุมัติใบเสร็จที่เป็นของร้าน "ตั้งหง่วงเซ้ง" ทั้งหมดในครั้งเดียว
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              onClick={handleAutoApprove}
+              disabled={autoApproving || loading}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Zap className="mr-2 h-4 w-4" />
+              {autoApproving ? 'กำลังอนุมัติ...' : 'อนุมัติใบเสร็จของร้านทั้งหมด'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       <Card>

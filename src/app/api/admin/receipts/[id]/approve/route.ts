@@ -65,7 +65,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         points_awarded,
         admin_notes,
         approved_at: currentTime,
-        approved_by: "admin", // In a real app, this would be the admin's user ID
+        approved_by: null, // TODO: In a real app, this would be the admin's user ID
         updated_at: currentTime
       })
       .eq("id", id);
@@ -107,7 +107,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         description: `Points earned from receipt approval`,
         reference_id: id,
         reference_type: "receipt",
-        created_by: "admin", // In a real app, this would be the admin's user ID
+        created_by: null, // TODO: In a real app, this would be the admin's user ID
         created_at: currentTime
       });
 

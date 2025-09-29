@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Users, Receipt, Gift, BarChart3, Settings, Save } from 'lucide-react'
+import { Users, Receipt, Gift, BarChart3, Settings, Save, Zap } from 'lucide-react'
 import Link from 'next/link'
 import { Tables } from '../../../database.types'
 import { toast } from 'sonner'
@@ -19,6 +19,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [recentReceipts, setRecentReceipts] = useState<any[]>([])
   const [receiptsLoading, setReceiptsLoading] = useState(true)
+  const [autoApproving, setAutoApproving] = useState(false)
 
   useEffect(() => {
     fetchPointSetting()
@@ -121,6 +122,36 @@ export default function AdminDashboard() {
         {labels[status as keyof typeof labels]}
       </span>
     )
+  }
+
+  const handleAutoApprove = async () => {
+    if (!confirm('คุณต้องการอนุมัติใบเสร็จของร้าน "ตั้งหง่วงเซ้ง" ทั้งหมดโดยอัตโนมัติหรือไม่?')) {
+      return
+    }
+
+    setAutoApproving(true)
+    try {
+      const response = await fetch('/api/admin/receipts/auto-approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        toast.success(`อนุมัติสำเร็จ ${result.approved_count} ใบเสร็จ`)
+        if (result.error_count > 0) {
+          toast.warning(`มีข้อผิดพลาด ${result.error_count} รายการ`)
+        }
+        fetchRecentReceipts()
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'เกิดข้อผิดพลาด')
+      }
+    } catch (error) {
+      toast.error('เกิดข้อผิดพลาดในการอนุมัติอัตโนมัติ')
+    } finally {
+      setAutoApproving(false)
+    }
   }
   const dashboardCards = [
     {
@@ -268,11 +299,22 @@ export default function AdminDashboard() {
               <Receipt className="mr-2 h-5 w-5" />
               รายการใบเสร็จล่าสุด
             </div>
-            <Link href="/admin/receipts">
-              <Button variant="outline" size="sm">
-                ดูทั้งหมด
+            <div className="flex space-x-2">
+              <Button
+                onClick={handleAutoApprove}
+                disabled={autoApproving}
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <Zap className="mr-1 h-3 w-3" />
+                {autoApproving ? 'กำลังอนุมัติ...' : 'อนุมัติอัตโนมัติ'}
               </Button>
-            </Link>
+              <Link href="/admin/receipts">
+                <Button variant="outline" size="sm">
+                  ดูทั้งหมด
+                </Button>
+              </Link>
+            </div>
           </CardTitle>
           <CardDescription>
             ใบเสร็จที่รอการอนุมัติ 10 รายการล่าสุด
