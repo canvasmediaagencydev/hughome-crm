@@ -17,9 +17,12 @@ export default function AdminDashboard() {
   const [bahtPerPoint, setBahtPerPoint] = useState('')
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [recentReceipts, setRecentReceipts] = useState<any[]>([])
+  const [receiptsLoading, setReceiptsLoading] = useState(true)
 
   useEffect(() => {
     fetchPointSetting()
+    fetchRecentReceipts()
   }, [])
 
   const fetchPointSetting = async () => {
@@ -76,6 +79,48 @@ export default function AdminDashboard() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const fetchRecentReceipts = async () => {
+    setReceiptsLoading(true)
+    try {
+      const response = await fetch('/api/admin/receipts?limit=10&status=pending')
+      if (response.ok) {
+        const data = await response.json()
+        setRecentReceipts(data.receipts || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch recent receipts:', error)
+    } finally {
+      setReceiptsLoading(false)
+    }
+  }
+
+  const calculatePoints = (totalAmount: number): number => {
+    if (!pointSetting || !totalAmount) return 0
+    return Math.floor(totalAmount / pointSetting.setting_value)
+  }
+
+  const getStatusBadge = (status: string) => {
+    const styles = {
+      pending: 'bg-yellow-100 text-yellow-800',
+      approved: 'bg-green-100 text-green-800',
+      rejected: 'bg-red-100 text-red-800',
+      processing: 'bg-blue-100 text-blue-800'
+    }
+
+    const labels = {
+      pending: 'รอการอนุมัติ',
+      approved: 'อนุมัติแล้ว',
+      rejected: 'ปฏิเสธแล้ว',
+      processing: 'กำลังประมวลผล'
+    }
+
+    return (
+      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${styles[status as keyof typeof styles]}`}>
+        {labels[status as keyof typeof labels]}
+      </span>
+    )
   }
   const dashboardCards = [
     {
@@ -212,6 +257,108 @@ export default function AdminDashboard() {
               เพิ่มรางวัลใหม่
             </Button>
           </Link>
+        </CardContent>
+      </Card>
+
+      {/* Recent Receipts */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-red-800 flex items-center justify-between">
+            <div className="flex items-center">
+              <Receipt className="mr-2 h-5 w-5" />
+              รายการใบเสร็จล่าสุด
+            </div>
+            <Link href="/admin/receipts">
+              <Button variant="outline" size="sm">
+                ดูทั้งหมด
+              </Button>
+            </Link>
+          </CardTitle>
+          <CardDescription>
+            ใบเสร็จที่รอการอนุมัติ 10 รายการล่าสุด
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {receiptsLoading ? (
+            <div className="text-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-600 mx-auto mb-2"></div>
+              <p className="text-gray-500 text-sm">กำลังโหลด...</p>
+            </div>
+          ) : recentReceipts.length === 0 ? (
+            <div className="text-center py-8">
+              <Receipt className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+              <p className="text-gray-500">ไม่มีใบเสร็จรอการอนุมัติ</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {recentReceipts.map((receipt) => {
+                const user = receipt.user_profiles
+                const displayName = user?.display_name || user?.first_name || 'ไม่ระบุชื่อ'
+                const points = receipt.total_amount ? calculatePoints(receipt.total_amount) : 0
+
+                // Extract store name from OCR data
+                const ocrData = receipt.ocr_data
+                let storeName = 'ไม่ระบุร้าน'
+
+                if (ocrData) {
+                  const storeField = ocrData.ชื่อร้าน || ocrData["ชื่อร้าน"]
+                  if (storeField === true) {
+                    storeName = 'ตั้งหง่วงเซ้ง'
+                  } else if (storeField === false) {
+                    storeName = 'ไม่ใช่ของร้าน ตั้งหง่วงเซ้ง'
+                  }
+                }
+
+                return (
+                  <div key={receipt.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className="font-medium text-sm">{displayName}</span>
+                        {getStatusBadge(receipt.status || 'pending')}
+                      </div>
+
+                      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 text-xs text-gray-600">
+                        <div>
+                          <span className="font-medium">ยอดเงิน:</span> ฿{receipt.total_amount?.toLocaleString() || 'N/A'}
+                        </div>
+                        <div>
+                          <span className="font-medium">วันที่ใบเสร็จ:</span> {
+                            receipt.receipt_date
+                              ? new Date(receipt.receipt_date).toLocaleDateString('th-TH')
+                              : 'N/A'
+                          }
+                        </div>
+                        <div>
+                          <span className="font-medium">วันที่อัปโหลด:</span> {
+                            receipt.created_at
+                              ? new Date(receipt.created_at).toLocaleDateString('th-TH')
+                              : 'N/A'
+                          }
+                        </div>
+                        <div>
+                          <span className="font-medium">Points:</span> {points}
+                        </div>
+                        <div className="truncate">
+                          <span className="font-medium">ร้าน:</span>
+                          <span className={storeName === 'ไม่ใช่ของร้าน ตั้งหง่วงเซ้ง' ? 'text-red-500 font-medium' : ''}>
+                            {storeName}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex space-x-1 ml-2">
+                      <Link href="/admin/receipts">
+                        <Button variant="outline" size="sm" className="text-xs">
+                          ดูรายละเอียด
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

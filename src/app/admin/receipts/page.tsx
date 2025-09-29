@@ -69,9 +69,7 @@ export default function AdminReceipts() {
 
   // Modal states
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptWithRelations | null>(null)
-  const [modalType, setModalType] = useState<'view' | 'approve' | 'reject' | 'image' | null>(null)
-  const [adminNotes, setAdminNotes] = useState('')
-  const [calculatedPoints, setCalculatedPoints] = useState(0)
+  const [modalType, setModalType] = useState<'view' | 'image' | null>(null)
   const [selectedImageUrl, setSelectedImageUrl] = useState('')
 
   useEffect(() => {
@@ -129,15 +127,9 @@ export default function AdminReceipts() {
     fetchReceipts()
   }
 
-  const openModal = (receipt: ReceiptWithRelations, type: 'view' | 'approve' | 'reject') => {
+  const openModal = (receipt: ReceiptWithRelations) => {
     setSelectedReceipt(receipt)
-    setModalType(type)
-    setAdminNotes('')
-
-    if (type === 'approve' && receipt.total_amount) {
-      const points = calculatePoints(receipt.total_amount)
-      setCalculatedPoints(points)
-    }
+    setModalType('view')
   }
 
   const openImageModal = (imageUrl: string) => {
@@ -148,28 +140,25 @@ export default function AdminReceipts() {
   const closeModal = () => {
     setSelectedReceipt(null)
     setModalType(null)
-    setAdminNotes('')
-    setCalculatedPoints(0)
     setSelectedImageUrl('')
   }
 
-  const handleApprove = async () => {
-    if (!selectedReceipt) return
+  const handleApprove = async (receipt: ReceiptWithRelations) => {
+    const points = receipt.total_amount ? calculatePoints(receipt.total_amount) : 0
 
-    setProcessing(selectedReceipt.id)
+    setProcessing(receipt.id)
     try {
-      const response = await fetch(`/api/admin/receipts/${selectedReceipt.id}/approve`, {
+      const response = await fetch(`/api/admin/receipts/${receipt.id}/approve`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          points_awarded: calculatedPoints,
-          admin_notes: adminNotes.trim() || 'อนุมัติโดยระบบ'
+          points_awarded: points,
+          admin_notes: 'อนุมัติโดยระบบ'
         })
       })
 
       if (response.ok) {
         toast.success('อนุมัติใบเสร็จสำเร็จ!')
-        closeModal()
         fetchReceipts()
       } else {
         const error = await response.json()
@@ -182,25 +171,25 @@ export default function AdminReceipts() {
     }
   }
 
-  const handleReject = async () => {
-    if (!selectedReceipt || !adminNotes.trim()) {
+  const handleReject = async (receipt: ReceiptWithRelations) => {
+    const reason = prompt('กรุณาระบุเหตุผลในการปฏิเสธ:')
+    if (!reason || !reason.trim()) {
       toast.error('กรุณาระบุเหตุผลในการปฏิเสธ')
       return
     }
 
-    setProcessing(selectedReceipt.id)
+    setProcessing(receipt.id)
     try {
-      const response = await fetch(`/api/admin/receipts/${selectedReceipt.id}/reject`, {
+      const response = await fetch(`/api/admin/receipts/${receipt.id}/reject`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          admin_notes: adminNotes.trim()
+          admin_notes: reason.trim()
         })
       })
 
       if (response.ok) {
         toast.success('ปฏิเสธใบเสร็จสำเร็จ!')
-        closeModal()
         fetchReceipts()
       } else {
         const error = await response.json()
@@ -321,56 +310,57 @@ export default function AdminReceipts() {
                 const receiptImage = receipt.receipt_images?.[0]
                 const imageUrl = receiptImage ? getReceiptImageUrl(receiptImage.file_path) : null
 
+                // Extract store name from OCR data
+                const ocrData = receipt.ocr_data
+                let storeName = 'ไม่ระบุร้าน'
+
+                if (ocrData) {
+                  const storeField = ocrData.ชื่อร้าน || ocrData["ชื่อร้าน"]
+                  if (storeField === true) {
+                    storeName = 'ตั้งหง่วงเซ้ง'
+                  } else if (storeField === false) {
+                    storeName = 'ไม่ใช่ของร้าน ตั้งหง่วงเซ้ง'
+                  }
+                }
+
                 return (
                   <div key={receipt.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                    <div className="flex items-start space-x-4">
-                      {/* Receipt Image Thumbnail */}
-                      {imageUrl && (
-                        <div className="flex-shrink-0">
-                          <div
-                            className="w-20 h-20 relative border rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-                            onClick={() => openImageModal(imageUrl)}
-                          >
-                            <Image
-                              src={imageUrl}
-                              alt="Receipt thumbnail"
-                              fill
-                              className="object-cover"
-                              sizes="80px"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement
-                                target.style.display = 'none'
-                                target.nextElementSibling?.classList.remove('hidden')
-                              }}
-                            />
-                            <div className="hidden absolute inset-0 bg-gray-200 flex items-center justify-center text-xs text-gray-500">
-                              ไม่สามารถโหลดรูป
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
+                    <div className="flex items-start justify-between">
                       {/* Receipt Details */}
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
+                          <p>ชื่อลูกค้า : </p>
                           <h3 className="font-medium">{displayName}</h3>
                           {getStatusBadge(receipt.status || 'pending')}
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-gray-600">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2 text-sm text-gray-600">
                           <div>
                             <span className="font-medium">ยอดเงิน:</span> ฿{receipt.total_amount?.toLocaleString() || 'N/A'}
                           </div>
                           <div>
-                            <span className="font-medium">วันที่:</span> {
+                            <span className="font-medium">วันที่ใบเสร็จ : </span> {
                               receipt.receipt_date
                                 ? new Date(receipt.receipt_date).toLocaleDateString('th-TH')
                                 : 'N/A'
                             }
                           </div>
+                          <div>
+                            <span className="font-medium">วันที่อัปโหลด : </span> {
+                              receipt.created_at
+                                ? new Date(receipt.created_at).toLocaleDateString('th-TH')
+                                : 'N/A'
+                            }
+                          </div>
                           <div className="flex items-center">
                             <Calculator className="mr-1 h-3 w-3" />
-                            <span className="font-medium">Points:</span> {points}
+                            <span className="font-medium">Points : </span> {points}
+                          </div>
+                          <div className="truncate">
+                            <span className="font-medium">ร้าน:</span>
+                            <span className={storeName === 'ไม่ใช่ของร้าน ตั้งหง่วงเซ้ง' ? 'text-red-500 font-medium' : ''}>
+                              {storeName}
+                            </span>
                           </div>
                         </div>
 
@@ -382,11 +372,11 @@ export default function AdminReceipts() {
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="flex space-x-2">
+                      <div className="flex space-x-2 ml-4">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => openModal(receipt, 'view')}
+                          onClick={() => openModal(receipt)}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -396,7 +386,7 @@ export default function AdminReceipts() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => openModal(receipt, 'approve')}
+                              onClick={() => handleApprove(receipt)}
                               disabled={processing === receipt.id}
                               className="text-green-600 hover:text-green-700"
                             >
@@ -405,7 +395,7 @@ export default function AdminReceipts() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => openModal(receipt, 'reject')}
+                              onClick={() => handleReject(receipt)}
                               disabled={processing === receipt.id}
                               className="text-red-600 hover:text-red-700"
                             >
@@ -462,8 +452,7 @@ export default function AdminReceipts() {
           <DialogHeader>
             <DialogTitle>
               {modalType === 'view' && 'รายละเอียดใบเสร็จ'}
-              {modalType === 'approve' && 'อนุมัติใบเสร็จ'}
-              {modalType === 'reject' && 'ปฏิเสธใบเสร็จ'}
+              {modalType === 'image' && 'รูปใบเสร็จ'}
             </DialogTitle>
           </DialogHeader>
 
@@ -491,7 +480,7 @@ export default function AdminReceipts() {
             </div>
           )}
 
-          {selectedReceipt && modalType !== 'image' && (
+          {selectedReceipt && modalType === 'view' && (
             <div className="space-y-4">
               {/* Receipt Image */}
               {selectedReceipt.receipt_images?.[0] && (
@@ -528,26 +517,6 @@ export default function AdminReceipts() {
                 </div>
               )}
 
-              {/* Receipt Details */}
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <strong>ผู้ใช้:</strong> {selectedReceipt.user_profiles?.display_name || 'ไม่ระบุ'}
-                </div>
-                <div>
-                  <strong>ยอดเงิน:</strong> ฿{selectedReceipt.total_amount?.toLocaleString() || 'N/A'}
-                </div>
-                <div>
-                  <strong>วันที่:</strong> {
-                    selectedReceipt.receipt_date
-                      ? new Date(selectedReceipt.receipt_date).toLocaleDateString('th-TH')
-                      : 'N/A'
-                  }
-                </div>
-                <div>
-                  <strong>สถานะ:</strong> {getStatusBadge(selectedReceipt.status || 'pending')}
-                </div>
-              </div>
-
               {/* OCR Data */}
               {selectedReceipt.ocr_data && (
                 <div>
@@ -558,70 +527,11 @@ export default function AdminReceipts() {
                 </div>
               )}
 
-              {/* Actions for approve/reject */}
-              {modalType === 'approve' && (
-                <div className="space-y-4">
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <h4 className="font-medium text-green-800 mb-2">การคำนวณ Points</h4>
-                    <div className="text-sm text-green-700">
-                      <p>ยอดเงิน: ฿{selectedReceipt.total_amount?.toLocaleString()}</p>
-                      <p>อัตราแลกเปลี่ยน: ฿{pointSetting?.setting_value} = 1 Point</p>
-                      <p className="font-medium">Points ที่จะได้รับ: {calculatedPoints} Points</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="approve-notes">หมายเหตุ (ไม่บังคับ)</Label>
-                    <Input
-                      id="approve-notes"
-                      value={adminNotes}
-                      onChange={(e) => setAdminNotes(e.target.value)}
-                      placeholder="เพิ่มหมายเหตุ..."
-                    />
-                  </div>
-
-                  <div className="flex space-x-2">
-                    <Button onClick={closeModal} variant="outline">
-                      ยกเลิก
-                    </Button>
-                    <Button
-                      onClick={handleApprove}
-                      disabled={!!processing}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      {processing ? 'กำลังประมวลผล...' : 'อนุมัติ'}
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {modalType === 'reject' && (
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="reject-notes">เหตุผลในการปฏิเสธ *</Label>
-                    <Input
-                      id="reject-notes"
-                      value={adminNotes}
-                      onChange={(e) => setAdminNotes(e.target.value)}
-                      placeholder="ระบุเหตุผล..."
-                      required
-                    />
-                  </div>
-
-                  <div className="flex space-x-2">
-                    <Button onClick={closeModal} variant="outline">
-                      ยกเลิก
-                    </Button>
-                    <Button
-                      onClick={handleReject}
-                      disabled={!!processing || !adminNotes.trim()}
-                      className="bg-red-600 hover:bg-red-700"
-                    >
-                      {processing ? 'กำลังประมวลผล...' : 'ปฏิเสธ'}
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <div className="flex justify-end">
+                <Button onClick={closeModal} variant="outline">
+                  ปิด
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
