@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     // Generate unique filename
     const timestamp = Date.now()
     const fileName = `receipt-${timestamp}.jpg`
-    const filePath = `receipts/${userId}/${fileName}`
+    const filePath = `${userId}/${fileName}`
 
     // Upload image to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage

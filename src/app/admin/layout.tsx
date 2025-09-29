@@ -13,7 +13,8 @@ import {
   LogOut,
   Home,
   X,
-  Menu
+  Menu,
+  Settings
 } from 'lucide-react'
 import Link from 'next/link'
 

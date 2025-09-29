@@ -1,11 +1,82 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Users, Receipt, Gift, BarChart3 } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Users, Receipt, Gift, BarChart3, Settings, Save } from 'lucide-react'
 import Link from 'next/link'
+import { Tables } from '../../../database.types'
+import { toast } from 'sonner'
+
+type PointSetting = Tables<'point_settings'>
 
 export default function AdminDashboard() {
+  const [pointSetting, setPointSetting] = useState<PointSetting | null>(null)
+  const [bahtPerPoint, setBahtPerPoint] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchPointSetting()
+  }, [])
+
+  const fetchPointSetting = async () => {
+    try {
+      const response = await fetch('/api/admin/point-settings')
+      if (response.ok) {
+        const data = await response.json()
+        const bahtSetting = data.find((s: PointSetting) => s.setting_key === 'baht_per_point')
+        if (bahtSetting) {
+          setPointSetting(bahtSetting)
+          setBahtPerPoint(bahtSetting.setting_value.toString())
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch point setting:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const savePointSetting = async () => {
+    setSaving(true)
+    try {
+      const value = parseFloat(bahtPerPoint)
+      if (isNaN(value) || value <= 0) {
+        toast.error('กรุณาใส่ตัวเลขที่ถูกต้อง')
+        return
+      }
+
+      const url = '/api/admin/point-settings'
+      const method = pointSetting ? 'PUT' : 'POST'
+      const body = pointSetting
+        ? { id: pointSetting.id, setting_value: value }
+        : {
+            setting_key: 'baht_per_point',
+            setting_value: value,
+            description: 'Amount in Thai Baht required to earn 1 point',
+            is_active: true
+          }
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+
+      if (response.ok) {
+        await fetchPointSetting()
+        toast.success('บันทึกสำเร็จ!')
+      }
+    } catch (error) {
+      console.error('Failed to save point setting:', error)
+      toast.error('เกิดข้อผิดพลาด')
+    } finally {
+      setSaving(false)
+    }
+  }
   const dashboardCards = [
     {
       title: 'จัดการผู้ใช้',
@@ -72,6 +143,47 @@ export default function AdminDashboard() {
           )
         })}
       </div>
+
+      {/* Point Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-red-800 flex items-center">
+            <Settings className="mr-2 h-5 w-5" />
+            ตั้งค่าอัตราแลกเปลี่ยน Point
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <p className="text-gray-500">กำลังโหลด...</p>
+          ) : (
+            <div className="flex items-end space-x-4">
+              <div className="flex-1">
+                <Label htmlFor="bahtPerPoint">จำนวนบาทต่อ 1 Point</Label>
+                <Input
+                  id="bahtPerPoint"
+                  type="number"
+                  step="0.01"
+                  value={bahtPerPoint}
+                  onChange={(e) => setBahtPerPoint(e.target.value)}
+                  placeholder="100.00"
+                  className="mt-1"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  ตัวอย่าง: ใส่ 100 หมายถึง ใช้เงิน 100 บาท ได้ 1 Point
+                </p>
+              </div>
+              <Button
+                onClick={savePointSetting}
+                disabled={saving}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                <Save className="mr-2 h-4 w-4" />
+                {saving ? 'กำลังบันทึก...' : 'บันทึก'}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Quick Actions */}
       <Card>
