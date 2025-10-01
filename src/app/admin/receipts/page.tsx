@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,6 +25,7 @@ import { AutoApproveConfirmModal } from '@/components/admin/AutoApproveConfirmMo
 import { ReceiptDetailModal } from '@/components/admin/ReceiptDetailModal'
 import { ReceiptImageModal } from '@/components/admin/ReceiptImageModal'
 import { RejectReceiptModal } from '@/components/admin/RejectReceiptModal'
+import debounce from 'lodash.debounce'
 
 type ReceiptWithRelations = Tables<'receipts'> & {
   user_profiles: {
@@ -80,11 +81,6 @@ export default function AdminReceipts() {
   const [receiptToReject, setReceiptToReject] = useState<ReceiptWithRelations | null>(null)
   const [selectedImageUrl, setSelectedImageUrl] = useState('')
 
-  useEffect(() => {
-    fetchReceipts()
-    fetchPointSetting()
-  }, [status, search, page])
-
   const fetchPointSetting = async () => {
     try {
       const response = await fetch('/api/admin/point-settings')
@@ -98,7 +94,7 @@ export default function AdminReceipts() {
     }
   }
 
-  const fetchReceipts = async () => {
+  const fetchReceipts = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
@@ -123,7 +119,48 @@ export default function AdminReceipts() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [status, page, search])
+
+  // Create debounced version that updates when fetchReceipts changes
+  const debouncedFetchReceipts = useMemo(
+    () => debounce(fetchReceipts, 1000),
+    [fetchReceipts]
+  )
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      debouncedFetchReceipts.cancel()
+    }
+  }, [debouncedFetchReceipts])
+
+  // Fetch on mount
+  useEffect(() => {
+    fetchPointSetting()
+    fetchReceipts()
+  }, [])
+
+  // Fetch immediately when status or page changes (not search)
+  const prevStatusRef = useRef(status)
+  const prevPageRef = useRef(page)
+
+  useEffect(() => {
+    if (prevStatusRef.current !== status || prevPageRef.current !== page) {
+      fetchReceipts()
+      prevStatusRef.current = status
+      prevPageRef.current = page
+    }
+  }, [status, page, fetchReceipts])
+
+  // Debounced fetch when search changes
+  const prevSearchRef = useRef(search)
+
+  useEffect(() => {
+    if (prevSearchRef.current !== search) {
+      debouncedFetchReceipts()
+      prevSearchRef.current = search
+    }
+  }, [search, debouncedFetchReceipts])
 
   const calculatePoints = (totalAmount: number): number => {
     if (!pointSetting || !totalAmount) return 0

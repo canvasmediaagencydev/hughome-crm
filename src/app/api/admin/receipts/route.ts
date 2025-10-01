@@ -31,56 +31,47 @@ export async function GET(request: NextRequest) {
           file_size,
           mime_type
         )
-      `)
+      `, { count: 'exact' })
       .eq("status", status as any)
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
+      .order("created_at", { ascending: false });
 
-    // Add search filter if provided
-    if (search) {
-      query = query.or(`
-        user_profiles.display_name.ilike.%${search}%,
-        user_profiles.first_name.ilike.%${search}%,
-        user_profiles.last_name.ilike.%${search}%,
-        total_amount.eq.${parseFloat(search) || 0}
-      `);
-    }
-
-    const { data: receipts, error } = await query;
+    const { data: allReceipts, error, count: totalCount } = await query;
 
     if (error) {
       console.error("Error fetching receipts:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Get total count for pagination
-    let countQuery = supabase
-      .from("receipts")
-      .select("id", { count: "exact", head: true })
-      .eq("status", status as any);
+    // Filter by search on server side
+    let filteredReceipts = allReceipts || [];
+    if (search && filteredReceipts.length > 0) {
+      const searchLower = search.toLowerCase();
+      const searchNum = parseFloat(search);
 
-    if (search) {
-      countQuery = countQuery.or(`
-        user_profiles.display_name.ilike.%${search}%,
-        user_profiles.first_name.ilike.%${search}%,
-        user_profiles.last_name.ilike.%${search}%,
-        total_amount.eq.${parseFloat(search) || 0}
-      `);
+      filteredReceipts = filteredReceipts.filter((receipt: any) => {
+        const user = receipt.user_profiles;
+        const displayName = (user?.display_name || '').toLowerCase();
+        const firstName = (user?.first_name || '').toLowerCase();
+        const lastName = (user?.last_name || '').toLowerCase();
+        const totalAmount = receipt.total_amount || 0;
+
+        return displayName.includes(searchLower) ||
+               firstName.includes(searchLower) ||
+               lastName.includes(searchLower) ||
+               (!isNaN(searchNum) && totalAmount === searchNum);
+      });
     }
 
-    const { count, error: countError } = await countQuery;
-
-    if (countError) {
-      console.error("Error getting count:", countError);
-    }
+    // Apply pagination to filtered results
+    const receipts = filteredReceipts.slice(offset, offset + limit);
 
     return NextResponse.json({
       receipts,
       pagination: {
         page,
         limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit)
+        total: filteredReceipts.length,
+        totalPages: Math.ceil(filteredReceipts.length / limit)
       }
     });
 
