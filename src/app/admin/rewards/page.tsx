@@ -1,48 +1,526 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Gift } from 'lucide-react'
-import Link from 'next/link'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
+import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Gift, Plus, Edit, Trash2, Package, Image as ImageIcon } from 'lucide-react'
+import { Tables } from '../../../../database.types'
+import { toast } from 'sonner'
+import Image from 'next/image'
+
+type Reward = Tables<'rewards'>
 
 export default function AdminRewards() {
+  const [rewards, setRewards] = useState<Reward[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showFormDialog, setShowFormDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [editingReward, setEditingReward] = useState<Reward | null>(null)
+  const [deletingReward, setDeletingReward] = useState<Reward | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    points_cost: '',
+    category: '',
+    stock_quantity: '',
+    is_active: true,
+    sort_order: '',
+  })
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchRewards()
+  }, [])
+
+  const fetchRewards = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/admin/rewards')
+      if (response.ok) {
+        const data = await response.json()
+        setRewards(data)
+      } else {
+        toast.error('ไม่สามารถโหลดข้อมูลรางวัลได้')
+      }
+    } catch (error) {
+      toast.error('เกิดข้อผิดพลาดในการโหลดข้อมูล')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      points_cost: '',
+      category: '',
+      stock_quantity: '',
+      is_active: true,
+      sort_order: '',
+    })
+    setImageFile(null)
+    setImagePreview(null)
+    setEditingReward(null)
+  }
+
+  const handleOpenFormDialog = (reward?: Reward) => {
+    if (reward) {
+      setEditingReward(reward)
+      setFormData({
+        name: reward.name,
+        description: reward.description || '',
+        points_cost: reward.points_cost.toString(),
+        category: reward.category || '',
+        stock_quantity: reward.stock_quantity?.toString() || '',
+        is_active: reward.is_active ?? true,
+        sort_order: reward.sort_order?.toString() || '',
+      })
+      setImagePreview(reward.image_url)
+    } else {
+      resetForm()
+    }
+    setShowFormDialog(true)
+  }
+
+  const handleCloseFormDialog = () => {
+    setShowFormDialog(false)
+    setTimeout(resetForm, 200)
+  }
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setImageFile(file)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        return data.url
+      }
+      return null
+    } catch (error) {
+      console.error('Image upload error:', error)
+      return null
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmitting(true)
+
+    try {
+      let imageUrl = editingReward?.image_url || null
+
+      // Upload image if new file is selected
+      if (imageFile) {
+        const uploadedUrl = await uploadImage(imageFile)
+        if (uploadedUrl) {
+          imageUrl = uploadedUrl
+        } else {
+          toast.error('ไม่สามารถอัปโหลดรูปภาพได้')
+          setSubmitting(false)
+          return
+        }
+      }
+
+      const payload = {
+        name: formData.name,
+        description: formData.description,
+        points_cost: parseInt(formData.points_cost) || 0,
+        category: formData.category,
+        stock_quantity: formData.stock_quantity ? parseInt(formData.stock_quantity) : null,
+        is_active: formData.is_active,
+        sort_order: formData.sort_order ? parseInt(formData.sort_order) : null,
+        image_url: imageUrl,
+      }
+
+      let response
+      if (editingReward) {
+        response = await fetch(`/api/admin/rewards/${editingReward.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+      } else {
+        response = await fetch('/api/admin/rewards', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+      }
+
+      if (response.ok) {
+        toast.success(editingReward ? 'แก้ไขรางวัลสำเร็จ' : 'เพิ่มรางวัลสำเร็จ')
+        handleCloseFormDialog()
+        fetchRewards()
+      } else {
+        toast.error('ไม่สามารถบันทึกข้อมูลได้')
+      }
+    } catch (error) {
+      toast.error('เกิดข้อผิดพลาด')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deletingReward) return
+
+    setSubmitting(true)
+    try {
+      const response = await fetch(`/api/admin/rewards/${deletingReward.id}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        toast.success('ลบรางวัลสำเร็จ')
+        setShowDeleteDialog(false)
+        setDeletingReward(null)
+        fetchRewards()
+      } else {
+        toast.error('ไม่สามารถลบรางวัลได้')
+      }
+    } catch (error) {
+      toast.error('เกิดข้อผิดพลาด')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleToggleActive = async (reward: Reward) => {
+    try {
+      const response = await fetch(`/api/admin/rewards/${reward.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !reward.is_active }),
+      })
+
+      if (response.ok) {
+        const updatedReward = await response.json()
+        setRewards(prev => prev.map(r => r.id === reward.id ? updatedReward : r))
+        toast.success('อัปเดตสถานะสำเร็จ')
+      } else {
+        toast.error('ไม่สามารถอัปเดตสถานะได้')
+      }
+    } catch (error) {
+      toast.error('เกิดข้อผิดพลาด')
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Reward Management</h1>
-        <p className="text-gray-600">จัดการรางวัลและของแถมในระบบ</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Reward Management</h1>
+          <p className="text-gray-600">จัดการรางวัลและของแถมในระบบ</p>
+        </div>
+        <Button onClick={() => handleOpenFormDialog()}>
+          <Plus className="mr-2 h-4 w-4" />
+          เพิ่มรางวัลใหม่
+        </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Gift className="mr-2 h-5 w-5" />
-            ฟีเจอร์ Reward Management
-          </CardTitle>
-          <CardDescription>
-            หน้านี้จะแสดงการจัดการรางวัลทั้งหมดในระบบ
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-gray-600 mb-4">
-            ฟีเจอร์นี้จะรวมถึง:
-          </p>
-          <ul className="list-disc list-inside text-sm text-gray-600 space-y-1 mb-4">
-            <li>แสดงรายการรางวัลทั้งหมด</li>
-            <li>เพิ่มรางวัลใหม่</li>
-            <li>แก้ไขรายละเอียดรางวัล</li>
-            <li>อัปโหลดภาพรางวัล</li>
-            <li>จัดการสต็อคและความพร้อมใช้งาน</li>
-            <li>ลบรางวัล</li>
-          </ul>
-          <div className="flex space-x-2">
-            <Link href="/admin">
-              <Button variant="outline">กลับไปหน้า Dashboard</Button>
-            </Link>
-            <Button disabled>เร็วๆ นี้</Button>
-          </div>
-        </CardContent>
-      </Card>
+      {loading ? (
+        <div className="text-center py-12">
+          <p className="text-gray-500">กำลังโหลดข้อมูล...</p>
+        </div>
+      ) : rewards.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Gift className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <p className="text-gray-500">ยังไม่มีรางวัลในระบบ</p>
+            <Button onClick={() => handleOpenFormDialog()} className="mt-4">
+              <Plus className="mr-2 h-4 w-4" />
+              เพิ่มรางวัลแรก
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {rewards.map((reward) => (
+            <Card key={reward.id} className="overflow-hidden">
+              <div className="aspect-video bg-gray-100 relative">
+                {reward.image_url ? (
+                  <Image
+                    src={reward.image_url}
+                    alt={reward.name}
+                    fill
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <ImageIcon className="h-12 w-12 text-gray-400" />
+                  </div>
+                )}
+              </div>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-lg">{reward.name}</CardTitle>
+                  <Badge
+                    variant={reward.is_active ? 'default' : 'secondary'}
+                    className={reward.is_active ? 'bg-green-500 hover:bg-green-600' : ''}
+                  >
+                    {reward.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                  </Badge>
+                </div>
+                {reward.category && (
+                  <CardDescription>{reward.category}</CardDescription>
+                )}
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {reward.description && (
+                  <p className="text-sm text-gray-600 line-clamp-2">
+                    {reward.description}
+                  </p>
+                )}
+                <div className="flex justify-between items-center text-sm">
+                  <div className="flex items-center text-primary font-semibold">
+                    <Gift className="mr-1 h-4 w-4" />
+                    {reward.points_cost.toLocaleString()} แต้ม
+                  </div>
+                  <div className="flex items-center text-gray-600">
+                    <Package className="mr-1 h-4 w-4" />
+                    {reward.stock_quantity !== null
+                      ? `${reward.stock_quantity} ชิ้น`
+                      : 'ไม่จำกัด'}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-4 border-t">
+                  <div className="flex items-center space-x-2">
+                    <Label htmlFor={`active-${reward.id}`} className="text-sm">
+                      เปิดใช้งาน
+                    </Label>
+                    <Switch
+                      id={`active-${reward.id}`}
+                      checked={reward.is_active ?? true}
+                      onCheckedChange={() => handleToggleActive(reward)}
+                    />
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleOpenFormDialog(reward)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setDeletingReward(reward)
+                        setShowDeleteDialog(true)
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Form Dialog */}
+      <Dialog open={showFormDialog} onOpenChange={handleCloseFormDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingReward ? 'แก้ไขรางวัล' : 'เพิ่มรางวัลใหม่'}
+            </DialogTitle>
+            <DialogDescription>
+              กรอกข้อมูลรางวัลให้ครบถ้วน
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">ชื่อรางวัล *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">รายละเอียด</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={3}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="points_cost">แต้มที่ใช้แลก *</Label>
+                <Input
+                  id="points_cost"
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={formData.points_cost}
+                  onChange={(e) =>
+                    setFormData({ ...formData, points_cost: e.target.value })
+                  }
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category">หมวดหมู่</Label>
+                <Input
+                  id="category"
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="stock_quantity">จำนวนสต็อค (เว้นว่าง = ไม่จำกัด)</Label>
+                <Input
+                  id="stock_quantity"
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={formData.stock_quantity}
+                  onChange={(e) =>
+                    setFormData({ ...formData, stock_quantity: e.target.value })
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="sort_order">ลำดับการแสดง</Label>
+                <Input
+                  id="sort_order"
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={formData.sort_order}
+                  onChange={(e) =>
+                    setFormData({ ...formData, sort_order: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="image">รูปภาพรางวัล</Label>
+              <Input
+                id="image"
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+              />
+              {imagePreview && (
+                <div className="mt-2 relative w-full aspect-video bg-gray-100 rounded-lg overflow-hidden">
+                  <Image
+                    src={imagePreview}
+                    alt="Preview"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="is_active"
+                checked={formData.is_active}
+                onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+              />
+              <Label htmlFor="is_active">เปิดใช้งานรางวัลนี้</Label>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseFormDialog}
+                disabled={submitting}
+              >
+                ยกเลิก
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? 'กำลังบันทึก...' : 'บันทึก'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>ยืนยันการลบรางวัล</DialogTitle>
+            <DialogDescription>
+              คุณแน่ใจหรือไม่ที่จะลบรางวัล &quot;{deletingReward?.name}&quot;?
+              การกระทำนี้ไม่สามารถย้อนกลับได้
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteDialog(false)
+                setDeletingReward(null)
+              }}
+              disabled={submitting}
+            >
+              ยกเลิก
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={submitting}
+            >
+              {submitting ? 'กำลังลบ...' : 'ลบรางวัล'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
