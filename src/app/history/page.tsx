@@ -2,10 +2,12 @@
 
 import { useState, useEffect, memo } from 'react'
 import { useRouter } from 'next/navigation'
-import { IoMdHome, IoMdArrowBack, IoMdArrowForward } from "react-icons/io"
-import { FaUser, FaHistory, FaClock, FaMoneyBillWave } from "react-icons/fa"
+import { IoMdArrowBack, IoMdArrowForward } from "react-icons/io"
+import { FaClock, FaMoneyBillWave } from "react-icons/fa"
 import { HiOutlineGift } from "react-icons/hi"
 import { UserSessionManager } from '@/lib/user-session'
+import BottomNavigation from '@/components/BottomNavigation'
+import LoadingSpinner from '@/components/LoadingSpinner'
 import axios from 'axios'
 
 interface Receipt {
@@ -89,49 +91,6 @@ const ReceiptCard = memo(({ receipt }: { receipt: Receipt }) => {
 })
 ReceiptCard.displayName = 'ReceiptCard'
 
-const BottomNavigation = memo(({ currentPage }: { currentPage: string }) => {
-  const router = useRouter()
-
-  return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl border-t border-gray-100 shadow-2xl backdrop-blur-lg">
-      <div className="flex justify-around items-center py-2 px-4 safe-area-pb">
-        <button
-          onClick={() => router.push('/dashboard')}
-          className={`flex flex-col items-center py-3 px-2 rounded-xl transition-all duration-200 hover:bg-gray-50 active:scale-95 ${currentPage === 'home' ? 'text-red-500' : 'text-gray-500'}`}
-        >
-          <div className="w-6 h-6 mb-1 relative">
-            <IoMdHome className="w-full h-full" />
-            {currentPage === 'home' && <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>}
-          </div>
-          <span className={`text-xs font-medium ${currentPage === 'home' ? 'font-semibold' : ''}`}>หน้าหลัก</span>
-        </button>
-
-        <button className="flex flex-col items-center py-3 px-2 rounded-xl transition-all duration-200 hover:bg-gray-50 active:scale-95">
-          <div className="w-6 h-6 mb-1">
-            <HiOutlineGift className="w-full h-full text-gray-500" />
-          </div>
-          <span className="text-xs text-gray-500 font-medium">รางวัล</span>
-        </button>
-
-        <button className={`flex flex-col items-center py-3 px-2 rounded-xl transition-all duration-200 hover:bg-red-50 active:scale-95 ${currentPage === 'history' ? 'text-red-500' : 'text-gray-500'}`}>
-          <div className="w-6 h-6 mb-1 relative">
-            <FaHistory className="w-full h-full" />
-            {currentPage === 'history' && <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>}
-          </div>
-          <span className={`text-xs font-medium ${currentPage === 'history' ? 'font-semibold text-red-600' : ''}`}>ประวัติ</span>
-        </button>
-
-        <button className="flex flex-col items-center py-3 px-2 rounded-xl transition-all duration-200 hover:bg-gray-50 active:scale-95">
-          <div className="w-6 h-6 mb-1">
-            <FaUser className="w-full h-full text-gray-500" />
-          </div>
-          <span className="text-xs text-gray-500 font-medium">โปรไฟล์</span>
-        </button>
-      </div>
-    </div>
-  )
-})
-BottomNavigation.displayName = 'BottomNavigation'
 
 const PaginationControls = memo(({
   currentPage,
@@ -233,14 +192,7 @@ export default function HistoryPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-gray-600">กำลังโหลดประวัติ...</p>
-        </div>
-      </div>
-    )
+    return <LoadingSpinner message="กำลังโหลดประวัติ..." />
   }
 
   return (
