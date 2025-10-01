@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import type { Database } from "../../../../../database.types";
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     // Filter by status if provided
     if (status && status !== "all") {
-      query = query.eq("status", status);
+      query = query.eq("status", status as Database["public"]["Enums"]["redemption_status"]);
     }
 
     // Pagination

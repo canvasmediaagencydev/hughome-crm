@@ -48,7 +48,7 @@ export async function POST(
     }
 
     // Calculate new balance (refund points back to user)
-    const newBalance = user.points_balance + redemption.points_used;
+    const newBalance = (user.points_balance ?? 0) + redemption.points_used;
 
     // Update user points balance
     const { error: updateUserError } = await supabase

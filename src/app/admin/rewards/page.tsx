@@ -295,7 +295,7 @@ export default function AdminRewards() {
                       className={`text-white hover:opacity-90 ${
                         reward.remaining_stock === 0
                           ? 'bg-red-500'
-                          : (reward.remaining_stock !== undefined && reward.remaining_stock < 10)
+                          : (reward.remaining_stock !== undefined && reward.remaining_stock !== null && reward.remaining_stock < 10)
                             ? 'bg-orange-500'
                             : 'bg-black/70'
                       }`}

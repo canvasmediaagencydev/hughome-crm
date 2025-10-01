@@ -267,7 +267,7 @@ export default function RewardsPage() {
                             <HiOutlineGift className="h-12 w-12 text-gray-400" />
                           </div>
                         )}
-                        {reward.remaining_stock !== null && reward.remaining_stock < 10 && (
+                        {reward.remaining_stock !== null && reward.remaining_stock !== undefined && reward.remaining_stock < 10 && (
                           <div className="absolute top-2 right-2">
                             <span className={`px-2 py-1 rounded text-xs font-semibold text-white ${
                               reward.remaining_stock === 0 ? 'bg-red-500' : 'bg-orange-500'

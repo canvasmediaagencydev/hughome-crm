@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     const totalPoints = reward.points_cost * quantity;
 
     // Check if user has enough points
-    if (user.points_balance < totalPoints) {
+    if ((user.points_balance ?? 0) < totalPoints) {
       return NextResponse.json(
         { error: "Insufficient points" },
         { status: 400 }
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate new balance
-    const newBalance = user.points_balance - totalPoints;
+    const newBalance = (user.points_balance ?? 0) - totalPoints;
 
     // Update user points balance first
     const { error: updateUserError } = await supabase

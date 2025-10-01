@@ -39,10 +39,6 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null)
         setError(null)
 
-        if (event === 'SIGNED_IN' && session?.user) {
-          toast.success('เข้าสู่ระบบสำเร็จ')
-        }
-
         if (event === 'SIGNED_OUT') {
           toast.success('ออกจากระบบเรียบร้อยแล้ว')
         }

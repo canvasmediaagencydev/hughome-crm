@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { toast } from 'sonner'
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('')
@@ -24,12 +25,20 @@ export default function AdminLogin() {
 
       if (error) {
         setError(error.message)
+        toast.error(`เข้าสู่ระบบไม่สำเร็จ: ${error.message}`)
       } else if (data.user) {
-        // Login successful - redirect to admin dashboard
-        router.push('/admin')
+        // Show success toast before redirect
+        toast.success('เข้าสู่ระบบสำเร็จ')
+
+        // Delay redirect slightly to allow toast to show
+        setTimeout(() => {
+          router.push('/admin')
+        }, 500)
       }
     } catch (err) {
-      setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ')
+      const errorMsg = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
+      setError(errorMsg)
+      toast.error(errorMsg)
     } finally {
       setLoading(false)
     }
