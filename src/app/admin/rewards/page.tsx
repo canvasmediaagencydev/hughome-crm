@@ -21,7 +21,10 @@ import { Tables } from '../../../../database.types'
 import { toast } from 'sonner'
 import Image from 'next/image'
 
-type Reward = Tables<'rewards'>
+type Reward = Tables<'rewards'> & {
+  remaining_stock?: number | null
+  redeemed_count?: number
+}
 
 export default function AdminRewards() {
   const [rewards, setRewards] = useState<Reward[]>([])
@@ -286,6 +289,22 @@ export default function AdminRewards() {
                     <ImageIcon className="h-12 w-12 text-gray-400" />
                   </div>
                 )}
+                {reward.stock_quantity !== null && (
+                  <div className="absolute top-2 right-2">
+                    <Badge
+                      className={`text-white hover:opacity-90 ${
+                        reward.remaining_stock === 0
+                          ? 'bg-red-500'
+                          : (reward.remaining_stock !== undefined && reward.remaining_stock < 10)
+                            ? 'bg-orange-500'
+                            : 'bg-black/70'
+                      }`}
+                    >
+                      <Package className="mr-1 h-3 w-3" />
+                      {reward.remaining_stock !== undefined ? reward.remaining_stock : reward.stock_quantity} ชิ้น
+                    </Badge>
+                  </div>
+                )}
               </div>
               <CardHeader>
                 <div className="flex justify-between items-start">
@@ -312,11 +331,25 @@ export default function AdminRewards() {
                     <Gift className="mr-1 h-4 w-4" />
                     {reward.points_cost.toLocaleString()} แต้ม
                   </div>
-                  <div className="flex items-center text-gray-600">
-                    <Package className="mr-1 h-4 w-4" />
-                    {reward.stock_quantity !== null
-                      ? `${reward.stock_quantity} ชิ้น`
-                      : 'ไม่จำกัด'}
+                  <div className="flex flex-col items-end text-gray-600 text-xs">
+                    {reward.stock_quantity !== null ? (
+                      <>
+                        <div className="flex items-center font-semibold">
+                          <Package className="mr-1 h-3 w-3" />
+                          สต็อก: {reward.stock_quantity} ชิ้น
+                        </div>
+                        {reward.redeemed_count !== undefined && reward.redeemed_count > 0 && (
+                          <div className="text-gray-500">
+                            (แลกไป {reward.redeemed_count} ชิ้น)
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex items-center">
+                        <Package className="mr-1 h-3 w-3" />
+                        ไม่จำกัด
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center justify-between pt-4 border-t">
