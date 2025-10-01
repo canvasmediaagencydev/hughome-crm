@@ -21,19 +21,21 @@ export function ReceiptImageModal({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="relative w-full max-h-[70vh] overflow-hidden rounded-lg">
-            <Image
-              src={imageUrl}
-              alt="Receipt full size"
-              width={800}
-              height={600}
-              className="w-full h-auto object-contain"
-              sizes="(max-width: 768px) 100vw, 800px"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement
-                target.src = '/placeholder-receipt.png'
-              }}
-            />
+          <div className="relative w-full max-h-[80vh] overflow-auto rounded-lg bg-gray-100 flex items-center justify-center">
+            {imageUrl ? (
+              <Image
+                src={imageUrl}
+                alt="Receipt full size"
+                width={1920}
+                height={1080}
+                className="w-auto h-auto max-w-full"
+                sizes="(max-width: 768px) 100vw, 1920px"
+              />
+            ) : (
+              <div className="text-center py-16">
+                <p className="text-gray-500">ไม่พบรูปภาพใบเสร็จ</p>
+              </div>
+            )}
           </div>
           <div className="flex justify-end">
             <Button onClick={onClose} variant="outline">
