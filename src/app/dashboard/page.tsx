@@ -218,42 +218,46 @@ const UploadSection = memo(({ onCameraOpen }: { onCameraOpen: () => void }) => (
   </div>
 ))
 
-const BottomNavigation = memo(() => (
-  <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl border-t border-gray-100 shadow-2xl backdrop-blur-lg">
-    <div className="flex justify-around items-center py-2 px-4 safe-area-pb">
+const BottomNavigation = memo(() => {
+  const router = useRouter()
 
-      <button className="flex flex-col items-center py-3 px-2 rounded-xl transition-all duration-200 hover:bg-red-50 active:scale-95">
-        <div className="w-6 h-6 mb-1 relative">
-          <IoMdHome className="w-full h-full text-red-500" />
-          <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
-        </div>
-        <span className="text-xs text-red-600 font-semibold">หน้าหลัก</span>
-      </button>
+  return (
+    <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl border-t border-gray-100 shadow-2xl backdrop-blur-lg">
+      <div className="flex justify-around items-center py-2 px-4 safe-area-pb">
 
-      <button className="flex flex-col items-center py-3 px-2 rounded-xl transition-all duration-200 hover:bg-gray-50 active:scale-95">
-        <div className="w-6 h-6 mb-1">
-          <HiOutlineGift className="w-full h-full text-gray-500" />
-        </div>
-        <span className="text-xs text-gray-500 font-medium">รางวัล</span>
-      </button>
+        <button className="flex flex-col items-center py-3 px-2 rounded-xl transition-all duration-200 hover:bg-red-50 active:scale-95">
+          <div className="w-6 h-6 mb-1 relative">
+            <IoMdHome className="w-full h-full text-red-500" />
+            <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+          </div>
+          <span className="text-xs text-red-600 font-semibold">หน้าหลัก</span>
+        </button>
 
-      <button className="flex flex-col items-center py-3 px-2 rounded-xl transition-all duration-200 hover:bg-gray-50 active:scale-95">
-        <div className="w-6 h-6 mb-1">
-          <FaHistory className="w-full h-full text-gray-500" />
-        </div>
-        <span className="text-xs text-gray-500 font-medium">ประวัติ</span>
-      </button>
+        <button className="flex flex-col items-center py-3 px-2 rounded-xl transition-all duration-200 hover:bg-gray-50 active:scale-95">
+          <div className="w-6 h-6 mb-1">
+            <HiOutlineGift className="w-full h-full text-gray-500" />
+          </div>
+          <span className="text-xs text-gray-500 font-medium">รางวัล</span>
+        </button>
 
-      <button className="flex flex-col items-center py-3 px-2 rounded-xl transition-all duration-200 hover:bg-gray-50 active:scale-95">
-        <div className="w-6 h-6 mb-1">
-          <FaUser className="w-full h-full text-gray-500" />
-        </div>
-        <span className="text-xs text-gray-500 font-medium">โปรไฟล์</span>
-      </button>
+        <button onClick={() => router.push('/history')} className="flex flex-col items-center py-3 px-2 rounded-xl transition-all duration-200 hover:bg-gray-50 active:scale-95">
+          <div className="w-6 h-6 mb-1">
+            <FaHistory className="w-full h-full text-gray-500" />
+          </div>
+          <span className="text-xs text-gray-500 font-medium">ประวัติ</span>
+        </button>
 
+        <button className="flex flex-col items-center py-3 px-2 rounded-xl transition-all duration-200 hover:bg-gray-50 active:scale-95">
+          <div className="w-6 h-6 mb-1">
+            <FaUser className="w-full h-full text-gray-500" />
+          </div>
+          <span className="text-xs text-gray-500 font-medium">โปรไฟล์</span>
+        </button>
+
+      </div>
     </div>
-  </div>
-))
+  )
+})
 BottomNavigation.displayName = 'BottomNavigation'
 
 // OCR Result interface
