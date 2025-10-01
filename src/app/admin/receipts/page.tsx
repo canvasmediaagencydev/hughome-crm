@@ -22,6 +22,7 @@ import { Tables } from '../../../../database.types'
 import { toast } from 'sonner'
 import { getReceiptImageUrl } from '@/lib/supabase-storage'
 import { AutoApproveConfirmModal } from '@/components/admin/AutoApproveConfirmModal'
+import { AutoRejectConfirmModal } from '@/components/admin/AutoRejectConfirmModal'
 import { ReceiptDetailModal } from '@/components/admin/ReceiptDetailModal'
 import { ReceiptImageModal } from '@/components/admin/ReceiptImageModal'
 import { RejectReceiptModal } from '@/components/admin/RejectReceiptModal'
@@ -61,6 +62,7 @@ export default function AdminReceipts() {
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState<string | null>(null)
   const [autoApproving, setAutoApproving] = useState(false)
+  const [autoRejecting, setAutoRejecting] = useState(false)
   const [status, setStatus] = useState('pending')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -77,6 +79,7 @@ export default function AdminReceipts() {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showImageModal, setShowImageModal] = useState(false)
   const [showAutoApproveModal, setShowAutoApproveModal] = useState(false)
+  const [showAutoRejectModal, setShowAutoRejectModal] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
   const [receiptToReject, setReceiptToReject] = useState<ReceiptWithRelations | null>(null)
   const [selectedImageUrl, setSelectedImageUrl] = useState('')
@@ -197,6 +200,10 @@ export default function AdminReceipts() {
     setShowAutoApproveModal(false)
   }
 
+  const closeAutoRejectModal = () => {
+    setShowAutoRejectModal(false)
+  }
+
   const closeRejectModal = () => {
     setShowRejectModal(false)
     setReceiptToReject(null)
@@ -296,6 +303,38 @@ export default function AdminReceipts() {
     }
   }
 
+  const handleAutoReject = () => {
+    setShowAutoRejectModal(true)
+  }
+
+  const confirmAutoReject = async () => {
+    setAutoRejecting(true)
+    closeAutoRejectModal()
+
+    try {
+      const response = await fetch('/api/admin/receipts/auto-reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        toast.success(`ปฏิเสธสำเร็จ ${result.rejected_count} ใบเสร็จ`)
+        if (result.error_count > 0) {
+          toast.warning(`มีข้อผิดพลาด ${result.error_count} รายการ`)
+        }
+        fetchReceipts()
+      } else {
+        const error = await response.json()
+        toast.error(error.error || 'เกิดข้อผิดพลาด')
+      }
+    } catch (error) {
+      toast.error('เกิดข้อผิดพลาดในการปฏิเสธอัตโนมัติ')
+    } finally {
+      setAutoRejecting(false)
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     const styles = {
       pending: 'bg-yellow-100 text-yellow-800',
@@ -325,41 +364,61 @@ export default function AdminReceipts() {
         <p className="text-gray-600">ตรวจสอบและอนุมัติใบเสร็จที่ผู้ใช้อัปโหลด</p>
       </div>
 
-      {/* Auto Approve Section */}
+      {/* Auto Approve & Reject Section */}
       {status === 'pending' && (
-        <Card className="border-green-200 bg-green-50">
-          <CardHeader>
-            <CardTitle className="text-green-800 flex items-center justify-between">
-              <div className="flex items-center">
-                <Zap className="mr-2 h-5 w-5" />
-                อนุมัติอัตโนมัติ
-              </div>
-            </CardTitle>
-            <CardDescription>
-              อนุมัติใบเสร็จที่เป็นของร้าน "ตั้งหง่วงเซ้ง" ทั้งหมดในครั้งเดียว
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={handleAutoApprove}
-              disabled={autoApproving || loading}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <Zap className="mr-2 h-4 w-4" />
-              {autoApproving ? 'กำลังอนุมัติ...' : 'อนุมัติใบเสร็จของร้านทั้งหมด'}
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="border-green-200 bg-green-50">
+            <CardHeader>
+              <CardTitle className="text-green-800 flex items-center justify-between">
+                <div className="flex items-center">
+                  <Zap className="mr-2 h-5 w-5" />
+                  อนุมัติอัตโนมัติ
+                </div>
+              </CardTitle>
+              <CardDescription>
+                อนุมัติใบเสร็จที่เป็นของร้าน "ตั้งหง่วงเซ้ง" ทั้งหมดในครั้งเดียว
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                onClick={handleAutoApprove}
+                disabled={autoApproving || loading || autoRejecting}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Zap className="mr-2 h-4 w-4" />
+                {autoApproving ? 'กำลังอนุมัติ...' : 'อนุมัติใบเสร็จของร้านทั้งหมด'}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border-red-200 bg-red-50">
+            <CardHeader>
+              <CardTitle className="text-red-800 flex items-center justify-between">
+                <div className="flex items-center">
+                  <X className="mr-2 h-5 w-5" />
+                  ปฏิเสธอัตโนมัติ
+                </div>
+              </CardTitle>
+              <CardDescription>
+                ปฏิเสธใบเสร็จที่ไม่ใช่ของร้าน "ตั้งหง่วงเซ้ง" ทั้งหมดในครั้งเดียว
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                onClick={handleAutoReject}
+                disabled={autoRejecting || loading || autoApproving}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                <X className="mr-2 h-4 w-4" />
+                {autoRejecting ? 'กำลังปฏิเสธ...' : 'ปฏิเสธใบเสร็จที่ไม่ใช่ของร้านทั้งหมด'}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Filter className="mr-2 h-5 w-5" />
-            ตัวกรอง
-          </CardTitle>
-        </CardHeader>
+      <Card className="pt-3">
         <CardContent>
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
@@ -573,6 +632,13 @@ export default function AdminReceipts() {
         onClose={closeAutoApproveModal}
         onConfirm={confirmAutoApprove}
         isApproving={autoApproving}
+      />
+
+      <AutoRejectConfirmModal
+        open={showAutoRejectModal}
+        onClose={closeAutoRejectModal}
+        onConfirm={confirmAutoReject}
+        isRejecting={autoRejecting}
       />
 
       <RejectReceiptModal
