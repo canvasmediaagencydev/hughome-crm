@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { HiOutlineGift, HiCheckCircle, HiXCircle } from 'react-icons/hi'
+import { HiOutlineGift, HiCheckCircle, HiXCircle, HiSearch } from 'react-icons/hi'
 import { FaUser, FaPhone } from 'react-icons/fa'
 import { IoMdArrowBack, IoMdArrowForward } from 'react-icons/io'
 import { UserSessionManager } from '@/lib/user-session'
@@ -66,12 +66,14 @@ export default function AdminRedemptionsPage() {
   const [showNotesModal, setShowNotesModal] = useState(false)
   const [selectedRedemption, setSelectedRedemption] = useState<Redemption | null>(null)
   const [adminNotes, setAdminNotes] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchInput, setSearchInput] = useState('')
 
-  const fetchRedemptions = async (page: number, status: string) => {
+  const fetchRedemptions = async (page: number, status: string, search: string) => {
     try {
       setIsLoading(true)
       const response = await axios.get('/api/admin/redemptions', {
-        params: { page, limit: 10, status }
+        params: { page, limit: 10, status, search }
       })
 
       setRedemptions(response.data.redemptions)
@@ -84,8 +86,8 @@ export default function AdminRedemptionsPage() {
   }
 
   useEffect(() => {
-    fetchRedemptions(currentPage, statusFilter)
-  }, [currentPage, statusFilter])
+    fetchRedemptions(currentPage, statusFilter, searchQuery)
+  }, [currentPage, statusFilter, searchQuery])
 
   const handleApprove = async (redemptionId: string) => {
     try {
@@ -95,7 +97,7 @@ export default function AdminRedemptionsPage() {
         adminNotes: null
       })
 
-      fetchRedemptions(currentPage, statusFilter)
+      fetchRedemptions(currentPage, statusFilter, searchQuery)
     } catch (error) {
       console.error('Error approving redemption:', error)
       alert('เกิดข้อผิดพลาดในการอนุมัติ')
@@ -123,7 +125,7 @@ export default function AdminRedemptionsPage() {
       setShowNotesModal(false)
       setSelectedRedemption(null)
       setAdminNotes('')
-      fetchRedemptions(currentPage, statusFilter)
+      fetchRedemptions(currentPage, statusFilter, searchQuery)
     } catch (error) {
       console.error('Error rejecting redemption:', error)
       alert('เกิดข้อผิดพลาดในการปฏิเสธ')
@@ -152,6 +154,23 @@ export default function AdminRedemptionsPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  const handleSearch = () => {
+    setSearchQuery(searchInput)
+    setCurrentPage(1)
+  }
+
+  const handleClearSearch = () => {
+    setSearchInput('')
+    setSearchQuery('')
+    setCurrentPage(1)
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch()
+    }
+  }
+
   const statusTabs = [
     { value: 'all', label: 'ทั้งหมด' },
     { value: 'requested', label: 'รอรับของ' },
@@ -167,6 +186,42 @@ export default function AdminRedemptionsPage() {
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">จัดการการแลกรางวัล</h1>
           <p className="text-gray-600">อนุมัติหรือปฏิเสธการแลกรางวัลของลูกค้า</p>
+        </div>
+
+        {/* Search Bar */}
+        <div className="bg-white rounded-lg shadow-sm p-4 mb-4">
+          <div className="flex gap-2">
+            <div className="flex-1 relative">
+              <HiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="ค้นหาด้วยชื่อหรือเบอร์โทร..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              />
+            </div>
+            <button
+              onClick={handleSearch}
+              className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+            >
+              ค้นหา
+            </button>
+            {searchQuery && (
+              <button
+                onClick={handleClearSearch}
+                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              >
+                ล้าง
+              </button>
+            )}
+          </div>
+          {searchQuery && (
+            <p className="text-sm text-gray-600 mt-2">
+              กำลังค้นหา: <span className="font-semibold">"{searchQuery}"</span>
+            </p>
+          )}
         </div>
 
         {/* Status Filter Tabs */}

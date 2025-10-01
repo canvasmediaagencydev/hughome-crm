@@ -7,8 +7,35 @@ export async function GET(request: NextRequest) {
     const supabase = createServerSupabaseClient();
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
+    const search = searchParams.get("search");
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
+
+    let userIds: string[] | undefined;
+
+    // If search query exists, find matching user IDs first
+    if (search && search.trim()) {
+      const searchTerm = `%${search.trim()}%`;
+      const { data: users } = await supabase
+        .from("user_profiles")
+        .select("id")
+        .or(`display_name.ilike.${searchTerm},first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},phone.ilike.${searchTerm}`);
+
+      if (users && users.length > 0) {
+        userIds = users.map(u => u.id);
+      } else {
+        // No users found, return empty results
+        return NextResponse.json({
+          redemptions: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+          },
+        });
+      }
+    }
 
     let query = supabase
       .from("redemptions")
@@ -30,6 +57,11 @@ export async function GET(request: NextRequest) {
         )
       `, { count: 'exact' })
       .order("created_at", { ascending: false });
+
+    // Filter by user IDs if search was performed
+    if (userIds) {
+      query = query.in("user_id", userIds);
+    }
 
     // Filter by status if provided
     if (status && status !== "all") {
