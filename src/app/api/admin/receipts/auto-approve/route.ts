@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
 
         // Calculate points
         const pointsAwarded = Math.floor(receipt.total_amount / bahtPerPoint);
+        const newPointsBalance = (user.points_balance || 0) + pointsAwarded;
 
         // Update receipt status
         const { error: updateReceiptError } = await supabase
@@ -105,6 +106,7 @@ export async function POST(request: NextRequest) {
             user_id: user.id,
             type: "earned",
             points: pointsAwarded,
+            balance_after: newPointsBalance,
             description: "Points earned from auto-approved store receipt",
             reference_id: receipt.id,
             reference_type: "receipt",

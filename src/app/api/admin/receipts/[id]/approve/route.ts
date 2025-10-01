@@ -85,6 +85,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         user_id: user.id,
         type: "earned",
         points: points_awarded,
+        balance_after: newPointsBalance,
         description: `Points earned from receipt approval`,
         reference_id: id,
         reference_type: "receipt",

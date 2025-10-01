@@ -32,8 +32,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<RefreshRe
     // Get fresh user data from Supabase
     const supabase = createServerSupabaseClient()
 
-    console.log('Refreshing user data for userId:', userId)
-
     const { data: userProfile, error } = await supabase
       .from('user_profiles')
       .select('points_balance, first_name, last_name, picture_url, role, phone')
