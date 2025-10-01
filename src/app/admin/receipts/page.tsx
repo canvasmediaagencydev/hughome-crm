@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import {
   Receipt,
@@ -22,7 +21,10 @@ import {
 import { Tables } from '../../../../database.types'
 import { toast } from 'sonner'
 import { getReceiptImageUrl } from '@/lib/supabase-storage'
-import Image from 'next/image'
+import { AutoApproveConfirmModal } from '@/components/admin/AutoApproveConfirmModal'
+import { ReceiptDetailModal } from '@/components/admin/ReceiptDetailModal'
+import { ReceiptImageModal } from '@/components/admin/ReceiptImageModal'
+import { RejectReceiptModal } from '@/components/admin/RejectReceiptModal'
 
 type ReceiptWithRelations = Tables<'receipts'> & {
   user_profiles: {
@@ -71,7 +73,11 @@ export default function AdminReceipts() {
 
   // Modal states
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptWithRelations | null>(null)
-  const [modalType, setModalType] = useState<'view' | 'image' | null>(null)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [showImageModal, setShowImageModal] = useState(false)
+  const [showAutoApproveModal, setShowAutoApproveModal] = useState(false)
+  const [showRejectModal, setShowRejectModal] = useState(false)
+  const [receiptToReject, setReceiptToReject] = useState<ReceiptWithRelations | null>(null)
   const [selectedImageUrl, setSelectedImageUrl] = useState('')
 
   useEffect(() => {
@@ -129,20 +135,34 @@ export default function AdminReceipts() {
     fetchReceipts()
   }
 
-  const openModal = (receipt: ReceiptWithRelations) => {
+  const openDetailModal = (receipt: ReceiptWithRelations) => {
     setSelectedReceipt(receipt)
-    setModalType('view')
+    setShowDetailModal(true)
   }
 
   const openImageModal = (imageUrl: string) => {
     setSelectedImageUrl(imageUrl)
-    setModalType('image')
+    setShowDetailModal(false)
+    setShowImageModal(true)
   }
 
-  const closeModal = () => {
+  const closeDetailModal = () => {
     setSelectedReceipt(null)
-    setModalType(null)
+    setShowDetailModal(false)
+  }
+
+  const closeImageModal = () => {
     setSelectedImageUrl('')
+    setShowImageModal(false)
+  }
+
+  const closeAutoApproveModal = () => {
+    setShowAutoApproveModal(false)
+  }
+
+  const closeRejectModal = () => {
+    setShowRejectModal(false)
+    setReceiptToReject(null)
   }
 
   const handleApprove = async (receipt: ReceiptWithRelations) => {
@@ -173,20 +193,23 @@ export default function AdminReceipts() {
     }
   }
 
-  const handleReject = async (receipt: ReceiptWithRelations) => {
-    const reason = prompt('กรุณาระบุเหตุผลในการปฏิเสธ:')
-    if (!reason || !reason.trim()) {
-      toast.error('กรุณาระบุเหตุผลในการปฏิเสธ')
-      return
-    }
+  const handleReject = (receipt: ReceiptWithRelations) => {
+    setReceiptToReject(receipt)
+    setShowRejectModal(true)
+  }
 
-    setProcessing(receipt.id)
+  const confirmReject = async (reason: string) => {
+    if (!receiptToReject) return
+
+    setProcessing(receiptToReject.id)
+    closeRejectModal()
+
     try {
-      const response = await fetch(`/api/admin/receipts/${receipt.id}/reject`, {
+      const response = await fetch(`/api/admin/receipts/${receiptToReject.id}/reject`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          admin_notes: reason.trim()
+          admin_notes: reason
         })
       })
 
@@ -204,12 +227,14 @@ export default function AdminReceipts() {
     }
   }
 
-  const handleAutoApprove = async () => {
-    if (!confirm('คุณต้องการอนุมัติใบเสร็จของร้าน "ตั้งหง่วงเซ้ง" ทั้งหมดโดยอัตโนมัติหรือไม่?')) {
-      return
-    }
+  const handleAutoApprove = () => {
+    setShowAutoApproveModal(true)
+  }
 
+  const confirmAutoApprove = async () => {
     setAutoApproving(true)
+    closeAutoApproveModal()
+
     try {
       const response = await fetch('/api/admin/receipts/auto-approve', {
         method: 'POST',
@@ -435,7 +460,7 @@ export default function AdminReceipts() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => openModal(receipt)}
+                          onClick={() => openDetailModal(receipt)}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -506,95 +531,32 @@ export default function AdminReceipts() {
       </Card>
 
       {/* Modals */}
-      <Dialog open={!!modalType} onOpenChange={closeModal}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {modalType === 'view' && 'รายละเอียดใบเสร็จ'}
-              {modalType === 'image' && 'รูปใบเสร็จ'}
-            </DialogTitle>
-          </DialogHeader>
+      <AutoApproveConfirmModal
+        open={showAutoApproveModal}
+        onClose={closeAutoApproveModal}
+        onConfirm={confirmAutoApprove}
+        isApproving={autoApproving}
+      />
 
-          {modalType === 'image' && selectedImageUrl && (
-            <div className="space-y-4">
-              <div className="relative w-full max-h-[70vh] overflow-hidden rounded-lg">
-                <Image
-                  src={selectedImageUrl}
-                  alt="Receipt full size"
-                  width={800}
-                  height={600}
-                  className="w-full h-auto object-contain"
-                  sizes="(max-width: 768px) 100vw, 800px"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement
-                    target.src = '/placeholder-receipt.png'
-                  }}
-                />
-              </div>
-              <div className="flex justify-end">
-                <Button onClick={closeModal} variant="outline">
-                  ปิด
-                </Button>
-              </div>
-            </div>
-          )}
+      <RejectReceiptModal
+        open={showRejectModal}
+        onClose={closeRejectModal}
+        onConfirm={confirmReject}
+        isRejecting={processing === receiptToReject?.id}
+      />
 
-          {selectedReceipt && modalType === 'view' && (
-            <div className="space-y-4">
-              {/* Receipt Image */}
-              {selectedReceipt.receipt_images?.[0] && (
-                <div className="space-y-2">
-                  <strong className="text-sm">รูปใบเสร็จ:</strong>
-                  <div className="relative w-full max-w-md mx-auto">
-                    <div
-                      className="relative w-full h-64 border rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => {
-                        const imageUrl = getReceiptImageUrl(selectedReceipt.receipt_images[0].file_path)
-                        openImageModal(imageUrl)
-                      }}
-                    >
-                      <Image
-                        src={getReceiptImageUrl(selectedReceipt.receipt_images[0].file_path)}
-                        alt="Receipt image"
-                        fill
-                        className="object-cover"
-                        sizes="384px"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement
-                          target.style.display = 'none'
-                          target.nextElementSibling?.classList.remove('hidden')
-                        }}
-                      />
-                      <div className="hidden absolute inset-0 bg-gray-200 flex items-center justify-center text-sm text-gray-500">
-                        ไม่สามารถโหลดรูปใบเสร็จได้
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500 text-center mt-1">
-                      คลิกเพื่อดูรูปขนาดใหญ่
-                    </p>
-                  </div>
-                </div>
-              )}
+      <ReceiptDetailModal
+        open={showDetailModal}
+        onClose={closeDetailModal}
+        receipt={selectedReceipt}
+        onImageClick={openImageModal}
+      />
 
-              {/* OCR Data */}
-              {selectedReceipt.ocr_data && (
-                <div>
-                  <strong>ข้อมูล OCR:</strong>
-                  <pre className="bg-gray-100 p-3 rounded text-xs overflow-auto max-h-32">
-                    {JSON.stringify(selectedReceipt.ocr_data, null, 2)}
-                  </pre>
-                </div>
-              )}
-
-              <div className="flex justify-end">
-                <Button onClick={closeModal} variant="outline">
-                  ปิด
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ReceiptImageModal
+        open={showImageModal}
+        onClose={closeImageModal}
+        imageUrl={selectedImageUrl}
+      />
     </div>
   )
 }

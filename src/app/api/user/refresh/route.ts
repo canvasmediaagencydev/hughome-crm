@@ -38,8 +38,6 @@ export async function POST(request: NextRequest): Promise<NextResponse<RefreshRe
       .eq('id', userId)
       .single()
 
-    console.log('Fresh user data from DB:', userProfile)
-
     if (error || !userProfile) {
       return NextResponse.json(
         { success: false, error: 'User not found' },
