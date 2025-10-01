@@ -78,6 +78,18 @@ export async function POST(request: NextRequest) {
         const pointsAwarded = Math.floor(receipt.total_amount / bahtPerPoint);
         const newPointsBalance = (user.points_balance || 0) + pointsAwarded;
 
+        // Update user points balance first
+        const { error: updateUserError } = await supabase
+          .from("user_profiles")
+          .update({ points_balance: newPointsBalance })
+          .eq("id", user.id);
+
+        if (updateUserError) {
+          errorCount++;
+          errors.push(`Receipt ${receipt.id}: Failed to update user balance - ${updateUserError.message}`);
+          continue;
+        }
+
         // Update receipt status
         const { error: updateReceiptError } = await supabase
           .from("receipts")
@@ -94,12 +106,15 @@ export async function POST(request: NextRequest) {
         if (updateReceiptError) {
           errorCount++;
           errors.push(`Receipt ${receipt.id}: ${updateReceiptError.message}`);
+          // Rollback points update
+          await supabase
+            .from("user_profiles")
+            .update({ points_balance: user.points_balance })
+            .eq("id", user.id);
           continue;
         }
 
-        // Note: user_profiles.points_balance will be auto-updated by database trigger
-
-        // Create point transaction record (trigger will auto-set balance_after and sync user_profiles)
+        // Create point transaction record (for logging only)
         const { error: transactionError } = await supabase
           .from("point_transactions")
           .insert({

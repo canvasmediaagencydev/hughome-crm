@@ -3,7 +3,7 @@
 import { useState, useEffect, memo } from 'react'
 import { useRouter } from 'next/navigation'
 import { IoMdArrowBack, IoMdArrowForward } from "react-icons/io"
-import { FaClock, FaMoneyBillWave } from "react-icons/fa"
+import { FaClock, FaMoneyBillWave, FaHistory } from "react-icons/fa"
 import { HiOutlineGift } from "react-icons/hi"
 import { UserSessionManager } from '@/lib/user-session'
 import BottomNavigation from '@/components/BottomNavigation'

@@ -5,7 +5,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createServerSupabaseClient();
     const body = await request.json();
-    const { userId, rewardId, quantity = 1, shippingAddress } = body;
+    const { userId, rewardId, quantity = 1 } = body;
 
     if (!userId || !rewardId) {
       return NextResponse.json(
@@ -88,6 +88,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Calculate new balance
+    const newBalance = user.points_balance - totalPoints;
+
+    // Update user points balance first
+    const { error: updateUserError } = await supabase
+      .from("user_profiles")
+      .update({ points_balance: newBalance })
+      .eq("id", userId);
+
+    if (updateUserError) {
+      return NextResponse.json(
+        { error: "Failed to update points balance" },
+        { status: 500 }
+      );
+    }
+
     // Create redemption record
     const { data: redemption, error: redemptionError } = await supabase
       .from("redemptions")
@@ -97,45 +113,30 @@ export async function POST(request: NextRequest) {
         points_used: totalPoints,
         quantity: quantity,
         status: "requested",
-        shipping_address: shippingAddress || null,
       })
       .select()
       .single();
 
     if (redemptionError) {
+      // Rollback points if redemption creation fails
+      await supabase
+        .from("user_profiles")
+        .update({ points_balance: user.points_balance })
+        .eq("id", userId);
+
       return NextResponse.json(
         { error: "Failed to create redemption" },
         { status: 500 }
       );
     }
 
-    // Deduct points from user
-    const newBalance = user.points_balance - totalPoints;
-    const { error: updateUserError } = await supabase
-      .from("user_profiles")
-      .update({ points_balance: newBalance })
-      .eq("id", userId);
-
-    if (updateUserError) {
-      // Rollback redemption if points deduction fails
-      await supabase
-        .from("redemptions")
-        .delete()
-        .eq("id", redemption.id);
-
-      return NextResponse.json(
-        { error: "Failed to deduct points" },
-        { status: 500 }
-      );
-    }
-
-    // Create point transaction record
+    // Create point transaction record (for logging only, no balance calculation)
     const { error: transactionError } = await supabase
       .from("point_transactions")
       .insert({
         user_id: userId,
         type: "spent",
-        points: -totalPoints,
+        points: totalPoints,
         balance_after: newBalance,
         reference_type: "redemption",
         reference_id: redemption.id,
@@ -145,7 +146,7 @@ export async function POST(request: NextRequest) {
 
     if (transactionError) {
       console.error("Failed to create transaction record:", transactionError);
-      // Don't rollback, just log the error
+      // Don't rollback, transaction log is not critical
     }
 
     return NextResponse.json({

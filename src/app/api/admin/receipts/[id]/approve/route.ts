@@ -52,8 +52,22 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Calculate new balance (trigger will auto-sync points_balance)
+    // Calculate new balance
     const newPointsBalance = (user.points_balance || 0) + points_awarded;
+
+    // Update user points balance first
+    const { error: updateUserError } = await supabase
+      .from("user_profiles")
+      .update({ points_balance: newPointsBalance })
+      .eq("id", user.id);
+
+    if (updateUserError) {
+      console.error("Error updating user balance:", updateUserError);
+      return NextResponse.json(
+        { error: "Failed to update user balance" },
+        { status: 500 }
+      );
+    }
 
     // Update receipt status
     const { error: updateReceiptError } = await supabase
@@ -70,15 +84,19 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     if (updateReceiptError) {
       console.error("Error updating receipt:", updateReceiptError);
+      // Rollback points update
+      await supabase
+        .from("user_profiles")
+        .update({ points_balance: user.points_balance })
+        .eq("id", user.id);
+
       return NextResponse.json(
         { error: "Failed to update receipt" },
         { status: 500 }
       );
     }
 
-    // Note: user_profiles.points_balance will be auto-updated by database trigger
-
-    // Create point transaction record (trigger will auto-set balance_after and sync user_profiles)
+    // Create point transaction record (for logging only)
     const { error: transactionError } = await supabase
       .from("point_transactions")
       .insert({

@@ -4,8 +4,6 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
@@ -21,7 +19,7 @@ import Image from 'next/image'
 import { UserSessionManager } from '@/lib/user-session'
 import { useRouter } from 'next/navigation'
 import { FaHistory } from "react-icons/fa"
-import { HiOutlineGift, HiOutlineLocationMarker } from "react-icons/hi"
+import { HiOutlineGift } from "react-icons/hi"
 import BottomNavigation from '@/components/BottomNavigation'
 import LoadingSpinner from '@/components/LoadingSpinner'
 
@@ -50,7 +48,6 @@ export default function RewardsPage() {
   const [showRedeemDialog, setShowRedeemDialog] = useState(false)
   const [selectedReward, setSelectedReward] = useState<Reward | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [shippingAddress, setShippingAddress] = useState('')
   const [userPoints, setUserPoints] = useState(0)
   const [userId, setUserId] = useState<string>('')
   const router = useRouter()
@@ -109,7 +106,6 @@ export default function RewardsPage() {
 
   const handleOpenRedeemDialog = (reward: Reward) => {
     setSelectedReward(reward)
-    setShippingAddress('')
     setShowRedeemDialog(true)
   }
 
@@ -125,7 +121,6 @@ export default function RewardsPage() {
           userId,
           rewardId: selectedReward.id,
           quantity: 1,
-          shippingAddress,
         }),
       })
 
@@ -160,7 +155,7 @@ export default function RewardsPage() {
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { label: string; className: string }> = {
       requested: {
-        label: 'รอดำเนินการ',
+        label: 'รับสินค้าที่ร้าน',
         className: 'bg-yellow-100 text-yellow-700 border-yellow-300',
       },
       processing: {
@@ -359,24 +354,13 @@ export default function RewardsPage() {
                         </div>
                         {getStatusBadge(redemption.status || 'requested')}
                       </div>
-                      <div className="flex items-center text-sm text-gray-600 space-x-3 mb-2">
+                      <div className="flex items-center text-sm text-gray-600 space-x-3">
                         <span className="flex items-center font-semibold text-red-600">
                           <HiOutlineGift className="mr-1 h-4 w-4" />
                           {redemption.points_used.toLocaleString()} แต้ม
                         </span>
                         <span className="text-xs">x{redemption.quantity || 1}</span>
                       </div>
-                      {redemption.shipping_address && (
-                        <div className="flex items-start text-xs text-gray-600 mt-2 bg-gray-50 p-2 rounded">
-                          <HiOutlineLocationMarker className="mr-1 h-4 w-4 flex-shrink-0 mt-0.5" />
-                          <span className="line-clamp-2">{redemption.shipping_address}</span>
-                        </div>
-                      )}
-                      {redemption.tracking_number && (
-                        <p className="text-xs text-gray-600 mt-1 font-mono">
-                          เลขพัสดุ: {redemption.tracking_number}
-                        </p>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -395,32 +379,18 @@ export default function RewardsPage() {
           <DialogHeader>
             <DialogTitle>ยืนยันการแลกรางวัล</DialogTitle>
             <DialogDescription>
-              กรุณาระบุที่อยู่สำหรับจัดส่งรางวัล
+              รางวัลจะพร้อมให้รับที่ร้าน กรุณามารับภายใน 7 วัน
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {selectedReward && (
-              <>
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <h3 className="font-semibold text-gray-900 mb-2">{selectedReward.name}</h3>
-                  <div className="flex items-center text-red-600 font-bold text-xl">
-                    <HiOutlineGift className="mr-2 h-5 w-5" />
-                    {selectedReward.points_cost.toLocaleString()} แต้ม
-                  </div>
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <h3 className="font-semibold text-gray-900 mb-2">{selectedReward.name}</h3>
+                <div className="flex items-center text-red-600 font-bold text-xl">
+                  <HiOutlineGift className="mr-2 h-5 w-5" />
+                  {selectedReward.points_cost.toLocaleString()} แต้ม
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address" className="text-sm font-medium">ที่อยู่จัดส่ง *</Label>
-                  <Textarea
-                    id="address"
-                    value={shippingAddress}
-                    onChange={(e) => setShippingAddress(e.target.value)}
-                    placeholder="กรอกที่อยู่สำหรับจัดส่งรางวัล"
-                    rows={4}
-                    className="resize-none"
-                    required
-                  />
-                </div>
-              </>
+              </div>
             )}
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
@@ -434,7 +404,7 @@ export default function RewardsPage() {
             </Button>
             <Button
               onClick={handleRedeem}
-              disabled={submitting || !shippingAddress.trim()}
+              disabled={submitting}
               className="w-full sm:w-auto bg-red-600 hover:bg-red-700"
             >
               {submitting ? 'กำลังดำเนินการ...' : 'ยืนยันการแลก'}

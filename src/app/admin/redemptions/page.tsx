@@ -1,0 +1,391 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { HiOutlineGift, HiCheckCircle, HiXCircle } from 'react-icons/hi'
+import { FaUser, FaPhone } from 'react-icons/fa'
+import { IoMdArrowBack, IoMdArrowForward } from 'react-icons/io'
+import { UserSessionManager } from '@/lib/user-session'
+import axios from 'axios'
+
+interface Redemption {
+  id: string
+  created_at: string
+  points_used: number
+  quantity: number
+  status: 'requested' | 'processing' | 'shipped' | 'cancelled'
+  shipping_address: string | null
+  admin_notes: string | null
+  processed_at: string | null
+  rewards: {
+    id: string
+    name: string
+    description: string | null
+    image_url: string | null
+    points_cost: number
+  }
+  user_profiles: {
+    id: string
+    display_name: string | null
+    first_name: string | null
+    last_name: string | null
+    phone: string | null
+  }
+}
+
+interface Pagination {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+}
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const statusConfig = {
+    requested: { text: 'รอรับของ', color: 'bg-yellow-100 text-yellow-700 border-yellow-300' },
+    processing: { text: 'กำลังตรวจสอบ', color: 'bg-blue-100 text-blue-700 border-blue-300' },
+    shipped: { text: 'มอบของแล้ว', color: 'bg-green-100 text-green-700 border-green-300' },
+    cancelled: { text: 'ปฏิเสธ', color: 'bg-red-100 text-red-700 border-red-300' }
+  }
+
+  const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.requested
+
+  return (
+    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${config.color}`}>
+      {config.text}
+    </span>
+  )
+}
+
+export default function AdminRedemptionsPage() {
+  const [redemptions, setRedemptions] = useState<Redemption[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [pagination, setPagination] = useState<Pagination | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [processingId, setProcessingId] = useState<string | null>(null)
+  const [showNotesModal, setShowNotesModal] = useState(false)
+  const [selectedRedemption, setSelectedRedemption] = useState<Redemption | null>(null)
+  const [adminNotes, setAdminNotes] = useState('')
+
+  const fetchRedemptions = async (page: number, status: string) => {
+    try {
+      setIsLoading(true)
+      const response = await axios.get('/api/admin/redemptions', {
+        params: { page, limit: 10, status }
+      })
+
+      setRedemptions(response.data.redemptions)
+      setPagination(response.data.pagination)
+    } catch (error) {
+      console.error('Error fetching redemptions:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchRedemptions(currentPage, statusFilter)
+  }, [currentPage, statusFilter])
+
+  const handleApprove = async (redemptionId: string) => {
+    try {
+      setProcessingId(redemptionId)
+      await axios.post(`/api/admin/redemptions/${redemptionId}/complete`, {
+        adminId: null,
+        adminNotes: null
+      })
+
+      fetchRedemptions(currentPage, statusFilter)
+    } catch (error) {
+      console.error('Error approving redemption:', error)
+      alert('เกิดข้อผิดพลาดในการอนุมัติ')
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleReject = (redemption: Redemption) => {
+    setSelectedRedemption(redemption)
+    setAdminNotes('')
+    setShowNotesModal(true)
+  }
+
+  const confirmReject = async () => {
+    if (!selectedRedemption) return
+
+    try {
+      setProcessingId(selectedRedemption.id)
+      await axios.post(`/api/admin/redemptions/${selectedRedemption.id}/cancel`, {
+        adminId: null,
+        adminNotes
+      })
+
+      setShowNotesModal(false)
+      setSelectedRedemption(null)
+      setAdminNotes('')
+      fetchRedemptions(currentPage, statusFilter)
+    } catch (error) {
+      console.error('Error rejecting redemption:', error)
+      alert('เกิดข้อผิดพลาดในการปฏิเสธ')
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('th-TH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const getUserDisplayName = (user: Redemption['user_profiles']) => {
+    return user.display_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'ไม่ระบุ'
+  }
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const statusTabs = [
+    { value: 'all', label: 'ทั้งหมด' },
+    { value: 'requested', label: 'รอรับของ' },
+    { value: 'processing', label: 'กำลังตรวจสอบ' },
+    { value: 'shipped', label: 'มอบของแล้ว' },
+    { value: 'cancelled', label: 'ปฏิเสธ' }
+  ]
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">จัดการการแลกรางวัล</h1>
+          <p className="text-gray-600">อนุมัติหรือปฏิเสธการแลกรางวัลของลูกค้า</p>
+        </div>
+
+        {/* Status Filter Tabs */}
+        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+          <div className="flex flex-wrap gap-2">
+            {statusTabs.map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => {
+                  setStatusFilter(tab.value)
+                  setCurrentPage(1)
+                }}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  statusFilter === tab.value
+                    ? 'bg-red-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Redemptions List */}
+        {isLoading ? (
+          <div className="text-center py-16">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
+            <p className="text-gray-600 mt-4">กำลังโหลด...</p>
+          </div>
+        ) : redemptions.length === 0 ? (
+          <div className="text-center py-16 bg-white rounded-lg shadow-sm">
+            <HiOutlineGift className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600 text-lg">ไม่มีรายการแลกรางวัล</p>
+          </div>
+        ) : (
+          <>
+            <div className="space-y-4">
+              {redemptions.map((redemption) => (
+                <div key={redemption.id} className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
+                  <div className="flex flex-col lg:flex-row gap-6">
+                    {/* Reward Image */}
+                    <div className="flex-shrink-0">
+                      <img
+                        src={redemption.rewards.image_url || '/placeholder-reward.png'}
+                        alt={redemption.rewards.name}
+                        className="w-32 h-32 object-cover rounded-lg"
+                      />
+                    </div>
+
+                    {/* Details */}
+                    <div className="flex-1 space-y-4">
+                      {/* Reward Info */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-xl font-bold text-gray-900">{redemption.rewards.name}</h3>
+                          <StatusBadge status={redemption.status} />
+                        </div>
+                        <p className="text-gray-600 text-sm mb-2">{redemption.rewards.description}</p>
+                        <div className="flex items-center gap-4 text-sm">
+                          <span className="text-red-600 font-semibold">
+                            {redemption.points_used.toLocaleString()} แต้ม
+                          </span>
+                          <span className="text-gray-600">จำนวน: {redemption.quantity} ชิ้น</span>
+                          <span className="text-gray-500">
+                            {formatDate(redemption.created_at)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* User Info */}
+                      <div className="flex items-center gap-6 p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-2 text-sm">
+                          <FaUser className="text-gray-500" />
+                          <span className="text-gray-700">{getUserDisplayName(redemption.user_profiles)}</span>
+                        </div>
+                        {redemption.user_profiles.phone && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <FaPhone className="text-gray-500" />
+                            <span className="text-gray-700">{redemption.user_profiles.phone}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Admin Notes (if any) */}
+                      {redemption.admin_notes && (
+                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <p className="text-sm text-yellow-800">
+                            <span className="font-semibold">หมายเหตุ:</span> {redemption.admin_notes}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      {(redemption.status === 'requested' || redemption.status === 'processing') && (
+                        <div className="flex gap-3 pt-2">
+                          <button
+                            onClick={() => handleApprove(redemption.id)}
+                            disabled={processingId === redemption.id}
+                            className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <HiCheckCircle className="w-5 h-5" />
+                            อนุมัติ (มอบของแล้ว)
+                          </button>
+                          <button
+                            onClick={() => handleReject(redemption)}
+                            disabled={processingId === redemption.id}
+                            className="flex items-center gap-2 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <HiXCircle className="w-5 h-5" />
+                            ปฏิเสธ (คืนแต้ม)
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Processed Info */}
+                      {redemption.processed_at && (
+                        <p className="text-sm text-gray-500">
+                          ดำเนินการเมื่อ: {formatDate(redemption.processed_at)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {pagination && pagination.totalPages > 1 && (
+              <div className="flex items-center justify-center space-x-2 py-6">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`p-2 rounded-lg transition-colors ${
+                    currentPage === 1
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white text-gray-700 hover:bg-red-50 hover:text-red-600 border border-gray-200'
+                  }`}
+                >
+                  <IoMdArrowBack className="w-5 h-5" />
+                </button>
+
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange(page)}
+                      className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                        currentPage === page
+                          ? 'bg-red-600 text-white'
+                          : 'bg-white text-gray-700 hover:bg-red-50 hover:text-red-600 border border-gray-200'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === pagination.totalPages}
+                  className={`p-2 rounded-lg transition-colors ${
+                    currentPage === pagination.totalPages
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-white text-gray-700 hover:bg-red-50 hover:text-red-600 border border-gray-200'
+                  }`}
+                >
+                  <IoMdArrowForward className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Reject Notes Modal */}
+      {showNotesModal && selectedRedemption && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">ปฏิเสธการแลกรางวัล</h3>
+            <p className="text-gray-600 mb-4">
+              คุณต้องการปฏิเสธการแลกรางวัล "{selectedRedemption.rewards.name}" หรือไม่?
+              แต้มจะถูกคืนให้กับลูกค้า
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                เหตุผล (ไม่บังคับ)
+              </label>
+              <textarea
+                value={adminNotes}
+                onChange={(e) => setAdminNotes(e.target.value)}
+                placeholder="ระบุเหตุผลการปฏิเสธ..."
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={confirmReject}
+                disabled={processingId === selectedRedemption.id}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                ยืนยันปฏิเสธ
+              </button>
+              <button
+                onClick={() => {
+                  setShowNotesModal(false)
+                  setSelectedRedemption(null)
+                  setAdminNotes('')
+                }}
+                disabled={processingId === selectedRedemption.id}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 transition-colors"
+              >
+                ยกเลิก
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
