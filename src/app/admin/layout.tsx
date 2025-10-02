@@ -41,10 +41,10 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">กำลังโหลด...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900 border-t-2 border-t-slate-200 mx-auto mb-4"></div>
+          <p className="text-slate-600">กำลังโหลด...</p>
         </div>
       </div>
     )
@@ -63,11 +63,11 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 lg:flex">
+    <div className="min-h-screen bg-slate-50 lg:flex">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-gray-900/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-slate-900/50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -149,13 +149,13 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile header with menu button */}
-        <div className="lg:hidden bg-white shadow-sm border-b px-4 py-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-800">Admin Panel</h2>
+        <div className="lg:hidden bg-white shadow-sm border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-slate-900">Admin Panel</h2>
           <Button
             onClick={() => setSidebarOpen(true)}
             variant="outline"
             size="sm"
-            className="border-slate-300 text-slate-700 hover:bg-slate-50"
+            className="border-slate-200 text-slate-700 hover:bg-slate-100"
           >
             <Menu className="h-4 w-4" />
           </Button>

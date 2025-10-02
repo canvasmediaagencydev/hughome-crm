@@ -19,7 +19,7 @@ export function getTransactionColor(type: string): string {
   if (type === 'earned' || type === 'bonus' || type === 'refund') {
     return 'text-green-600'
   }
-  return 'text-red-600'
+  return 'text-slate-600'
 }
 
 /**

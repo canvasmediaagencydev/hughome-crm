@@ -157,25 +157,25 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       {/* Welcome Section */}
       <div>
-        <h1 className="text-3xl font-bold text-red-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">ยินดีต้อนรับสู่ระบบจัดการผู้ดูแล Hughome CRM</p>
+        <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
+        <p className="text-slate-600 mt-1">ยินดีต้อนรับสู่ระบบจัดการผู้ดูแล Hughome CRM</p>
       </div>
 
       {/* Point Settings */}
-      <Card>
+      <Card className="bg-white rounded-lg border border-slate-200 shadow-sm">
         <CardHeader>
-          <CardTitle className="text-red-800 flex items-center">
-            <Settings className="mr-2 h-5 w-5" />
+          <CardTitle className="text-slate-900 flex items-center">
+            <Settings className="mr-2 h-5 w-5 text-slate-400" />
             ตั้งค่าอัตราแลกเปลี่ยน Point
           </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-gray-500">กำลังโหลด...</p>
+            <p className="text-slate-500">กำลังโหลด...</p>
           ) : (
             <div className="flex items-end space-x-4">
               <div className="flex-1">
-                <Label htmlFor="bahtPerPoint">จำนวนบาทต่อ 1 Point</Label>
+                <Label htmlFor="bahtPerPoint" className="text-slate-700">จำนวนบาทต่อ 1 Point</Label>
                 <Input
                   id="bahtPerPoint"
                   type="number"
@@ -183,16 +183,16 @@ export default function AdminDashboard() {
                   value={bahtPerPoint}
                   onChange={(e) => setBahtPerPoint(e.target.value)}
                   placeholder="100.00"
-                  className="mt-1"
+                  className="mt-1 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   ตัวอย่าง: ใส่ 100 หมายถึง ใช้เงิน 100 บาท ได้ 1 Point
                 </p>
               </div>
               <Button
                 onClick={savePointSetting}
                 disabled={saving}
-                className="bg-red-600 hover:bg-red-700"
+                className="bg-slate-900 text-white hover:bg-slate-800"
               >
                 <Save className="mr-2 h-4 w-4" />
                 {saving ? 'กำลังบันทึก...' : 'บันทึก'}
@@ -203,28 +203,28 @@ export default function AdminDashboard() {
       </Card>
 
       {/* Quick Actions */}
-      <Card>
+      <Card className="bg-white rounded-lg border border-slate-200 shadow-sm">
         <CardHeader>
-          <CardTitle className="text-red-800">การดำเนินการด่วน</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-slate-900">การดำเนินการด่วน</CardTitle>
+          <CardDescription className="text-slate-600">
             ฟีเจอร์ที่ใช้บ่อยสำหรับการจัดการระบบ
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link href="/admin/users">
-            <Button variant="outline" className="w-full border-red-300 text-red-700 hover:bg-red-600 hover:text-white hover:border-red-600">
+            <Button variant="outline" className="w-full bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200">
               <Users className="mr-2 h-4 w-4" />
               ดูผู้ใช้ทั้งหมด
             </Button>
           </Link>
           <Link href="/admin/receipts">
-            <Button variant="outline" className="w-full border-red-300 text-red-700 hover:bg-red-600 hover:text-white hover:border-red-600">
+            <Button variant="outline" className="w-full bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200">
               <Receipt className="mr-2 h-4 w-4" />
               ใบเสร็จรอการอนุมัติ
             </Button>
           </Link>
           <Link href="/admin/rewards">
-            <Button variant="outline" className="w-full border-red-300 text-red-700 hover:bg-red-600 hover:text-white hover:border-red-600">
+            <Button variant="outline" className="w-full bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200">
               <Gift className="mr-2 h-4 w-4" />
               เพิ่มรางวัลใหม่
             </Button>
@@ -233,11 +233,11 @@ export default function AdminDashboard() {
       </Card>
 
       {/* Recent Receipts */}
-      <Card>
+      <Card className="bg-white rounded-lg border border-slate-200 shadow-sm">
         <CardHeader>
-          <CardTitle className="text-red-800 flex items-center justify-between">
+          <CardTitle className="text-slate-900 flex items-center justify-between">
             <div className="flex items-center">
-              <Receipt className="mr-2 h-5 w-5" />
+              <Receipt className="mr-2 h-5 w-5 text-slate-400" />
               รายการใบเสร็จล่าสุด
             </div>
             <div className="flex space-x-2">
@@ -245,32 +245,32 @@ export default function AdminDashboard() {
                 onClick={handleAutoApprove}
                 disabled={autoApproving}
                 size="sm"
-                className="bg-green-600 hover:bg-green-700 text-white"
+                className="bg-slate-900 hover:bg-slate-800 text-white"
               >
                 <Zap className="mr-1 h-3 w-3" />
                 {autoApproving ? 'กำลังอนุมัติ...' : 'อนุมัติอัตโนมัติ'}
               </Button>
               <Link href="/admin/receipts">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200">
                   ดูทั้งหมด
                 </Button>
               </Link>
             </div>
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-slate-600">
             ใบเสร็จที่รอการอนุมัติ 10 รายการล่าสุด
           </CardDescription>
         </CardHeader>
         <CardContent>
           {receiptsLoading ? (
             <div className="text-center py-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-600 mx-auto mb-2"></div>
-              <p className="text-gray-500 text-sm">กำลังโหลด...</p>
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-slate-900 border-t-2 border-t-slate-200 mx-auto mb-2"></div>
+              <p className="text-slate-500 text-sm">กำลังโหลด...</p>
             </div>
           ) : recentReceipts.length === 0 ? (
             <div className="text-center py-8">
-              <Receipt className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-              <p className="text-gray-500">ไม่มีใบเสร็จรอการอนุมัติ</p>
+              <Receipt className="mx-auto h-12 w-12 text-slate-400 mb-2" />
+              <p className="text-slate-500">ไม่มีใบเสร็จรอการอนุมัติ</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -293,14 +293,14 @@ export default function AdminDashboard() {
                 }
 
                 return (
-                  <div key={receipt.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                  <div key={receipt.id} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2 mb-1">
-                        <span className="font-medium text-sm">{displayName}</span>
+                        <span className="font-medium text-sm text-slate-900">{displayName}</span>
                         {getStatusBadge(receipt.status || 'pending')}
                       </div>
 
-                      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 text-xs text-gray-600">
+                      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 text-xs text-slate-600">
                         <div>
                           <span className="font-medium">ยอดเงิน:</span> ฿{receipt.total_amount?.toLocaleString() || 'N/A'}
                         </div>
@@ -332,7 +332,7 @@ export default function AdminDashboard() {
 
                     <div className="flex space-x-1 ml-2">
                       <Link href="/admin/receipts">
-                        <Button variant="outline" size="sm" className="text-xs">
+                        <Button variant="outline" size="sm" className="text-xs bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200">
                           ดูรายละเอียด
                         </Button>
                       </Link>

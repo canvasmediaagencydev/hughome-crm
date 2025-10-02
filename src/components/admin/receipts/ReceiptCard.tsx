@@ -58,17 +58,17 @@ export function ReceiptCard({
   const isPending = receipt.status === 'pending'
 
   return (
-    <div className="border rounded-lg p-4 hover:bg-gray-50">
+    <div className="border border-slate-200 rounded-lg p-4 hover:bg-slate-50">
       <div className="flex items-start justify-between">
         {/* Receipt Details */}
         <div className="flex-1">
           <div className="flex items-center space-x-3 mb-2">
-            <p>ชื่อลูกค้า : </p>
-            <h3 className="font-medium">{displayName}</h3>
+            <p className="text-slate-600">ชื่อลูกค้า : </p>
+            <h3 className="font-medium text-slate-900">{displayName}</h3>
             {getStatusBadge(receipt.status || 'pending')}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2 text-sm text-gray-600">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2 text-sm text-slate-600">
             <div>
               <span className="font-medium">ยอดเงิน:</span> ฿{receipt.total_amount?.toLocaleString() || 'N/A'}
             </div>
@@ -85,7 +85,7 @@ export function ReceiptCard({
                 : 'N/A'}
             </div>
             <div className="flex items-center">
-              <Calculator className="mr-1 h-3 w-3" />
+              <Calculator className="mr-1 h-3 w-3 text-slate-400" />
               <span className="font-medium">Points : </span> {points}
             </div>
             <div className="truncate">
@@ -97,7 +97,7 @@ export function ReceiptCard({
           </div>
 
           {receipt.admin_notes && (
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               <strong>หมายเหตุ:</strong> {receipt.admin_notes}
             </p>
           )}
@@ -109,6 +109,7 @@ export function ReceiptCard({
             variant="outline"
             size="sm"
             onClick={() => onViewDetail(receipt)}
+            className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
           >
             <Eye className="h-4 w-4" />
           </Button>
@@ -120,7 +121,7 @@ export function ReceiptCard({
                 size="sm"
                 onClick={() => onApprove(receipt)}
                 disabled={processing}
-                className="text-green-600 hover:text-green-700"
+                className="text-green-600 hover:text-green-700 border-slate-200"
               >
                 <Check className="h-4 w-4" />
               </Button>
@@ -129,7 +130,7 @@ export function ReceiptCard({
                 size="sm"
                 onClick={() => onReject(receipt)}
                 disabled={processing}
-                className="text-red-600 hover:text-red-700"
+                className="text-red-600 hover:text-red-700 border-slate-200"
               >
                 <X className="h-4 w-4" />
               </Button>

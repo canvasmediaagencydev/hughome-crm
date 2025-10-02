@@ -21,7 +21,7 @@ export function ReceiptImageModal({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="relative w-full max-h-[80vh] overflow-auto rounded-lg bg-gray-100 flex items-center justify-center">
+          <div className="relative w-full max-h-[80vh] overflow-auto rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center">
             {imageUrl ? (
               <Image
                 src={imageUrl}
@@ -33,12 +33,12 @@ export function ReceiptImageModal({
               />
             ) : (
               <div className="text-center py-16">
-                <p className="text-gray-500">ไม่พบรูปภาพใบเสร็จ</p>
+                <p className="text-slate-500">ไม่พบรูปภาพใบเสร็จ</p>
               </div>
             )}
           </div>
           <div className="flex justify-end">
-            <Button onClick={onClose} variant="outline">
+            <Button onClick={onClose} variant="outline" className="bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-300">
               ปิด
             </Button>
           </div>

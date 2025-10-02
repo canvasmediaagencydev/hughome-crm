@@ -30,7 +30,7 @@ export function AutoRejectConfirmModal({
             <div className="flex items-start">
               <X className="h-5 w-5 text-red-600 mt-0.5 mr-3" />
               <div>
-                <h4 className="font-medium text-red-900 mb-1">
+                <h4 className="font-medium text-slate-900 mb-1">
                   คุณต้องการปฏิเสธใบเสร็จที่ไม่ใช่ของร้าน "ตั้งหง่วงเซ้ง" ทั้งหมดโดยอัตโนมัติหรือไม่?
                 </h4>
               </div>
@@ -38,12 +38,12 @@ export function AutoRejectConfirmModal({
           </div>
 
           <div className="flex justify-end space-x-2">
-            <Button onClick={onClose} variant="outline" disabled={isRejecting}>
+            <Button onClick={onClose} variant="outline" disabled={isRejecting} className="bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-300">
               ยกเลิก
             </Button>
             <Button
               onClick={onConfirm}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 text-white hover:bg-red-700"
               disabled={isRejecting}
             >
               <X className="mr-2 h-4 w-4" />

@@ -45,7 +45,7 @@ export function RejectReceiptModal({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="reject-reason">เหตุผล *</Label>
+            <Label htmlFor="reject-reason" className="text-slate-700">เหตุผล *</Label>
             <Textarea
               id="reject-reason"
               placeholder="ระบุเหตุผลในการปฏิเสธ..."
@@ -53,17 +53,17 @@ export function RejectReceiptModal({
               onChange={(e) => setReason(e.target.value)}
               rows={4}
               disabled={isRejecting}
-              className="resize-none"
+              className="resize-none border-slate-300 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
             />
           </div>
 
           <div className="flex justify-end space-x-2">
-            <Button onClick={handleClose} variant="outline" disabled={isRejecting}>
+            <Button onClick={handleClose} variant="outline" disabled={isRejecting} className="bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-300">
               ยกเลิก
             </Button>
             <Button
               onClick={handleConfirm}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 text-white hover:bg-red-700"
               disabled={isRejecting || !reason.trim()}
             >
               <X className="mr-2 h-4 w-4" />

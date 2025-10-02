@@ -245,38 +245,52 @@ export default function AdminRewards() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reward Management</h1>
-          <p className="text-gray-600">จัดการรางวัลและของแถมในระบบ</p>
-        </div>
-        <Button onClick={() => handleOpenFormDialog()}>
-          <Plus className="mr-2 h-4 w-4" />
-          เพิ่มรางวัลใหม่
-        </Button>
-      </div>
-
-      {loading ? (
-        <div className="text-center py-12">
-          <p className="text-gray-500">กำลังโหลดข้อมูล...</p>
-        </div>
-      ) : rewards.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Gift className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <p className="text-gray-500">ยังไม่มีรางวัลในระบบ</p>
-            <Button onClick={() => handleOpenFormDialog()} className="mt-4">
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-7xl mx-auto">
+        {/* Action Bar */}
+        <div className="bg-white rounded-lg border border-slate-200 p-4 mb-4 shadow-sm">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-sm font-medium text-slate-600">จัดการรางวัล</h2>
+              <p className="text-xs text-slate-500 mt-0.5">ทั้งหมด {rewards.length} รายการ</p>
+            </div>
+            <Button onClick={() => handleOpenFormDialog()} className="bg-slate-900 text-white hover:bg-slate-800">
               <Plus className="mr-2 h-4 w-4" />
-              เพิ่มรางวัลแรก
+              เพิ่มรางวัล
             </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {rewards.map((reward) => (
-            <Card key={reward.id} className="overflow-hidden">
-              <div className="aspect-video bg-gray-100 relative">
+          </div>
+        </div>
+
+        {/* Rewards List */}
+        {loading ? (
+          <div className="text-center py-20">
+            <div className="relative inline-flex">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-slate-200"></div>
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-slate-900 border-t-transparent absolute top-0 left-0"></div>
+            </div>
+            <p className="text-slate-600 mt-6 font-medium">กำลังโหลดข้อมูล...</p>
+          </div>
+        ) : rewards.length === 0 ? (
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+            <div className="py-20 text-center">
+              <Gift className="mx-auto h-16 w-16 text-slate-400 mb-4" />
+              <p className="text-slate-500 mb-4">ยังไม่มีรางวัลในระบบ</p>
+              <Button onClick={() => handleOpenFormDialog()} className="bg-slate-900 text-white hover:bg-slate-800">
+                <Plus className="mr-2 h-4 w-4" />
+                เพิ่มรางวัลแรก
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+            {rewards.map((reward, index) => (
+              <div
+                key={reward.id}
+                className="animate-fade-in"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <Card className="overflow-hidden bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-lg hover:border-slate-300 transition-all duration-200">
+              <div className="aspect-video bg-slate-100 relative">
                 {reward.image_url ? (
                   <Image
                     src={reward.image_url}
@@ -286,7 +300,7 @@ export default function AdminRewards() {
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    <ImageIcon className="h-12 w-12 text-gray-400" />
+                    <ImageIcon className="h-12 w-12 text-slate-400" />
                   </div>
                 )}
                 {reward.stock_quantity !== null && (
@@ -297,7 +311,7 @@ export default function AdminRewards() {
                           ? 'bg-red-500'
                           : (reward.remaining_stock !== undefined && reward.remaining_stock !== null && reward.remaining_stock < 10)
                             ? 'bg-orange-500'
-                            : 'bg-black/70'
+                            : 'bg-slate-900'
                       }`}
                     >
                       <Package className="mr-1 h-3 w-3" />
@@ -308,30 +322,30 @@ export default function AdminRewards() {
               </div>
               <CardHeader>
                 <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{reward.name}</CardTitle>
+                  <CardTitle className="text-lg text-slate-900">{reward.name}</CardTitle>
                   <Badge
                     variant={reward.is_active ? 'default' : 'secondary'}
-                    className={reward.is_active ? 'bg-green-500 hover:bg-green-600' : ''}
+                    className={reward.is_active ? 'bg-green-500 hover:bg-green-600' : 'bg-slate-200 text-slate-700'}
                   >
                     {reward.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
                   </Badge>
                 </div>
                 {reward.category && (
-                  <CardDescription>{reward.category}</CardDescription>
+                  <CardDescription className="text-slate-600">{reward.category}</CardDescription>
                 )}
               </CardHeader>
               <CardContent className="space-y-4">
                 {reward.description && (
-                  <p className="text-sm text-gray-600 line-clamp-2">
+                  <p className="text-sm text-slate-600 line-clamp-2">
                     {reward.description}
                   </p>
                 )}
                 <div className="flex justify-between items-center text-sm">
-                  <div className="flex items-center text-primary font-semibold">
+                  <div className="flex items-center text-blue-400 font-semibold">
                     <Gift className="mr-1 h-4 w-4" />
                     {reward.points_cost.toLocaleString()} แต้ม
                   </div>
-                  <div className="flex flex-col items-end text-gray-600 text-xs">
+                  <div className="flex flex-col items-end text-slate-600 text-xs">
                     {reward.stock_quantity !== null ? (
                       <>
                         <div className="flex items-center font-semibold">
@@ -339,7 +353,7 @@ export default function AdminRewards() {
                           สต็อก: {reward.stock_quantity} ชิ้น
                         </div>
                         {reward.redeemed_count !== undefined && reward.redeemed_count > 0 && (
-                          <div className="text-gray-500">
+                          <div className="text-slate-500">
                             (แลกไป {reward.redeemed_count} ชิ้น)
                           </div>
                         )}
@@ -352,9 +366,9 @@ export default function AdminRewards() {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center justify-between pt-4 border-t">
+                <div className="flex items-center justify-between pt-4 border-t border-slate-200">
                   <div className="flex items-center space-x-2">
-                    <Label htmlFor={`active-${reward.id}`} className="text-sm">
+                    <Label htmlFor={`active-${reward.id}`} className="text-sm text-slate-700">
                       เปิดใช้งาน
                     </Label>
                     <Switch
@@ -368,6 +382,7 @@ export default function AdminRewards() {
                       size="sm"
                       variant="outline"
                       onClick={() => handleOpenFormDialog(reward)}
+                      className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -378,16 +393,19 @@ export default function AdminRewards() {
                         setDeletingReward(reward)
                         setShowDeleteDialog(true)
                       }}
+                      className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
                     >
                       <Trash2 className="h-4 w-4 text-red-500" />
                     </Button>
                   </div>
                 </div>
               </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                </Card>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Form Dialog */}
       <Dialog open={showFormDialog} onOpenChange={handleCloseFormDialog}>
@@ -512,10 +530,11 @@ export default function AdminRewards() {
                 variant="outline"
                 onClick={handleCloseFormDialog}
                 disabled={submitting}
+                className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
               >
                 ยกเลิก
               </Button>
-              <Button type="submit" disabled={submitting}>
+              <Button type="submit" disabled={submitting} className="bg-slate-900 text-white hover:bg-slate-800">
                 {submitting ? 'กำลังบันทึก...' : 'บันทึก'}
               </Button>
             </DialogFooter>
@@ -541,6 +560,7 @@ export default function AdminRewards() {
                 setDeletingReward(null)
               }}
               disabled={submitting}
+              className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
             >
               ยกเลิก
             </Button>
@@ -548,6 +568,7 @@ export default function AdminRewards() {
               variant="destructive"
               onClick={handleDelete}
               disabled={submitting}
+              className="bg-red-600 text-white hover:bg-red-700"
             >
               {submitting ? 'กำลังลบ...' : 'ลบรางวัล'}
             </Button>

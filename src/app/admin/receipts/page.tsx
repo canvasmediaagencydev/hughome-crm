@@ -127,26 +127,10 @@ export default function AdminReceipts() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Receipt Review</h1>
-        <p className="text-gray-600">ตรวจสอบและอนุมัติใบเสร็จที่ผู้ใช้อัปโหลด</p>
-      </div>
-
-      {/* Auto Approve & Reject Section */}
-      {status === 'pending' && (
-        <AutoActionCards
-          autoApproving={autoApproving}
-          autoRejecting={autoRejecting}
-          loading={loading}
-          onAutoApprove={handleAutoApprove}
-          onAutoReject={handleAutoReject}
-        />
-      )}
-
-      {/* Filters */}
-      <Card className="pt-3">
-        <CardContent>
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-7xl mx-auto">
+        {/* Filters */}
+        <div className="bg-white rounded-lg border border-slate-200 p-4 mb-4 shadow-sm">
           <FilterSection
             search={search}
             status={status}
@@ -154,31 +138,41 @@ export default function AdminReceipts() {
             onStatusChange={setStatus}
             onSearch={handleSearch}
           />
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Receipt List */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Receipt className="mr-2 h-5 w-5" />
-              รายการใบเสร็จ
+        {/* Auto Actions */}
+        {status === 'pending' && (
+          <AutoActionCards
+            autoApproving={autoApproving}
+            autoRejecting={autoRejecting}
+            loading={loading}
+            onAutoApprove={handleAutoApprove}
+            onAutoReject={handleAutoReject}
+          />
+        )}
+
+        {/* Receipt List */}
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+          <div className="px-6 py-4 border-b border-slate-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Receipt className="mr-2 h-5 w-5 text-slate-400" />
+                <h2 className="font-semibold text-slate-900">รายการใบเสร็จ</h2>
+              </div>
+              <Badge variant="outline" className="text-slate-700 border-slate-200">
+                ทั้งหมด {pagination.total} รายการ
+              </Badge>
             </div>
-            <Badge variant="outline">
-              ทั้งหมด {pagination.total} รายการ
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          </div>
+          <div className="p-6">
           {loading ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-2"></div>
-              <p className="text-gray-500">กำลังโหลด...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 border-t-2 border-t-slate-200 mx-auto mb-2"></div>
+              <p className="text-slate-500">กำลังโหลด...</p>
             </div>
           ) : receipts.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">ไม่พบใบเสร็จ</p>
+              <p className="text-slate-500">ไม่พบใบเสร็จ</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -203,7 +197,7 @@ export default function AdminReceipts() {
           {/* Pagination */}
           {pagination.totalPages > 1 && (
             <div className="flex items-center justify-between mt-6">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-slate-600">
                 แสดง {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} จาก {pagination.total} รายการ
               </p>
 
@@ -213,11 +207,12 @@ export default function AdminReceipts() {
                   size="sm"
                   onClick={() => setPage(page - 1)}
                   disabled={page <= 1}
+                  className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
 
-                <span className="px-3 py-1 text-sm">
+                <span className="px-3 py-1 text-sm text-slate-700">
                   หน้า {pagination.page} / {pagination.totalPages}
                 </span>
 
@@ -226,14 +221,16 @@ export default function AdminReceipts() {
                   size="sm"
                   onClick={() => setPage(page + 1)}
                   disabled={page >= pagination.totalPages}
+                  className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+          </div>
+        </div>
+      </div>
 
       {/* Modals */}
       <AutoApproveConfirmModal

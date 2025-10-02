@@ -18,54 +18,50 @@ export function AutoActionCards({
   onAutoReject
 }: AutoActionCardsProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <Card className="border-green-200 bg-green-50">
-        <CardHeader>
-          <CardTitle className="text-green-800 flex items-center justify-between">
-            <div className="flex items-center">
-              <Zap className="mr-2 h-5 w-5" />
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <div className="flex items-center text-slate-900 font-semibold mb-1">
+              <Zap className="mr-2 h-5 w-5 text-blue-400" />
               อนุมัติอัตโนมัติ
             </div>
-          </CardTitle>
-          <CardDescription>
-            อนุมัติใบเสร็จที่เป็นของร้าน "ตั้งหง่วงเซ้ง" ทั้งหมดในครั้งเดียว
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button
-            onClick={onAutoApprove}
-            disabled={autoApproving || loading || autoRejecting}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            <Zap className="mr-2 h-4 w-4" />
-            {autoApproving ? 'กำลังอนุมัติ...' : 'อนุมัติใบเสร็จของร้านทั้งหมด'}
-          </Button>
-        </CardContent>
-      </Card>
+            <p className="text-sm text-slate-600">
+              อนุมัติใบเสร็จที่เป็นของร้าน "ตั้งหง่วงเซ้ง" ทั้งหมดในครั้งเดียว
+            </p>
+          </div>
+        </div>
+        <Button
+          onClick={onAutoApprove}
+          disabled={autoApproving || loading || autoRejecting}
+          className="w-full bg-slate-900 hover:bg-slate-800 text-white"
+        >
+          <Zap className="mr-2 h-4 w-4" />
+          {autoApproving ? 'กำลังอนุมัติ...' : 'อนุมัติใบเสร็จของร้าน'}
+        </Button>
+      </div>
 
-      <Card className="border-red-200 bg-red-50">
-        <CardHeader>
-          <CardTitle className="text-red-800 flex items-center justify-between">
-            <div className="flex items-center">
-              <X className="mr-2 h-5 w-5" />
+      <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <div className="flex items-center text-slate-900 font-semibold mb-1">
+              <X className="mr-2 h-5 w-5 text-slate-400" />
               ปฏิเสธอัตโนมัติ
             </div>
-          </CardTitle>
-          <CardDescription>
-            ปฏิเสธใบเสร็จที่ไม่ใช่ของร้าน "ตั้งหง่วงเซ้ง" ทั้งหมดในครั้งเดียว
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button
-            onClick={onAutoReject}
-            disabled={autoRejecting || loading || autoApproving}
-            className="bg-red-600 hover:bg-red-700"
-          >
-            <X className="mr-2 h-4 w-4" />
-            {autoRejecting ? 'กำลังปฏิเสธ...' : 'ปฏิเสธใบเสร็จที่ไม่ใช่ของร้านทั้งหมด'}
-          </Button>
-        </CardContent>
-      </Card>
+            <p className="text-sm text-slate-600">
+              ปฏิเสธใบเสร็จที่ไม่ใช่ของร้าน "ตั้งหง่วงเซ้ง" ทั้งหมดในครั้งเดียว
+            </p>
+          </div>
+        </div>
+        <Button
+          onClick={onAutoReject}
+          disabled={autoRejecting || loading || autoApproving}
+          className="w-full bg-red-600 hover:bg-red-700 text-white"
+        >
+          <X className="mr-2 h-4 w-4" />
+          {autoRejecting ? 'กำลังปฏิเสธ...' : 'ปฏิเสธใบเสร็จที่ไม่ใช่ของร้าน'}
+        </Button>
+      </div>
     </div>
   )
 }

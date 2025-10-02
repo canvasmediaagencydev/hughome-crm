@@ -47,10 +47,10 @@ export function ReceiptDetailModal({
           {/* Receipt Image */}
           {receipt.receipt_images?.[0] && (
             <div className="space-y-2">
-              <strong className="text-sm">รูปใบเสร็จ:</strong>
+              <strong className="text-sm text-slate-700">รูปใบเสร็จ:</strong>
               <div className="relative w-full max-w-md mx-auto">
                 <div
-                  className="relative w-full h-64 border rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                  className="relative w-full h-64 border border-slate-300 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
                   onClick={() => {
                     const imageUrl = getReceiptImageUrl(receipt.receipt_images[0].file_path)
                     onImageClick(imageUrl)
@@ -68,11 +68,11 @@ export function ReceiptDetailModal({
                       target.nextElementSibling?.classList.remove('hidden')
                     }}
                   />
-                  <div className="hidden absolute inset-0 bg-gray-200 flex items-center justify-center text-sm text-gray-500">
+                  <div className="hidden absolute inset-0 bg-slate-100 flex items-center justify-center text-sm text-slate-500">
                     ไม่สามารถโหลดรูปใบเสร็จได้
                   </div>
                 </div>
-                <p className="text-xs text-gray-500 text-center mt-1">
+                <p className="text-xs text-slate-500 text-center mt-1">
                   คลิกเพื่อดูรูปขนาดใหญ่
                 </p>
               </div>
@@ -82,15 +82,15 @@ export function ReceiptDetailModal({
           {/* OCR Data */}
           {receipt.ocr_data && (
             <div>
-              <strong>ข้อมูล OCR:</strong>
-              <pre className="bg-gray-100 p-3 rounded text-xs overflow-auto max-h-32">
+              <strong className="text-slate-900">ข้อมูล OCR:</strong>
+              <pre className="bg-slate-50 border border-slate-200 p-3 rounded text-xs overflow-auto max-h-32 text-slate-700">
                 {JSON.stringify(receipt.ocr_data, null, 2)}
               </pre>
             </div>
           )}
 
           <div className="flex justify-end">
-            <Button onClick={onClose} variant="outline">
+            <Button onClick={onClose} variant="outline" className="bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-300">
               ปิด
             </Button>
           </div>

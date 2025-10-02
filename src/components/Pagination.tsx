@@ -43,8 +43,8 @@ export const Pagination = memo(({
         disabled={currentPage === 1 || disabled}
         className={`p-2 rounded-lg transition-colors ${
           currentPage === 1 || disabled
-            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-            : 'bg-white text-gray-700 hover:bg-red-50 hover:text-red-600 border border-gray-200'
+            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+            : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
         }`}
       >
         <IoMdArrowBack className="w-5 h-5" />
@@ -58,10 +58,10 @@ export const Pagination = memo(({
             disabled={disabled}
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               currentPage === page
-                ? 'bg-red-600 text-white'
+                ? 'bg-slate-900 text-white'
                 : disabled
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-white text-gray-700 hover:bg-red-50 hover:text-red-600 border border-gray-200'
+                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
             }`}
           >
             {page}
@@ -74,8 +74,8 @@ export const Pagination = memo(({
         disabled={currentPage === totalPages || disabled}
         className={`p-2 rounded-lg transition-colors ${
           currentPage === totalPages || disabled
-            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-            : 'bg-white text-gray-700 hover:bg-red-50 hover:text-red-600 border border-gray-200'
+            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+            : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
         }`}
       >
         <IoMdArrowForward className="w-5 h-5" />
@@ -111,13 +111,13 @@ export const SimplePagination = memo(({
         disabled={currentPage === 1 || disabled}
         className={`px-3 py-1 rounded text-sm ${
           currentPage === 1 || disabled
-            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-            : 'bg-red-600 text-white hover:bg-red-700'
+            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+            : 'bg-slate-900 text-white hover:bg-slate-800'
         }`}
       >
         {prevLabel}
       </button>
-      <span className="text-sm text-gray-600">
+      <span className="text-sm text-slate-600">
         {currentPage} / {totalPages}
       </span>
       <button
@@ -125,8 +125,8 @@ export const SimplePagination = memo(({
         disabled={currentPage === totalPages || disabled}
         className={`px-3 py-1 rounded text-sm ${
           currentPage === totalPages || disabled
-            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-            : 'bg-red-600 text-white hover:bg-red-700'
+            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+            : 'bg-slate-900 text-white hover:bg-slate-800'
         }`}
       >
         {nextLabel}
