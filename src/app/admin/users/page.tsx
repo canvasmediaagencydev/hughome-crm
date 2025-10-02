@@ -35,7 +35,7 @@ interface Transaction {
 interface Redemption {
   id: string
   points_used: number
-  redemption_status: string
+  status: string
   shipping_address: string | null
   tracking_number: string | null
   created_at: string
@@ -164,7 +164,7 @@ export default function AdminUsersPage() {
           transactionPage,
           transactionLimit: 5,
           redemptionPage,
-          redemptionLimit: 5
+          redemptionLimit: 3
         }
       })
       setUserDetails(response.data)
@@ -645,8 +645,8 @@ export default function AdminUsersPage() {
                                   </div>
                                 )}
                               </div>
-                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getRedemptionStatusColor(redemption.redemption_status)}`}>
-                                {getRedemptionStatusLabel(redemption.redemption_status)}
+                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getRedemptionStatusColor(redemption.status)}`}>
+                                {getRedemptionStatusLabel(redemption.status)}
                               </span>
                             </div>
                           ))}

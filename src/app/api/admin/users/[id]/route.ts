@@ -47,7 +47,7 @@ export async function GET(
       .select(`
         id,
         points_used,
-        redemption_status,
+        status,
         shipping_address,
         tracking_number,
         created_at,
