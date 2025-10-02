@@ -3,8 +3,16 @@
 import { useState, useEffect } from 'react'
 import { HiOutlineGift, HiCheckCircle, HiXCircle, HiSearch } from 'react-icons/hi'
 import { FaUser, FaPhone } from 'react-icons/fa'
-import { IoMdArrowBack, IoMdArrowForward } from 'react-icons/io'
 import { UserSessionManager } from '@/lib/user-session'
+import { Pagination } from '@/components/Pagination'
+import { StatusBadge } from '@/components/StatusBadge'
+import { EmptyState } from '@/components/EmptyState'
+import {
+  formatDate,
+  formatPoints,
+  getUserDisplayName,
+  getRedemptionStatusLabel
+} from '@/lib/utils'
 import axios from 'axios'
 
 interface Redemption {
@@ -32,34 +40,17 @@ interface Redemption {
   }
 }
 
-interface Pagination {
+interface PaginationType {
   page: number
   limit: number
   total: number
   totalPages: number
 }
 
-const StatusBadge = ({ status }: { status: string }) => {
-  const statusConfig = {
-    requested: { text: 'รอรับของ', color: 'bg-yellow-100 text-yellow-700 border-yellow-300' },
-    processing: { text: 'กำลังตรวจสอบ', color: 'bg-blue-100 text-blue-700 border-blue-300' },
-    shipped: { text: 'มอบของแล้ว', color: 'bg-green-100 text-green-700 border-green-300' },
-    cancelled: { text: 'ปฏิเสธ', color: 'bg-red-100 text-red-700 border-red-300' }
-  }
-
-  const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.requested
-
-  return (
-    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${config.color}`}>
-      {config.text}
-    </span>
-  )
-}
-
 export default function AdminRedemptionsPage() {
   const [redemptions, setRedemptions] = useState<Redemption[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [pagination, setPagination] = useState<Pagination | null>(null)
+  const [pagination, setPagination] = useState<PaginationType | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [processingId, setProcessingId] = useState<string | null>(null)
@@ -134,20 +125,6 @@ export default function AdminRedemptionsPage() {
     }
   }
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('th-TH', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
-
-  const getUserDisplayName = (user: Redemption['user_profiles']) => {
-    return user.display_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'ไม่ระบุ'
-  }
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage)
@@ -278,16 +255,16 @@ export default function AdminRedemptionsPage() {
                       <div>
                         <div className="flex items-center justify-between mb-2">
                           <h3 className="text-xl font-bold text-gray-900">{redemption.rewards.name}</h3>
-                          <StatusBadge status={redemption.status} />
+                          <StatusBadge status={redemption.status} type="redemption" />
                         </div>
                         <p className="text-gray-600 text-sm mb-2">{redemption.rewards.description}</p>
                         <div className="flex items-center gap-4 text-sm">
                           <span className="text-red-600 font-semibold">
-                            {redemption.points_used.toLocaleString()} แต้ม
+                            {formatPoints(redemption.points_used)}
                           </span>
                           <span className="text-gray-600">จำนวน: {redemption.quantity} ชิ้น</span>
                           <span className="text-gray-500">
-                            {formatDate(redemption.created_at)}
+                            {formatDate(redemption.created_at, { includeTime: true })}
                           </span>
                         </div>
                       </div>
@@ -340,7 +317,7 @@ export default function AdminRedemptionsPage() {
                       {/* Processed Info */}
                       {redemption.processed_at && (
                         <p className="text-sm text-gray-500">
-                          ดำเนินการเมื่อ: {formatDate(redemption.processed_at)}
+                          ดำเนินการเมื่อ: {formatDate(redemption.processed_at, { includeTime: true })}
                         </p>
                       )}
                     </div>
@@ -350,48 +327,12 @@ export default function AdminRedemptionsPage() {
             </div>
 
             {/* Pagination */}
-            {pagination && pagination.totalPages > 1 && (
-              <div className="flex items-center justify-center space-x-2 py-6">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className={`p-2 rounded-lg transition-colors ${
-                    currentPage === 1
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-white text-gray-700 hover:bg-red-50 hover:text-red-600 border border-gray-200'
-                  }`}
-                >
-                  <IoMdArrowBack className="w-5 h-5" />
-                </button>
-
-                <div className="flex items-center space-x-1">
-                  {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => handlePageChange(page)}
-                      className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                        currentPage === page
-                          ? 'bg-red-600 text-white'
-                          : 'bg-white text-gray-700 hover:bg-red-50 hover:text-red-600 border border-gray-200'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === pagination.totalPages}
-                  className={`p-2 rounded-lg transition-colors ${
-                    currentPage === pagination.totalPages
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-white text-gray-700 hover:bg-red-50 hover:text-red-600 border border-gray-200'
-                  }`}
-                >
-                  <IoMdArrowForward className="w-5 h-5" />
-                </button>
-              </div>
+            {pagination && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={pagination.totalPages}
+                onPageChange={handlePageChange}
+              />
             )}
           </>
         )}

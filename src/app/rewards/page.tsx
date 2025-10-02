@@ -1,10 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -22,6 +19,8 @@ import { FaHistory } from "react-icons/fa"
 import { HiOutlineGift } from "react-icons/hi"
 import BottomNavigation from '@/components/BottomNavigation'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import { StatusBadge } from '@/components/StatusBadge'
+import { EmptyState } from '@/components/EmptyState'
 
 type Reward = Tables<'rewards'> & {
   remaining_stock?: number | null
@@ -152,34 +151,6 @@ export default function RewardsPage() {
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, { label: string; className: string }> = {
-      requested: {
-        label: 'รับสินค้าที่ร้าน',
-        className: 'bg-yellow-100 text-yellow-700 border-yellow-300',
-      },
-      processing: {
-        label: 'กำลังจัดเตรียม',
-        className: 'bg-blue-100 text-blue-700 border-blue-300',
-      },
-      shipped: {
-        label: 'จัดส่งแล้ว',
-        className: 'bg-green-100 text-green-700 border-green-300',
-      },
-      cancelled: {
-        label: 'ยกเลิก',
-        className: 'bg-red-100 text-red-700 border-red-300',
-      },
-    }
-
-    const variant = variants[status] || variants.requested
-
-    return (
-      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${variant.className}`}>
-        {variant.label}
-      </span>
-    )
-  }
 
   if (loading) {
     return <LoadingSpinner message="กำลังโหลดรางวัล..." />
@@ -243,10 +214,10 @@ export default function RewardsPage() {
               <p className="text-gray-600">กำลังโหลดรางวัล...</p>
             </div>
           ) : rewards.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 py-12 text-center">
-              <HiOutlineGift className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <p className="text-gray-500">ยังไม่มีรางวัลที่พร้อมแลก</p>
-            </div>
+            <EmptyState
+              icon={<HiOutlineGift className="h-12 w-12 text-gray-400" />}
+              title="ยังไม่มีรางวัลที่พร้อมแลก"
+            />
           ) : (
             <div className="space-y-4">
               {rewards.map((reward) => {
@@ -315,10 +286,10 @@ export default function RewardsPage() {
               <p className="text-gray-600">กำลังโหลดประวัติ...</p>
             </div>
           ) : redemptions.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 py-12 text-center">
-              <FaHistory className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <p className="text-gray-500">ยังไม่มีประวัติการแลกรางวัล</p>
-            </div>
+            <EmptyState
+              icon={<FaHistory className="h-12 w-12 text-gray-400" />}
+              title="ยังไม่มีประวัติการแลกรางวัล"
+            />
           ) : (
             <div className="space-y-4">
               {redemptions.map((redemption) => (
@@ -352,7 +323,7 @@ export default function RewardsPage() {
                             })}
                           </p>
                         </div>
-                        {getStatusBadge(redemption.status || 'requested')}
+                        <StatusBadge status={redemption.status || 'requested'} type="redemption" />
                       </div>
                       <div className="flex items-center text-sm text-gray-600 space-x-3">
                         <span className="flex items-center font-semibold text-red-600">

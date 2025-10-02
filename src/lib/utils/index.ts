@@ -1,11 +1,4 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
-
-// Re-export all utility functions
+// Re-export formatters
 export {
   formatDate,
   formatNumber,
@@ -13,8 +6,9 @@ export {
   formatCurrency,
   getUserDisplayName,
   getAvatarUrl
-} from './utils/formatters'
+} from './formatters'
 
+// Re-export labels
 export {
   getTransactionTypeLabel,
   getTransactionColor,
@@ -22,4 +16,4 @@ export {
   getRedemptionStatusLabel,
   getRedemptionStatusColor,
   getRoleLabel
-} from './utils/labels'
+} from './labels'

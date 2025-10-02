@@ -3,9 +3,21 @@
 import { useState, useEffect } from 'react'
 import { HiSearch, HiEye, HiPencil } from 'react-icons/hi'
 import { FaUser, FaPhone, FaCoins } from 'react-icons/fa'
-import { IoMdArrowBack, IoMdArrowForward } from 'react-icons/io'
 import axios from 'axios'
 import { toast } from 'sonner'
+import { Pagination } from '@/components/Pagination'
+import { RoleBadge } from '@/components/StatusBadge'
+import { EmptyState } from '@/components/EmptyState'
+import {
+  formatDate,
+  formatPoints,
+  getUserDisplayName,
+  getAvatarUrl,
+  getTransactionTypeLabel,
+  getTransactionColor,
+  getRedemptionStatusLabel,
+  getRedemptionStatusColor
+} from '@/lib/utils'
 
 interface User {
   id: string
@@ -140,21 +152,6 @@ export default function AdminUsersPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const getUserDisplayName = (user: User) => {
-    const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim()
-    return fullName || user.display_name || 'ไม่ระบุชื่อ'
-  }
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('th-TH', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
 
   const fetchUserDetails = async (userId: string, transactionPage: number = 1, redemptionPage: number = 1) => {
     try {
@@ -269,51 +266,7 @@ export default function AdminUsersPage() {
     { value: 'homeowner', label: 'Homeowner' }
   ]
 
-  const getRoleBadgeColor = (role: string | null) => {
-    if (role === 'contractor') return 'bg-blue-100 text-blue-700 border-blue-300'
-    if (role === 'homeowner') return 'bg-green-100 text-green-700 border-green-300'
-    return 'bg-gray-100 text-gray-700 border-gray-300'
-  }
 
-  const getRoleLabel = (role: string | null) => {
-    if (role === 'contractor') return 'Contractor'
-    if (role === 'homeowner') return 'Homeowner'
-    return 'ไม่ระบุ'
-  }
-
-  const getTransactionTypeLabel = (type: string) => {
-    const types: Record<string, string> = {
-      earned: 'ได้รับแต้ม',
-      spent: 'ใช้แต้ม',
-      bonus: 'โบนัส',
-      refund: 'คืนเงิน',
-      expired: 'หมดอายุ'
-    }
-    return types[type] || type
-  }
-
-  const getTransactionColor = (type: string) => {
-    if (type === 'earned' || type === 'bonus' || type === 'refund') return 'text-green-600'
-    return 'text-red-600'
-  }
-
-  const getRedemptionStatusLabel = (status: string) => {
-    const statuses: Record<string, string> = {
-      requested: 'รอดำเนินการ',
-      processing: 'กำลังจัดส่ง',
-      shipped: 'จัดส่งแล้ว',
-      cancelled: 'ยกเลิก'
-    }
-    return statuses[status] || status
-  }
-
-  const getRedemptionStatusColor = (status: string) => {
-    if (status === 'requested') return 'bg-yellow-100 text-yellow-700'
-    if (status === 'processing') return 'bg-blue-100 text-blue-700'
-    if (status === 'shipped') return 'bg-green-100 text-green-700'
-    if (status === 'cancelled') return 'bg-red-100 text-red-700'
-    return 'bg-gray-100 text-gray-700'
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -384,9 +337,12 @@ export default function AdminUsersPage() {
             <p className="text-gray-600 mt-4">กำลังโหลด...</p>
           </div>
         ) : users.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-lg shadow-sm">
-            <FaUser className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 text-lg">ไม่พบข้อมูลผู้ใช้</p>
+          <div className="bg-white rounded-lg shadow-sm">
+            <EmptyState
+              icon={<FaUser className="w-16 h-16 text-gray-400" />}
+              title="ไม่พบข้อมูลผู้ใช้"
+              className="py-16"
+            />
           </div>
         ) : (
           <>
@@ -396,15 +352,15 @@ export default function AdminUsersPage() {
                   {/* User Avatar & Name */}
                   <div className="flex items-start gap-4 mb-4">
                     <img
-                      src={user.picture_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(getUserDisplayName(user))}`}
+                      src={getAvatarUrl(user.picture_url, getUserDisplayName(user))}
                       alt={getUserDisplayName(user)}
                       className="w-16 h-16 rounded-full object-cover"
                     />
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-gray-900 truncate">{getUserDisplayName(user)}</h3>
-                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold border mt-1 ${getRoleBadgeColor(user.role)}`}>
-                        {getRoleLabel(user.role)}
-                      </span>
+                      <div className="mt-1">
+                        <RoleBadge role={user.role as 'contractor' | 'homeowner' | null} />
+                      </div>
                     </div>
                   </div>
 
@@ -418,11 +374,11 @@ export default function AdminUsersPage() {
                     )}
                     <div className="flex items-center gap-2 text-gray-600">
                       <FaCoins className="w-4 h-4" />
-                      <span className="font-semibold text-red-600">{(user.points_balance || 0).toLocaleString()} แต้ม</span>
+                      <span className="font-semibold text-red-600">{formatPoints(user.points_balance || 0)}</span>
                     </div>
                     {user.last_login_at && (
                       <div className="text-xs text-gray-500">
-                        Login ล่าสุด: {formatDate(user.last_login_at)}
+                        Login ล่าสุด: {formatDate(user.last_login_at, { includeTime: true })}
                       </div>
                     )}
                   </div>
@@ -454,48 +410,12 @@ export default function AdminUsersPage() {
             </div>
 
             {/* Pagination */}
-            {pagination && pagination.totalPages > 1 && (
-              <div className="flex items-center justify-center space-x-2 py-6">
-                <button
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className={`p-2 rounded-lg transition-colors ${
-                    currentPage === 1
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-white text-gray-700 hover:bg-red-50 hover:text-red-600 border border-gray-200'
-                  }`}
-                >
-                  <IoMdArrowBack className="w-5 h-5" />
-                </button>
-
-                <div className="flex items-center space-x-1">
-                  {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => handlePageChange(page)}
-                      className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                        currentPage === page
-                          ? 'bg-red-600 text-white'
-                          : 'bg-white text-gray-700 hover:bg-red-50 hover:text-red-600 border border-gray-200'
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === pagination.totalPages}
-                  className={`p-2 rounded-lg transition-colors ${
-                    currentPage === pagination.totalPages
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-white text-gray-700 hover:bg-red-50 hover:text-red-600 border border-gray-200'
-                  }`}
-                >
-                  <IoMdArrowForward className="w-5 h-5" />
-                </button>
-              </div>
+            {pagination && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={pagination.totalPages}
+                onPageChange={handlePageChange}
+              />
             )}
           </>
         )}
@@ -509,15 +429,15 @@ export default function AdminUsersPage() {
               <div className="flex items-start justify-between mb-6">
                 <div className="flex items-center gap-4">
                   <img
-                    src={selectedUser.picture_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(getUserDisplayName(selectedUser))}`}
+                    src={getAvatarUrl(selectedUser.picture_url, getUserDisplayName(selectedUser))}
                     alt={getUserDisplayName(selectedUser)}
                     className="w-20 h-20 rounded-full object-cover"
                   />
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900">{getUserDisplayName(selectedUser)}</h2>
-                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold border mt-2 ${getRoleBadgeColor(selectedUser.role)}`}>
-                      {getRoleLabel(selectedUser.role)}
-                    </span>
+                    <div className="mt-2">
+                      <RoleBadge role={selectedUser.role as 'contractor' | 'homeowner' | null} />
+                    </div>
                   </div>
                 </div>
                 <button
@@ -545,16 +465,16 @@ export default function AdminUsersPage() {
                       </div>
                       <div>
                         <span className="text-gray-600">แต้มคงเหลือ:</span>
-                        <span className="ml-2 font-medium text-red-600">{(selectedUser.points_balance || 0).toLocaleString()}</span>
+                        <span className="ml-2 font-medium text-red-600">{formatPoints(selectedUser.points_balance || 0)}</span>
                       </div>
                       <div>
                         <span className="text-gray-600">สมัครเมื่อ:</span>
-                        <span className="ml-2 font-medium">{formatDate(selectedUser.created_at)}</span>
+                        <span className="ml-2 font-medium">{formatDate(selectedUser.created_at, { includeTime: true })}</span>
                       </div>
                       {selectedUser.last_login_at && (
                         <div>
                           <span className="text-gray-600">Login ล่าสุด:</span>
-                          <span className="ml-2 font-medium">{formatDate(selectedUser.last_login_at)}</span>
+                          <span className="ml-2 font-medium">{formatDate(selectedUser.last_login_at, { includeTime: true })}</span>
                         </div>
                       )}
                     </div>
@@ -575,45 +495,22 @@ export default function AdminUsersPage() {
                                 {transaction.description && (
                                   <div className="text-xs text-gray-600">{transaction.description}</div>
                                 )}
-                                <div className="text-xs text-gray-500">{formatDate(transaction.created_at)}</div>
+                                <div className="text-xs text-gray-500">{formatDate(transaction.created_at, { includeTime: true })}</div>
                               </div>
                               <div className={`text-lg font-bold ${getTransactionColor(transaction.transaction_type)}`}>
-                                {transaction.points > 0 ? '+' : ''}{transaction.points.toLocaleString()}
+                                {transaction.points > 0 ? '+' : ''}{transaction.points}
                               </div>
                             </div>
                           ))}
                         </div>
 
                         {/* Transaction Pagination */}
-                        {userDetails.transactionPagination.totalPages > 1 && (
-                          <div className="flex items-center justify-center gap-2 mt-4">
-                            <button
-                              onClick={() => handleTransactionPageChange(userDetails.transactionPagination.page - 1)}
-                              disabled={userDetails.transactionPagination.page === 1 || loadingDetails}
-                              className={`px-3 py-1 rounded text-sm ${
-                                userDetails.transactionPagination.page === 1 || loadingDetails
-                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                  : 'bg-red-600 text-white hover:bg-red-700'
-                              }`}
-                            >
-                              ก่อนหน้า
-                            </button>
-                            <span className="text-sm text-gray-600">
-                              {userDetails.transactionPagination.page} / {userDetails.transactionPagination.totalPages}
-                            </span>
-                            <button
-                              onClick={() => handleTransactionPageChange(userDetails.transactionPagination.page + 1)}
-                              disabled={userDetails.transactionPagination.page === userDetails.transactionPagination.totalPages || loadingDetails}
-                              className={`px-3 py-1 rounded text-sm ${
-                                userDetails.transactionPagination.page === userDetails.transactionPagination.totalPages || loadingDetails
-                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                  : 'bg-red-600 text-white hover:bg-red-700'
-                              }`}
-                            >
-                              ถัดไป
-                            </button>
-                          </div>
-                        )}
+                        <Pagination
+                          currentPage={userDetails.transactionPagination.page}
+                          totalPages={userDetails.transactionPagination.totalPages}
+                          onPageChange={handleTransactionPageChange}
+                          disabled={loadingDetails}
+                        />
                       </>
                     )}
                   </div>
@@ -637,8 +534,8 @@ export default function AdminUsersPage() {
                               )}
                               <div className="flex-1 min-w-0">
                                 <div className="font-medium text-gray-900">{redemption.rewards.name}</div>
-                                <div className="text-sm text-red-600 font-semibold">{redemption.points_used.toLocaleString()} แต้ม</div>
-                                <div className="text-xs text-gray-500 mt-1">{formatDate(redemption.created_at)}</div>
+                                <div className="text-sm text-red-600 font-semibold">{formatPoints(redemption.points_used)}</div>
+                                <div className="text-xs text-gray-500 mt-1">{formatDate(redemption.created_at, { includeTime: true })}</div>
                                 {redemption.tracking_number && (
                                   <div className="text-xs text-gray-600 mt-1">
                                     Tracking: {redemption.tracking_number}
@@ -653,35 +550,12 @@ export default function AdminUsersPage() {
                         </div>
 
                         {/* Redemption Pagination */}
-                        {userDetails.redemptionPagination.totalPages > 1 && (
-                          <div className="flex items-center justify-center gap-2 mt-4">
-                            <button
-                              onClick={() => handleRedemptionPageChange(userDetails.redemptionPagination.page - 1)}
-                              disabled={userDetails.redemptionPagination.page === 1 || loadingDetails}
-                              className={`px-3 py-1 rounded text-sm ${
-                                userDetails.redemptionPagination.page === 1 || loadingDetails
-                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                  : 'bg-red-600 text-white hover:bg-red-700'
-                              }`}
-                            >
-                              ก่อนหน้า
-                            </button>
-                            <span className="text-sm text-gray-600">
-                              {userDetails.redemptionPagination.page} / {userDetails.redemptionPagination.totalPages}
-                            </span>
-                            <button
-                              onClick={() => handleRedemptionPageChange(userDetails.redemptionPagination.page + 1)}
-                              disabled={userDetails.redemptionPagination.page === userDetails.redemptionPagination.totalPages || loadingDetails}
-                              className={`px-3 py-1 rounded text-sm ${
-                                userDetails.redemptionPagination.page === userDetails.redemptionPagination.totalPages || loadingDetails
-                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                  : 'bg-red-600 text-white hover:bg-red-700'
-                              }`}
-                            >
-                              ถัดไป
-                            </button>
-                          </div>
-                        )}
+                        <Pagination
+                          currentPage={userDetails.redemptionPagination.page}
+                          totalPages={userDetails.redemptionPagination.totalPages}
+                          onPageChange={handleRedemptionPageChange}
+                          disabled={loadingDetails}
+                        />
                       </>
                     )}
                   </div>
@@ -710,7 +584,7 @@ export default function AdminUsersPage() {
               ผู้ใช้: <span className="font-semibold">{getUserDisplayName(selectedUser)}</span>
             </p>
             <p className="text-gray-600 mb-4">
-              แต้มปัจจุบัน: <span className="font-semibold text-red-600">{(selectedUser.points_balance || 0).toLocaleString()}</span>
+              แต้มปัจจุบัน: <span className="font-semibold text-red-600">{formatPoints(selectedUser.points_balance || 0)}</span>
             </p>
 
             <div className="space-y-4 mb-4">
@@ -812,9 +686,10 @@ export default function AdminUsersPage() {
             <p className="text-gray-600 mb-4">
               ผู้ใช้: <span className="font-semibold">{getUserDisplayName(selectedUser)}</span>
             </p>
-            <p className="text-gray-600 mb-4">
-              Role ปัจจุบัน: <span className="font-semibold">{getRoleLabel(selectedUser.role)}</span>
-            </p>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-gray-600">Role ปัจจุบัน:</span>
+              <RoleBadge role={selectedUser.role as 'contractor' | 'homeowner' | null} />
+            </div>
 
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-3">
