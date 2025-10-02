@@ -59,7 +59,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     { name: 'จัดการผู้ใช้', href: '/admin/users', icon: Users, current: pathname === '/admin/users' },
     { name: 'ตรวจสอบใบเสร็จ', href: '/admin/receipts', icon: Receipt, current: pathname === '/admin/receipts' },
     { name: 'จัดการรางวัล', href: '/admin/rewards', icon: Gift, current: pathname === '/admin/rewards' },
-    { name: 'รายงาน', href: '/admin/reports', icon: BarChart3, current: pathname === '/admin/reports' },
+    { name: 'คำขอแลกของรางวัล', href: '/admin/redemptions', icon: BarChart3, current: pathname === '/admin/redemptions' },
   ]
 
   return (

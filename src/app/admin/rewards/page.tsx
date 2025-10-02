@@ -20,15 +20,25 @@ import { Gift, Plus, Edit, Trash2, Package, Image as ImageIcon } from 'lucide-re
 import { Tables } from '../../../../database.types'
 import { toast } from 'sonner'
 import Image from 'next/image'
+import { Pagination } from '@/components/Pagination'
 
 type Reward = Tables<'rewards'> & {
   remaining_stock?: number | null
   redeemed_count?: number
 }
 
+interface PaginationType {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+}
+
 export default function AdminRewards() {
   const [rewards, setRewards] = useState<Reward[]>([])
   const [loading, setLoading] = useState(true)
+  const [pagination, setPagination] = useState<PaginationType | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
   const [showFormDialog, setShowFormDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [editingReward, setEditingReward] = useState<Reward | null>(null)
@@ -49,16 +59,17 @@ export default function AdminRewards() {
   const [imagePreview, setImagePreview] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchRewards()
-  }, [])
+    fetchRewards(currentPage)
+  }, [currentPage])
 
-  const fetchRewards = async () => {
+  const fetchRewards = async (page: number) => {
     try {
       setLoading(true)
-      const response = await fetch('/api/admin/rewards')
+      const response = await fetch(`/api/admin/rewards?page=${page}&limit=12`)
       if (response.ok) {
         const data = await response.json()
-        setRewards(data)
+        setRewards(data.rewards || [])
+        setPagination(data.pagination)
       } else {
         toast.error('ไม่สามารถโหลดข้อมูลรางวัลได้')
       }
@@ -67,6 +78,11 @@ export default function AdminRewards() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const resetForm = () => {
@@ -189,7 +205,7 @@ export default function AdminRewards() {
       if (response.ok) {
         toast.success(editingReward ? 'แก้ไขรางวัลสำเร็จ' : 'เพิ่มรางวัลสำเร็จ')
         handleCloseFormDialog()
-        fetchRewards()
+        fetchRewards(currentPage)
       } else {
         toast.error('ไม่สามารถบันทึกข้อมูลได้')
       }
@@ -213,7 +229,7 @@ export default function AdminRewards() {
         toast.success('ลบรางวัลสำเร็จ')
         setShowDeleteDialog(false)
         setDeletingReward(null)
-        fetchRewards()
+        fetchRewards(currentPage)
       } else {
         toast.error('ไม่สามารถลบรางวัลได้')
       }
@@ -252,7 +268,7 @@ export default function AdminRewards() {
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-sm font-medium text-slate-600">จัดการรางวัล</h2>
-              <p className="text-xs text-slate-500 mt-0.5">ทั้งหมด {rewards.length} รายการ</p>
+              <p className="text-xs text-slate-500 mt-0.5">ทั้งหมด {pagination?.total || 0} รายการ</p>
             </div>
             <Button onClick={() => handleOpenFormDialog()} className="bg-slate-900 text-white hover:bg-slate-800">
               <Plus className="mr-2 h-4 w-4" />
@@ -282,128 +298,138 @@ export default function AdminRewards() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-            {rewards.map((reward, index) => (
-              <div
-                key={reward.id}
-                className="animate-fade-in"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <Card className="overflow-hidden bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-lg hover:border-slate-300 transition-all duration-200">
-              <div className="aspect-video bg-slate-100 relative">
-                {reward.image_url ? (
-                  <Image
-                    src={reward.image_url}
-                    alt={reward.name}
-                    fill
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <ImageIcon className="h-12 w-12 text-slate-400" />
-                  </div>
-                )}
-                {reward.stock_quantity !== null && (
-                  <div className="absolute top-2 right-2">
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+              {rewards.map((reward, index) => (
+                <div
+                  key={reward.id}
+                  className="animate-fade-in"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  <Card className="overflow-hidden bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-lg hover:border-slate-300 transition-all duration-200">
+                <div className="aspect-video bg-slate-100 relative">
+                  {reward.image_url ? (
+                    <Image
+                      src={reward.image_url}
+                      alt={reward.name}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ImageIcon className="h-12 w-12 text-slate-400" />
+                    </div>
+                  )}
+                  {reward.stock_quantity !== null && (
+                    <div className="absolute top-2 right-2">
+                      <Badge
+                        className={`text-white hover:opacity-90 ${
+                          reward.remaining_stock === 0
+                            ? 'bg-red-500'
+                            : (reward.remaining_stock !== undefined && reward.remaining_stock !== null && reward.remaining_stock < 10)
+                              ? 'bg-orange-500'
+                              : 'bg-slate-900'
+                        }`}
+                      >
+                        <Package className="mr-1 h-3 w-3" />
+                        {reward.remaining_stock !== undefined ? reward.remaining_stock : reward.stock_quantity} ชิ้น
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="text-lg text-slate-900">{reward.name}</CardTitle>
                     <Badge
-                      className={`text-white hover:opacity-90 ${
-                        reward.remaining_stock === 0
-                          ? 'bg-red-500'
-                          : (reward.remaining_stock !== undefined && reward.remaining_stock !== null && reward.remaining_stock < 10)
-                            ? 'bg-orange-500'
-                            : 'bg-slate-900'
-                      }`}
+                      variant={reward.is_active ? 'default' : 'secondary'}
+                      className={reward.is_active ? 'bg-green-500 hover:bg-green-600' : 'bg-slate-200 text-slate-700'}
                     >
-                      <Package className="mr-1 h-3 w-3" />
-                      {reward.remaining_stock !== undefined ? reward.remaining_stock : reward.stock_quantity} ชิ้น
+                      {reward.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
                     </Badge>
                   </div>
-                )}
-              </div>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg text-slate-900">{reward.name}</CardTitle>
-                  <Badge
-                    variant={reward.is_active ? 'default' : 'secondary'}
-                    className={reward.is_active ? 'bg-green-500 hover:bg-green-600' : 'bg-slate-200 text-slate-700'}
-                  >
-                    {reward.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
-                  </Badge>
-                </div>
-                {reward.category && (
-                  <CardDescription className="text-slate-600">{reward.category}</CardDescription>
-                )}
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {reward.description && (
-                  <p className="text-sm text-slate-600 line-clamp-2">
-                    {reward.description}
-                  </p>
-                )}
-                <div className="flex justify-between items-center text-sm">
-                  <div className="flex items-center text-blue-400 font-semibold">
-                    <Gift className="mr-1 h-4 w-4" />
-                    {reward.points_cost.toLocaleString()} แต้ม
-                  </div>
-                  <div className="flex flex-col items-end text-slate-600 text-xs">
-                    {reward.stock_quantity !== null ? (
-                      <>
-                        <div className="flex items-center font-semibold">
-                          <Package className="mr-1 h-3 w-3" />
-                          สต็อก: {reward.stock_quantity} ชิ้น
-                        </div>
-                        {reward.redeemed_count !== undefined && reward.redeemed_count > 0 && (
-                          <div className="text-slate-500">
-                            (แลกไป {reward.redeemed_count} ชิ้น)
+                  {reward.category && (
+                    <CardDescription className="text-slate-600">{reward.category}</CardDescription>
+                  )}
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {reward.description && (
+                    <p className="text-sm text-slate-600 line-clamp-2">
+                      {reward.description}
+                    </p>
+                  )}
+                  <div className="flex justify-between items-center text-sm">
+                    <div className="flex items-center text-blue-400 font-semibold">
+                      <Gift className="mr-1 h-4 w-4" />
+                      {reward.points_cost.toLocaleString()} แต้ม
+                    </div>
+                    <div className="flex flex-col items-end text-slate-600 text-xs">
+                      {reward.stock_quantity !== null ? (
+                        <>
+                          <div className="flex items-center font-semibold">
+                            <Package className="mr-1 h-3 w-3" />
+                            สต็อก: {reward.stock_quantity} ชิ้น
                           </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="flex items-center">
-                        <Package className="mr-1 h-3 w-3" />
-                        ไม่จำกัด
-                      </div>
-                    )}
+                          {reward.redeemed_count !== undefined && reward.redeemed_count > 0 && (
+                            <div className="text-slate-500">
+                              (แลกไป {reward.redeemed_count} ชิ้น)
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="flex items-center">
+                          <Package className="mr-1 h-3 w-3" />
+                          ไม่จำกัด
+                        </div>
+                      )}
+                    </div>
                   </div>
+                  <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+                    <div className="flex items-center space-x-2">
+                      <Label htmlFor={`active-${reward.id}`} className="text-sm text-slate-700">
+                        เปิดใช้งาน
+                      </Label>
+                      <Switch
+                        id={`active-${reward.id}`}
+                        checked={reward.is_active ?? true}
+                        onCheckedChange={() => handleToggleActive(reward)}
+                      />
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleOpenFormDialog(reward)}
+                        className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setDeletingReward(reward)
+                          setShowDeleteDialog(true)
+                        }}
+                        className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
+                      >
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+                  </Card>
                 </div>
-                <div className="flex items-center justify-between pt-4 border-t border-slate-200">
-                  <div className="flex items-center space-x-2">
-                    <Label htmlFor={`active-${reward.id}`} className="text-sm text-slate-700">
-                      เปิดใช้งาน
-                    </Label>
-                    <Switch
-                      id={`active-${reward.id}`}
-                      checked={reward.is_active ?? true}
-                      onCheckedChange={() => handleToggleActive(reward)}
-                    />
-                  </div>
-                  <div className="flex space-x-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleOpenFormDialog(reward)}
-                      className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setDeletingReward(reward)
-                        setShowDeleteDialog(true)
-                      }}
-                      className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-                </Card>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            {pagination && pagination.totalPages > 1 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={pagination.totalPages}
+                onPageChange={handlePageChange}
+              />
+            )}
+          </>
         )}
       </div>
 

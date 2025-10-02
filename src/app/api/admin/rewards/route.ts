@@ -5,16 +5,31 @@ import { Tables, TablesInsert } from "../../../../../database.types";
 type Reward = Tables<"rewards">;
 type RewardInsert = TablesInsert<"rewards">;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const supabase = createServerSupabaseClient();
+    const { searchParams } = new URL(request.url);
 
-    // Fetch all rewards
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '12');
+    const offset = (page - 1) * limit;
+
+    // Count total rewards
+    const { count, error: countError } = await supabase
+      .from("rewards")
+      .select("*", { count: 'exact', head: true });
+
+    if (countError) {
+      return NextResponse.json({ error: countError.message }, { status: 500 });
+    }
+
+    // Fetch paginated rewards
     const { data: rewards, error } = await supabase
       .from("rewards")
       .select("*")
       .order("sort_order", { ascending: true, nullsFirst: false })
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -56,7 +71,17 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json(rewardsWithStock);
+    const totalPages = Math.ceil((count || 0) / limit);
+
+    return NextResponse.json({
+      rewards: rewardsWithStock,
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages
+      }
+    });
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to fetch rewards" },

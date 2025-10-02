@@ -151,7 +151,6 @@ export default function AdminRedemptionsPage() {
   const statusTabs = [
     { value: 'all', label: 'ทั้งหมด' },
     { value: 'requested', label: 'รอรับของ' },
-    { value: 'processing', label: 'กำลังตรวจสอบ' },
     { value: 'shipped', label: 'มอบของแล้ว' },
     { value: 'cancelled', label: 'ปฏิเสธ' }
   ]
@@ -159,11 +158,6 @@ export default function AdminRedemptionsPage() {
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">จัดการการแลกรางวัล</h1>
-          <p className="text-slate-600">อนุมัติหรือปฏิเสธการแลกรางวัลของลูกค้า</p>
-        </div>
 
         {/* Search Bar */}
         <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 mb-4">
@@ -236,87 +230,84 @@ export default function AdminRedemptionsPage() {
           </div>
         ) : (
           <>
-            <div className="space-y-4">
-              {redemptions.map((redemption) => (
-                <div key={redemption.id} className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 hover:shadow-lg transition-shadow">
-                  <div className="flex flex-col lg:flex-row gap-6">
+            <div className="space-y-3">
+              {redemptions.map((redemption, index) => (
+                <div
+                  key={redemption.id}
+                  className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 hover:border-slate-300 hover:shadow-md transition-all duration-200 animate-fade-in"
+                  style={{ animationDelay: `${index * 30}ms` }}
+                >
+                  <div className="flex gap-4">
                     {/* Reward Image */}
                     <div className="flex-shrink-0">
                       <img
                         src={redemption.rewards.image_url || '/placeholder-reward.png'}
                         alt={redemption.rewards.name}
-                        className="w-32 h-32 object-cover rounded-lg"
+                        className="w-20 h-20 object-cover rounded-lg border border-slate-200"
                       />
                     </div>
 
-                    {/* Details */}
-                    <div className="flex-1 space-y-4">
-                      {/* Reward Info */}
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="text-xl font-bold text-slate-900">{redemption.rewards.name}</h3>
-                          <StatusBadge status={redemption.status} type="redemption" />
+                    {/* Main Content */}
+                    <div className="flex-1 min-w-0">
+                      {/* Header Row */}
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base font-semibold text-slate-900 truncate">{redemption.rewards.name}</h3>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
+                            <span className="text-blue-400 font-semibold">{formatPoints(redemption.points_used)}</span>
+                            <span>×{redemption.quantity}</span>
+                            <span>{formatDate(redemption.created_at, { includeTime: true })}</span>
+                          </div>
                         </div>
-                        <p className="text-slate-600 text-sm mb-2">{redemption.rewards.description}</p>
-                        <div className="flex items-center gap-4 text-sm">
-                          <span className="text-blue-400 font-semibold">
-                            {formatPoints(redemption.points_used)}
-                          </span>
-                          <span className="text-slate-600">จำนวน: {redemption.quantity} ชิ้น</span>
-                          <span className="text-slate-500">
-                            {formatDate(redemption.created_at, { includeTime: true })}
-                          </span>
-                        </div>
+                        <StatusBadge status={redemption.status} type="redemption" />
                       </div>
 
-                      {/* User Info */}
-                      <div className="flex items-center gap-6 p-4 bg-slate-50 rounded-lg">
-                        <div className="flex items-center gap-2 text-sm">
-                          <FaUser className="text-slate-500" />
-                          <span className="text-slate-700">{getUserDisplayName(redemption.user_profiles)}</span>
+                      {/* User Info Row */}
+                      <div className="flex items-center gap-4 text-xs text-slate-600 mb-2">
+                        <div className="flex items-center gap-1.5">
+                          <FaUser className="text-slate-400 w-3 h-3" />
+                          <span>{getUserDisplayName(redemption.user_profiles)}</span>
                         </div>
                         {redemption.user_profiles.phone && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <FaPhone className="text-slate-500" />
-                            <span className="text-slate-700">{redemption.user_profiles.phone}</span>
+                          <div className="flex items-center gap-1.5">
+                            <FaPhone className="text-slate-400 w-3 h-3" />
+                            <span>{redemption.user_profiles.phone}</span>
                           </div>
                         )}
                       </div>
 
-                      {/* Admin Notes (if any) */}
+                      {/* Admin Notes */}
                       {redemption.admin_notes && (
-                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                          <p className="text-sm text-yellow-800">
-                            <span className="font-semibold">หมายเหตุ:</span> {redemption.admin_notes}
-                          </p>
+                        <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                          <span className="font-medium">หมายเหตุ:</span> {redemption.admin_notes}
                         </div>
                       )}
 
-                      {/* Actions */}
+                      {/* Action Buttons */}
                       {(redemption.status === 'requested' || redemption.status === 'processing') && (
-                        <div className="flex gap-3 pt-2">
+                        <div className="flex gap-2">
                           <button
                             onClick={() => handleApprove(redemption.id)}
                             disabled={processingId === redemption.id}
-                            className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
-                            <HiCheckCircle className="w-5 h-5" />
-                            อนุมัติ (มอบของแล้ว)
+                            <HiCheckCircle className="w-4 h-4" />
+                            อนุมัติ
                           </button>
                           <button
                             onClick={() => handleReject(redemption)}
                             disabled={processingId === redemption.id}
-                            className="flex items-center gap-2 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
-                            <HiXCircle className="w-5 h-5" />
-                            ปฏิเสธ (คืนแต้ม)
+                            <HiXCircle className="w-4 h-4" />
+                            ปฏิเสธ
                           </button>
                         </div>
                       )}
 
                       {/* Processed Info */}
                       {redemption.processed_at && (
-                        <p className="text-sm text-slate-500">
+                        <p className="text-xs text-slate-500 mt-2">
                           ดำเนินการเมื่อ: {formatDate(redemption.processed_at, { includeTime: true })}
                         </p>
                       )}
@@ -327,7 +318,7 @@ export default function AdminRedemptionsPage() {
             </div>
 
             {/* Pagination */}
-            {pagination && (
+            {pagination && pagination.totalPages > 1 && (
               <Pagination
                 currentPage={currentPage}
                 totalPages={pagination.totalPages}

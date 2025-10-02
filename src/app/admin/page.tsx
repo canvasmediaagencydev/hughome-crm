@@ -169,11 +169,11 @@ export default function AdminDashboard() {
             ตั้งค่าอัตราแลกเปลี่ยน Point
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-row space-y-4">
           {loading ? (
             <p className="text-slate-500">กำลังโหลด...</p>
           ) : (
-            <div className="flex items-end space-x-4">
+            <div className="flex items-end space-x-4 w-full mr-8">
               <div className="flex-1">
                 <Label htmlFor="bahtPerPoint" className="text-slate-700">จำนวนบาทต่อ 1 Point</Label>
                 <Input
@@ -189,16 +189,18 @@ export default function AdminDashboard() {
                   ตัวอย่าง: ใส่ 100 หมายถึง ใช้เงิน 100 บาท ได้ 1 Point
                 </p>
               </div>
-              <Button
+            </div>
+          )}
+              
+          <Button
                 onClick={savePointSetting}
                 disabled={saving}
-                className="bg-slate-900 text-white hover:bg-slate-800"
+                className="bg-slate-900 flex mt-7  text-white hover:bg-slate-800"
               >
                 <Save className="mr-2 h-4 w-4" />
                 {saving ? 'กำลังบันทึก...' : 'บันทึก'}
-              </Button>
-            </div>
-          )}
+              </Button>        
+          
         </CardContent>
       </Card>
 
