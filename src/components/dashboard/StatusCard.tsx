@@ -48,7 +48,7 @@ export const StatusCard = memo(({ points, isRefreshing, onRefresh }: StatusCardP
         <div className="flex justify-between items-end">
           <div>
             <span className="text-gray-400 text-sm">ยอดรวม</span>
-            <div className="text-white font-bold text-2xl bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent">
+            <div className="text-white font-bold text-2xl bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text">
               {points?.toLocaleString() || '0'} <span className="text-lg text-amber-400">แต้ม</span>
             </div>
           </div>

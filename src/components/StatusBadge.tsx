@@ -12,19 +12,19 @@ interface StatusBadgeProps {
 export const StatusBadge = memo(({ status, type = 'receipt' }: StatusBadgeProps) => {
   const getReceiptConfig = (status: string) => {
     const configs: Record<ReceiptStatus, { text: string; color: string }> = {
-      pending: { text: 'รออนุมัติ', color: 'bg-yellow-100 text-yellow-700 border-yellow-300' },
-      approved: { text: 'อนุมัติแล้ว', color: 'bg-green-100 text-green-700 border-green-300' },
-      rejected: { text: 'ถูกปฏิเสธ', color: 'bg-red-100 text-red-700 border-red-300' }
+      pending: { text: 'รออนุมัติ', color: 'bg-slate-50 text-slate-600 border-slate-200' },
+      approved: { text: 'อนุมัติแล้ว', color: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
+      rejected: { text: 'ถูกปฏิเสธ', color: 'bg-rose-50 text-rose-600 border-rose-200' }
     }
     return configs[status as ReceiptStatus] || configs.pending
   }
 
   const getRedemptionConfig = (status: string) => {
     const configs: Record<RedemptionStatus, { text: string; color: string }> = {
-      requested: { text: 'รับสินค้าที่ร้าน', color: 'bg-yellow-100 text-yellow-700 border-yellow-300' },
-      processing: { text: 'กำลังจัดเตรียม', color: 'bg-blue-100 text-blue-700 border-blue-300' },
-      shipped: { text: 'จัดส่งแล้ว', color: 'bg-green-100 text-green-700 border-green-300' },
-      cancelled: { text: 'ยกเลิก', color: 'bg-red-100 text-red-700 border-red-300' }
+      requested: { text: 'รับสินค้าที่ร้าน', color: 'bg-amber-50 text-amber-600 border-amber-200' },
+      processing: { text: 'กำลังจัดเตรียม', color: 'bg-blue-50 text-blue-600 border-blue-200' },
+      shipped: { text: 'จัดส่งแล้ว', color: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
+      cancelled: { text: 'ยกเลิก', color: 'bg-rose-50 text-rose-600 border-rose-200' }
     }
     return configs[status as RedemptionStatus] || configs.requested
   }
@@ -45,9 +45,9 @@ interface RoleBadgeProps {
 
 export const RoleBadge = memo(({ role }: RoleBadgeProps) => {
   const getRoleConfig = () => {
-    if (role === 'contractor') return { text: 'Contractor', color: 'bg-blue-100 text-blue-700 border-blue-300' }
-    if (role === 'homeowner') return { text: 'Homeowner', color: 'bg-green-100 text-green-700 border-green-300' }
-    return { text: 'ไม่ระบุ', color: 'bg-gray-100 text-gray-700 border-gray-300' }
+    if (role === 'contractor') return { text: 'Contractor', color: 'bg-blue-50 text-blue-600 border-blue-200' }
+    if (role === 'homeowner') return { text: 'Homeowner', color: 'bg-emerald-50 text-emerald-600 border-emerald-200' }
+    return { text: 'ไม่ระบุ', color: 'bg-slate-50 text-slate-600 border-slate-200' }
   }
 
   const config = getRoleConfig()

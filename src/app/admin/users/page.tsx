@@ -132,7 +132,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-slate-50">
       <div className="max-w-7xl mx-auto">
         {/* Search Bar */}
         <SearchBar
@@ -152,29 +152,37 @@ export default function AdminUsersPage() {
 
         {/* Users List */}
         {isLoading ? (
-          <div className="text-center py-16">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto"></div>
-            <p className="text-gray-600 mt-4">กำลังโหลด...</p>
+          <div className="text-center py-20">
+            <div className="relative inline-flex">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-slate-200"></div>
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-slate-900 border-t-transparent absolute top-0 left-0"></div>
+            </div>
+            <p className="text-slate-600 mt-6 font-medium">กำลังโหลดข้อมูล...</p>
           </div>
         ) : users.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm">
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
             <EmptyState
-              icon={<FaUser className="w-16 h-16 text-gray-400" />}
+              icon={<FaUser className="w-16 h-16 text-slate-400" />}
               title="ไม่พบข้อมูลผู้ใช้"
-              className="py-16"
+              className="py-20"
             />
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {users.map((user) => (
-                <UserCard
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+              {users.map((user, index) => (
+                <div
                   key={user.id}
-                  user={user}
-                  onViewDetails={handleViewDetails}
-                  onEditPoints={handleEditPoints}
-                  onEditRole={handleEditRole}
-                />
+                  className="animate-fade-in"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  <UserCard
+                    user={user}
+                    onViewDetails={handleViewDetails}
+                    onEditPoints={handleEditPoints}
+                    onEditRole={handleEditRole}
+                  />
+                </div>
               ))}
             </div>
 

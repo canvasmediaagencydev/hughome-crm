@@ -16,16 +16,16 @@ const roleTabs: RoleTab[] = [
 
 export function RoleTabs({ activeRole, onRoleChange }: RoleTabsProps) {
   return (
-    <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+    <div className="bg-white rounded-lg border border-slate-200 p-4 mb-6 shadow-sm">
       <div className="flex flex-wrap gap-2">
         {roleTabs.map((tab) => (
           <button
             key={tab.value}
             onClick={() => onRoleChange(tab.value)}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-5 py-2.5 rounded-lg font-medium transition-all ${
               activeRole === tab.value
-                ? 'bg-red-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-slate-900 text-white'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
             }`}
           >
             {tab.label}

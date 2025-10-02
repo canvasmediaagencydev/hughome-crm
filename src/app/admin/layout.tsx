@@ -63,7 +63,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-100 lg:flex">
+    <div className="min-h-screen bg-gray-50 lg:flex">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
@@ -73,40 +73,41 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:relative lg:transform-none lg:translate-x-0 lg:flex lg:flex-col ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
+      <aside className="lg:sticky lg:top-0 lg:h-screen lg:w-64">
+        <div className={`fixed inset-y-0 left-0 z-50 h-full w-64 bg-slate-900 shadow-xl transform transition-transform duration-300 ease-in-out lg:static lg:transform-none ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}>
         <div className="flex flex-col h-full">
           {/* Logo/Header */}
-          <div className="flex items-center justify-between h-20 px-4 bg-gradient-to-r from-red-600 to-red-700 text-white">
+          <div className="flex items-center justify-between h-16 px-6 border-b border-slate-800">
             <div className="flex mx-auto items-center justify-center">
-              <h1 className="text-2xl font-bold text-center">Admin Panel</h1>
+              <h1 className="text-lg font-semibold text-white tracking-tight">Admin Panel</h1>
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden p-1 rounded-md hover:bg-white hover:bg-opacity-20 transition-colors"
+              className="lg:hidden p-1.5 rounded-md hover:bg-slate-800 transition-colors text-slate-400 hover:text-white"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* User Info */}
-          <div className="px-4 py-3 bg-gray-50 border-b">
+          <div className="px-4 py-4 border-b border-slate-800">
             <div className="flex items-center">
-              <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center text-white font-semibold text-xs">
+              <div className="w-9 h-9 bg-slate-700 rounded-full flex items-center justify-center text-slate-200 font-medium text-sm ring-2 ring-slate-600">
                 {user?.email?.[0]?.toUpperCase() || 'A'}
               </div>
-              <div className="ml-2 min-w-0 flex-1">
-                <p className="text-xs font-medium text-gray-900 truncate">
+              <div className="ml-3 min-w-0 flex-1">
+                <p className="text-sm font-medium text-slate-200 truncate">
                   {user?.email}
                 </p>
-                <p className="text-xs text-gray-500">ผู้ดูแลระบบ</p>
+                <p className="text-xs text-slate-400">ผู้ดูแลระบบ</p>
               </div>
             </div>
           </div>
 
           {/* Navigation */}
-          <nav className="px-2 py-3 md:py-7 space-y-1 overflow-y-auto">
+          <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
             {navigation.map((item) => {
               const Icon = item.icon
               return (
@@ -115,48 +116,46 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                   href={item.href}
                   className={`group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
                     item.current
-                      ? 'bg-gradient-to-r from-red-50 to-red-100 text-red-700 border-r-2 border-red-600'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                      ? 'bg-slate-800 text-white'
+                      : 'text-slate-300 hover:bg-slate-800/50 hover:text-white'
                   }`}
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <Icon className={`mr-3 h-4 w-4 flex-shrink-0 transition-colors ${
-                    item.current ? 'text-red-600' : 'text-gray-400 group-hover:text-gray-600'
+                  <Icon className={`mr-3 h-5 w-5 flex-shrink-0 transition-colors ${
+                    item.current ? 'text-blue-400' : 'text-slate-400 group-hover:text-slate-300'
                   }`} />
-                  <span className="text-lg">{item.name}</span>
+                  <span>{item.name}</span>
                 </Link>
               )
             })}
           </nav>
 
           {/* Logout Button */}
-          <div className="px-2 py-6 mt-40 mx-3">
+          <div className="p-4 border-t border-slate-800">
             <Button
               onClick={handleLogout}
               variant="outline"
-              size="lg"
-              className="w-full justify-center text-red-700 border-red-300 bg-white hover:bg-red-600 hover:text-white hover:border-red-600 transition-all duration-200"
+              size="default"
+              className="w-full justify-center text-slate-300 border-slate-700 bg-slate-800 hover:bg-slate-700 hover:text-white hover:border-slate-600 transition-all duration-200"
             >
-              <LogOut className="mr-2 h-5 w-5" />
-              <span className="text-base">ออกจากระบบ</span>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span className="text-sm">ออกจากระบบ</span>
             </Button>
           </div>
-
-          {/* Bottom spacer */}
-          <div className="flex-1"></div>
         </div>
-      </div>
+        </div>
+      </aside>
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile header with menu button */}
         <div className="lg:hidden bg-white shadow-sm border-b px-4 py-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-red-800">Admin Panel</h2>
+          <h2 className="text-base font-semibold text-slate-800">Admin Panel</h2>
           <Button
             onClick={() => setSidebarOpen(true)}
             variant="outline"
             size="sm"
-            className="border-red-300 text-red-700 hover:bg-red-50"
+            className="border-slate-300 text-slate-700 hover:bg-slate-50"
           >
             <Menu className="h-4 w-4" />
           </Button>
