@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     // Only fetch point_settings if not provided via param
     const shouldFetchSettings = !bahtPerPointParam;
 
-    const queries: Promise<any>[] = [
+    const baseQueries = [
       // All users in date range
       supabase
         .from('user_profiles')
@@ -59,21 +59,21 @@ export async function GET(request: NextRequest) {
         .eq('status', 'approved')
         .gte('created_at', startRangeISO)
         .lte('created_at', endRangeISO)
-    ];
+    ] as const;
 
-    // Only query point_settings if not provided
-    if (shouldFetchSettings) {
-      queries.push(
-        supabase
-          .from('point_settings')
-          .select('setting_value')
-          .eq('setting_key', 'baht_per_point')
-          .eq('is_active', true)
-          .single()
-      );
-    }
+    // Conditionally add point_settings query
+    const results = shouldFetchSettings
+      ? await Promise.all([
+          ...baseQueries,
+          supabase
+            .from('point_settings')
+            .select('setting_value')
+            .eq('setting_key', 'baht_per_point')
+            .eq('is_active', true)
+            .single()
+        ])
+      : await Promise.all(baseQueries);
 
-    const results = await Promise.all(queries);
     const usersResult = results[0];
     const receiptsResult = results[1];
     const approvedReceiptsResult = results[2];
