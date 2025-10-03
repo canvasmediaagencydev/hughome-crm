@@ -40,7 +40,7 @@ export const StatusCard = memo(({ points, isRefreshing, onRefresh }: StatusCardP
           <div className="w-full bg-gray-700/60 rounded-full h-2.5 backdrop-blur-sm">
             <div
               className="bg-gradient-to-r from-emerald-400 to-green-500 h-2.5 rounded-full shadow-lg transition-all duration-1000"
-              style={{ width: `${Math.min((points / 500000) * 100, 100)}%` }}
+              style={{ width: `${Math.min((points / 50000) * 100, 100)}%` }}
             ></div>
           </div>
         </div>
