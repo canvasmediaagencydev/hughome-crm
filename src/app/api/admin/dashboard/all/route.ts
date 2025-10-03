@@ -143,21 +143,27 @@ export async function GET() {
 
     // Count users per date
     analyticsUsers.data?.forEach(user => {
-      const dateKey = format(new Date(user.created_at), 'yyyy-MM-dd');
-      usersByDate.set(dateKey, (usersByDate.get(dateKey) || 0) + 1);
+      if (user.created_at) {
+        const dateKey = format(new Date(user.created_at), 'yyyy-MM-dd');
+        usersByDate.set(dateKey, (usersByDate.get(dateKey) || 0) + 1);
+      }
     });
 
     // Count receipts per date
     analyticsReceipts.data?.forEach(receipt => {
-      const dateKey = format(new Date(receipt.created_at), 'yyyy-MM-dd');
-      receiptsByDate.set(dateKey, (receiptsByDate.get(dateKey) || 0) + 1);
+      if (receipt.created_at) {
+        const dateKey = format(new Date(receipt.created_at), 'yyyy-MM-dd');
+        receiptsByDate.set(dateKey, (receiptsByDate.get(dateKey) || 0) + 1);
+      }
     });
 
     // Calculate points per date
     analyticsApprovedReceipts.data?.forEach(receipt => {
-      const dateKey = format(new Date(receipt.created_at), 'yyyy-MM-dd');
-      const points = Math.floor((receipt.total_amount || 0) / bahtPerPoint);
-      pointsByDate.set(dateKey, (pointsByDate.get(dateKey) || 0) + points);
+      if (receipt.created_at) {
+        const dateKey = format(new Date(receipt.created_at), 'yyyy-MM-dd');
+        const points = Math.floor((receipt.total_amount || 0) / bahtPerPoint);
+        pointsByDate.set(dateKey, (pointsByDate.get(dateKey) || 0) + points);
+      }
     });
 
     // Build analytics array

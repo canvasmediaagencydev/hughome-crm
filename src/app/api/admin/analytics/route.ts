@@ -97,22 +97,28 @@ export async function GET(request: NextRequest) {
     });
 
     // Count users per date
-    usersResult.data?.forEach(user => {
-      const dateKey = format(new Date(user.created_at), 'yyyy-MM-dd');
-      usersByDate.set(dateKey, (usersByDate.get(dateKey) || 0) + 1);
+    usersResult.data?.forEach((user: any) => {
+      if (user.created_at) {
+        const dateKey = format(new Date(user.created_at), 'yyyy-MM-dd');
+        usersByDate.set(dateKey, (usersByDate.get(dateKey) || 0) + 1);
+      }
     });
 
     // Count receipts per date
-    receiptsResult.data?.forEach(receipt => {
-      const dateKey = format(new Date(receipt.created_at), 'yyyy-MM-dd');
-      receiptsByDate.set(dateKey, (receiptsByDate.get(dateKey) || 0) + 1);
+    receiptsResult.data?.forEach((receipt: any) => {
+      if (receipt.created_at) {
+        const dateKey = format(new Date(receipt.created_at), 'yyyy-MM-dd');
+        receiptsByDate.set(dateKey, (receiptsByDate.get(dateKey) || 0) + 1);
+      }
     });
 
     // Calculate points per date
-    approvedReceiptsResult.data?.forEach(receipt => {
-      const dateKey = format(new Date(receipt.created_at), 'yyyy-MM-dd');
-      const points = Math.floor((receipt.total_amount || 0) / bahtPerPoint);
-      pointsByDate.set(dateKey, (pointsByDate.get(dateKey) || 0) + points);
+    approvedReceiptsResult.data?.forEach((receipt: any) => {
+      if (receipt.created_at) {
+        const dateKey = format(new Date(receipt.created_at), 'yyyy-MM-dd');
+        const points = Math.floor((receipt.total_amount || 0) / bahtPerPoint);
+        pointsByDate.set(dateKey, (pointsByDate.get(dateKey) || 0) + points);
+      }
     });
 
     // Build final analytics array
