@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { parseISO, subDays, startOfDay, endOfDay } from "date-fns";
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,11 +10,24 @@ export async function GET(request: NextRequest) {
     const role = searchParams.get("role");
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
+    const startDate = searchParams.get("start_date");
+    const endDate = searchParams.get("end_date");
+    const days = searchParams.get("days");
 
     let query = supabase
       .from("user_profiles")
       .select("*", { count: "exact" })
       .order("points_balance", { ascending: false, nullsFirst: false });
+
+    // Date filtering (only if explicitly provided)
+    if (startDate && endDate) {
+      const start = startOfDay(parseISO(startDate)).toISOString();
+      const end = endOfDay(parseISO(endDate)).toISOString();
+      query = query.gte('created_at', start).lte('created_at', end);
+    } else if (days) {
+      const cutoffDate = subDays(new Date(), parseInt(days));
+      query = query.gte('created_at', cutoffDate.toISOString());
+    }
 
     // Search by name or phone
     if (search && search.trim()) {

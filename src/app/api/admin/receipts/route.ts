@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { parseISO, subDays, startOfDay, endOfDay } from "date-fns";
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,6 +11,9 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
     const search = searchParams.get("search");
+    const startDate = searchParams.get("start_date");
+    const endDate = searchParams.get("end_date");
+    const days = searchParams.get("days");
 
     const offset = (page - 1) * limit;
 
@@ -34,6 +38,16 @@ export async function GET(request: NextRequest) {
       `, { count: 'exact' })
       .eq("status", status as any)
       .order("created_at", { ascending: false });
+
+    // Date filtering (only if explicitly provided)
+    if (startDate && endDate) {
+      const start = startOfDay(parseISO(startDate)).toISOString();
+      const end = endOfDay(parseISO(endDate)).toISOString();
+      query = query.gte('created_at', start).lte('created_at', end);
+    } else if (days) {
+      const cutoffDate = subDays(new Date(), parseInt(days));
+      query = query.gte('created_at', cutoffDate.toISOString());
+    }
 
     const { data: allReceipts, error, count: totalCount } = await query;
 
