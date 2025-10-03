@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { toast } from 'sonner'
 import { Tables } from '../../database.types'
 
@@ -70,7 +70,7 @@ export function useDashboard() {
   const [pointSetting, setPointSetting] = useState<PointSetting | null>(null)
   const [bahtPerPoint, setBahtPerPoint] = useState('')
 
-  const fetchAllDashboardData = async () => {
+  const fetchAllDashboardData = useCallback(async () => {
     setLoading(true)
     setMetricsLoading(true)
     setReceiptsLoading(true)
@@ -140,7 +140,7 @@ export function useDashboard() {
       setMetricsLoading(false)
       setReceiptsLoading(false)
     }
-  }
+  }, [])
 
   return {
     // State

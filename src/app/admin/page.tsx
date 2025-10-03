@@ -35,7 +35,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchAllDashboardData()
-  }, [])
+  }, [fetchAllDashboardData])
 
   const handleSavePointSetting = async () => {
     const success = await savePointSetting(pointSetting, bahtPerPoint, fetchAllDashboardData)
