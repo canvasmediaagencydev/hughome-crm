@@ -53,8 +53,36 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Fetch latest note for each user
+    const userIds = users?.map(u => u.id) || [];
+    let latestNotes: any[] = [];
+
+    if (userIds.length > 0) {
+      // Get latest note for each user
+      const { data: notes } = await supabase
+        .from('user_notes')
+        .select('id, user_id, note_content, created_at')
+        .in('user_id', userIds)
+        .order('created_at', { ascending: false });
+
+      // Group by user_id and take first (latest) note
+      const notesMap = new Map();
+      notes?.forEach(note => {
+        if (!notesMap.has(note.user_id)) {
+          notesMap.set(note.user_id, note);
+        }
+      });
+      latestNotes = Array.from(notesMap.values());
+    }
+
+    // Add latest_note to each user
+    const usersWithNotes = users?.map(user => ({
+      ...user,
+      latest_note: latestNotes.find(n => n.user_id === user.id) || null
+    }));
+
     return NextResponse.json({
-      users,
+      users: usersWithNotes,
       pagination: {
         page,
         limit,

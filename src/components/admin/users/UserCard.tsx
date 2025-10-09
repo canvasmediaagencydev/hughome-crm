@@ -1,11 +1,11 @@
 import { User } from '@/types'
 import { HiEye, HiPencil } from 'react-icons/hi'
-import { FaUser, FaPhone, FaCoins } from 'react-icons/fa'
+import { FaUser, FaPhone, FaCoins, FaStickyNote } from 'react-icons/fa'
 import { RoleBadge } from '@/components/StatusBadge'
 import { formatDate, formatPoints, getUserDisplayName, getAvatarUrl } from '@/lib/utils'
 
 interface UserCardProps {
-  user: User
+  user: User & { latest_note?: { note_content: string; created_at: string } | null }
   onViewDetails: (user: User) => void
   onEditPoints: (user: User) => void
   onEditRole: (user: User) => void
@@ -44,6 +44,15 @@ export function UserCard({ user, onViewDetails, onEditPoints, onEditRole }: User
         {user.last_login_at && (
           <div className="text-xs text-slate-500">
             Login ล่าสุด: {formatDate(user.last_login_at, { includeTime: true })}
+          </div>
+        )}
+        {user.latest_note && (
+          <div className="flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs">
+            <FaStickyNote className="w-3 h-3 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-amber-900 line-clamp-2">{user.latest_note.note_content}</div>
+              <div className="text-amber-600 mt-1">{formatDate(user.latest_note.created_at, { includeTime: true })}</div>
+            </div>
           </div>
         )}
       </div>
