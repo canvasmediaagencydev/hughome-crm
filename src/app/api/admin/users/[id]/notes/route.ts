@@ -75,13 +75,23 @@ export async function POST(
       );
     }
 
-    // Insert new note (created_by will be null, handled by UI)
+    // Get the current authenticated admin user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    // Insert new note with the authenticated admin user ID
     const { data: note, error } = await supabase
       .from("user_notes")
       .insert({
         user_id: id,
         note_content: note_content.trim(),
-        created_by: null,
+        created_by: user.id,
       })
       .select(`
         id,
