@@ -8,7 +8,7 @@ interface StatusCardProps {
 }
 
 export const StatusCard = memo(({ points, isRefreshing, onRefresh }: StatusCardProps) => (
-  <div className="px-6 mt-4 mb-6">
+  <div className="px-6 mt-4">
     <div className="relative bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 rounded-3xl p-6 shadow-xl border border-gray-700/50 overflow-hidden">
       {/* Premium background pattern */}
       <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-transparent to-amber-500/10"></div>
@@ -25,9 +25,12 @@ export const StatusCard = memo(({ points, isRefreshing, onRefresh }: StatusCardP
           <button
             onClick={onRefresh}
             disabled={isRefreshing}
-            className="text-gray-400 hover:text-white transition-colors p-1.5 rounded-full hover:bg-white/10"
+            className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors px-3 py-1.5 rounded-full hover:bg-white/10"
           >
-            <IoMdRefresh className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <IoMdRefresh className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span className="text-xs">
+              {isRefreshing ? 'กำลังอัพเดต...' : '✨ อัพเดตล่าสุด'}
+            </span>
           </button>
         </div>
 
@@ -52,12 +55,6 @@ export const StatusCard = memo(({ points, isRefreshing, onRefresh }: StatusCardP
             <span className="text-gray-400 text-xs"></span>
             <span className="text-gray-400 text-xs">50,000 แต้ม</span>
           </div>
-        </div>
-
-        <div className="text-center pt-3 border-t border-gray-700/50">
-          <p className="text-gray-400 text-xs">
-            {isRefreshing ? 'กำลังอัพเดต...' : '✨ อัพเดตล่าสุด'}
-          </p>
         </div>
       </div>
     </div>

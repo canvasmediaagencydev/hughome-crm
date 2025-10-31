@@ -9,7 +9,6 @@ export const UploadSection = memo(({ onCameraOpen }: UploadSectionProps) => (
   <div className="px-6 pb-24">
     <div className="space-y-4">
       <div className="text-center mb-4">
-        <h3 className="text-gray-800 font-bold text-lg mb-1">อัพโหลดใบเสร็จ</h3>
         <p className="text-sm text-gray-500">ถ่ายรูปหรือเลือกรูปใบเสร็จเพื่อสะสมแต้ม</p>
       </div>
 
