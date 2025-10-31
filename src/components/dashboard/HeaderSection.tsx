@@ -43,15 +43,17 @@ export const HeaderSection = memo(({ firstName, lastName, userRole }: HeaderSect
       <div className="relative px-6 pt-8 pb-6">
 
         {/* Greeting Section */}
-        <div className="space-y-1">
-          <p className="text-white/90 text-sm font-medium">{getGreeting()}</p>
-          <div className="flex items-baseline gap-2 flex-wrap">
-            <h2 className="text-white font-bold text-2xl">
+        <div className="space-y-3">
+          <p className="text-white/80 text-sm font-medium">{getGreeting()}</p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="text-white font-bold text-3xl leading-tight">
               {getFullName()}
             </h2>
-            <span className="text-white/90 text-base font-medium">
-              {getRoleText(userRole)}
-            </span>
+            <div className="inline-flex items-center bg-white/15 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20">
+              <span className="text-white text-sm font-medium">
+                {getRoleText(userRole)}
+              </span>
+            </div>
           </div>
         </div>
       </div>

@@ -10,21 +10,21 @@ export const QuickActions = memo(() => {
       icon: IoReceipt,
       label: 'ประวัติใบเสร็จ',
       description: 'ดูใบเสร็จทั้งหมด',
-      color: 'from-blue-500 to-blue-600',
+      color: 'from-red-500 to-red-600',
       onClick: () => router.push('/history')
     },
     {
       icon: IoGift,
       label: 'แลกของรางวัล',
       description: 'ใช้แต้มแลกรางวัล',
-      color: 'from-purple-500 to-purple-600',
+      color: 'from-red-500 to-red-600',
       onClick: () => router.push('/rewards')
     },
     {
       icon: IoTime,
       label: 'ประวัติการแลก',
       description: 'รางวัลที่แลกไปแล้ว',
-      color: 'from-emerald-500 to-emerald-600',
+      color: 'from-emerald-400 to-green-500',
       onClick: () => router.push('/rewards?tab=history')
     }
   ]
