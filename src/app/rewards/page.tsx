@@ -14,7 +14,7 @@ import { Tables } from '../../../database.types'
 import { toast } from 'sonner'
 import Image from 'next/image'
 import { UserSessionManager } from '@/lib/user-session'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { FaHistory } from "react-icons/fa"
 import { HiOutlineGift } from "react-icons/hi"
 import BottomNavigation from '@/components/BottomNavigation'
@@ -50,6 +50,15 @@ export default function RewardsPage() {
   const [userPoints, setUserPoints] = useState(0)
   const [userId, setUserId] = useState<string>('')
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Read tab from URL query parameter
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab === 'history') {
+      setActiveTab('history')
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const cachedSession = UserSessionManager.getCachedSession()

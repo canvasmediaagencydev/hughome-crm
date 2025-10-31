@@ -6,20 +6,24 @@ interface UploadSectionProps {
 }
 
 export const UploadSection = memo(({ onCameraOpen }: UploadSectionProps) => (
-  <div className="bg-gray-50 px-6 mt-10 pb-24">
+  <div className="px-6 pb-24">
     <div className="space-y-4">
-      <div className="text-center mb-6">
-        <p className="text-sm text-gray-600">ถ่ายรูปหรือเลือกรูปใบเสร็จเพื่อสะสมแต้ม</p>
+      <div className="text-center mb-4">
+        <h3 className="text-gray-800 font-bold text-lg mb-1">อัพโหลดใบเสร็จ</h3>
+        <p className="text-sm text-gray-500">ถ่ายรูปหรือเลือกรูปใบเสร็จเพื่อสะสมแต้ม</p>
       </div>
 
       <button
         onClick={onCameraOpen}
-        className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold py-4 px-6 rounded-2xl transition-all duration-200 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
+        className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold py-5 px-6 rounded-2xl transition-all duration-200 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
       >
-        <div className="bg-white/20 p-2 rounded-full">
-          <IoMdCamera className="w-6 h-6" />
+        <div className="bg-white/20 p-2.5 rounded-xl">
+          <IoMdCamera className="w-7 h-7" />
         </div>
-        <span className="text-lg">อัพโหลดใบเสร็จ</span>
+        <div className="text-left">
+          <p className="text-lg font-bold">เริ่มอัพโหลด</p>
+          <p className="text-xs text-white/80">รับแต้มทันที</p>
+        </div>
       </button>
     </div>
   </div>

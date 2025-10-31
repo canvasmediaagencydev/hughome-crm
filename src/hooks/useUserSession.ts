@@ -18,7 +18,10 @@ export function useUserSession(): UseUserSessionResult {
     first_name: user.first_name || user.displayName?.split(' ')[0] || 'User',
     last_name: user.last_name || user.displayName?.split(' ')[1] || '',
     picture_url: user.picture_url || user.pictureUrl,
-    points_balance: user.points_balance || 0
+    points_balance: user.points_balance || 0,
+    displayName: user.displayName || user.display_name || `${user.first_name || ''} ${user.last_name || ''}`.trim(),
+    pictureUrl: user.pictureUrl || user.picture_url,
+    role: user.role || user.user_role
   }), [])
 
   useEffect(() => {

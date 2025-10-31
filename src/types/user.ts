@@ -23,6 +23,7 @@ export interface UserData {
   points_balance: number
   displayName?: string
   pictureUrl?: string
+  role?: string
 }
 
 export interface Pagination {

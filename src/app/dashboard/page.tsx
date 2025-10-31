@@ -4,8 +4,9 @@ import { useState, useEffect, memo } from 'react'
 import ReceiptCamera from '@/components/ReceiptCamera'
 import ReceiptUploadResult from '@/components/ReceiptUploadResult'
 import BottomNavigation from '@/components/BottomNavigation'
-import { BannerSlider } from '@/components/dashboard/BannerSlider'
+import { HeaderSection } from '@/components/dashboard/HeaderSection'
 import { StatusCard } from '@/components/dashboard/StatusCard'
+import { QuickActions } from '@/components/dashboard/QuickActions'
 import { UploadSection } from '@/components/dashboard/UploadSection'
 import { useUserSession } from '@/hooks/useUserSession'
 import { useUserRefresh } from '@/hooks/useUserRefresh'
@@ -96,8 +97,12 @@ function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Banner Slider */}
-      <BannerSlider />
+      {/* Header Section */}
+      <HeaderSection
+        firstName={userData.first_name}
+        lastName={userData.last_name}
+        userRole={userData.role}
+      />
 
       {/* Status Card */}
       <StatusCard
@@ -105,6 +110,9 @@ function DashboardPage() {
         isRefreshing={isRefreshing}
         onRefresh={refreshUserData}
       />
+
+      {/* Quick Actions */}
+      <QuickActions />
 
       {/* Upload Section */}
       <UploadSection onCameraOpen={handleCameraOpen} />
