@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -37,7 +37,7 @@ type Redemption = Tables<'redemptions'> & {
   } | null
 }
 
-export default function RewardsPage() {
+function RewardsContent() {
   const [rewards, setRewards] = useState<Reward[]>([])
   const [redemptions, setRedemptions] = useState<Redemption[]>([])
   const [loading, setLoading] = useState(true)
@@ -393,6 +393,14 @@ export default function RewardsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+export default function RewardsPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner message="กำลังโหลดรางวัล..." />}>
+      <RewardsContent />
+    </Suspense>
   )
 }
 
