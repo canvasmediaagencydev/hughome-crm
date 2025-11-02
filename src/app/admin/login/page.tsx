@@ -28,38 +28,51 @@ export default function AdminLogin() {
         setError(error.message)
         toast.error(`เข้าสู่ระบบไม่สำเร็จ: ${error.message}`)
       } else if (data.user) {
-        // ตรวจสอบว่ามี admin_users record หรือไม่
-        const { data: adminUser, error: adminError } = await supabaseAdmin
-          .from('admin_users')
-          .select('id, is_active')
-          .eq('auth_user_id', data.user.id)
-          .single()
+        // ใช้ /api/admin/me เพื่อตรวจสอบ admin_users record
+        // (API จะใช้ service role key bypass RLS)
+        try {
+          const session = data.session
+          const response = await fetch('/api/admin/me', {
+            headers: {
+              'Authorization': `Bearer ${session?.access_token}`
+            }
+          })
 
-        if (adminError || !adminUser) {
-          // ไม่มี admin_users record หรือ query error
-          setError('คุณไม่มีสิทธิ์เข้าถึงระบบ Admin')
-          toast.error('คุณไม่มีสิทธิ์เข้าถึงระบบ Admin')
+          if (!response.ok) {
+            // ไม่มี admin_users record หรือ inactive
+            const errorData = await response.json().catch(() => ({}))
+            const errorMessage = errorData.error || 'คุณไม่มีสิทธิ์เข้าถึงระบบ Admin'
 
-          // Logout ทันที
+            setError(errorMessage)
+            toast.error(errorMessage)
+
+            // Logout ทันที
+            await supabaseAdmin.auth.signOut()
+            return
+          }
+
+          const adminData = await response.json()
+
+          if (!adminData.adminUser?.is_active) {
+            setError('บัญชี Admin ของคุณถูกปิดการใช้งาน')
+            toast.error('บัญชี Admin ของคุณถูกปิดการใช้งาน')
+
+            await supabaseAdmin.auth.signOut()
+            return
+          }
+
+          // ทุกอย่างผ่าน - redirect ไปหน้า admin
+          toast.success('เข้าสู่ระบบสำเร็จ')
+          setTimeout(() => {
+            router.push('/admin')
+          }, 500)
+        } catch (err) {
+          console.error('Error verifying admin:', err)
+          setError('เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์')
+          toast.error('เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์')
+
           await supabaseAdmin.auth.signOut()
-          return
         }
-
-        if (!adminUser.is_active) {
-          // Admin ถูกปิดการใช้งาน
-          setError('บัญชี Admin ของคุณถูกปิดการใช้งาน')
-          toast.error('บัญชี Admin ของคุณถูกปิดการใช้งาน')
-
-          // Logout ทันที
-          await supabaseAdmin.auth.signOut()
-          return
-        }
-
-        // ทุกอย่างผ่าน - redirect ไปหน้า admin
-        toast.success('เข้าสู่ระบบสำเร็จ')
-        setTimeout(() => {
-          router.push('/admin')
-        }, 500)
       }
     } catch (err) {
       const errorMsg = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import axios from 'axios'
+import { axiosAdmin as axios } from '@/lib/axios-admin'
 import { UserData } from '@/types'
 import { UserSessionManager } from '@/lib/user-session'
 

@@ -6,12 +6,41 @@
  */
 
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createClient } from '@supabase/supabase-js'
+import { cookies, headers } from 'next/headers'
 import type {
   AdminUser,
   AdminRole,
   AdminUserWithRoles,
   PermissionKey,
 } from '@/types/admin'
+
+/**
+ * สร้าง Supabase client จาก Authorization header
+ * ใช้สำหรับ verify user จาก JWT token
+ */
+async function createSupabaseClientFromRequest() {
+  const headersList = await headers()
+  const authorization = headersList.get('authorization')
+
+  if (!authorization?.startsWith('Bearer ')) {
+    return null
+  }
+
+  const token = authorization.substring(7)
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  })
+
+  return supabase
+}
 
 // ============================================================================
 // Admin Session Verification
@@ -241,16 +270,23 @@ export async function isSuperAdmin(adminUserId: string): Promise<boolean> {
  * @returns AdminUser
  */
 export async function requireAdmin(): Promise<AdminUser> {
-  const supabase = createServerSupabaseClient()
+  // ใช้ client จาก Authorization header เพื่อ verify JWT
+  const authClient = await createSupabaseClientFromRequest()
+
+  if (!authClient) {
+    throw new Error('Unauthorized: Missing or invalid Authorization header')
+  }
 
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+    error
+  } = await authClient.auth.getUser()
 
-  if (!user) {
-    throw new Error('Unauthorized')
+  if (error || !user) {
+    throw new Error('Unauthorized: Invalid token')
   }
 
+  // ใช้ service role client เพื่อ query admin_users (bypass RLS)
   const adminUser = await verifyAdminSession(user.id)
 
   if (!adminUser) {

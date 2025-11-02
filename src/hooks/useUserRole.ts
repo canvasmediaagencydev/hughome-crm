@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import axios from 'axios'
+import { axiosAdmin as axios } from '@/lib/axios-admin'
 import { toast } from 'sonner'
 
 export function useUserRole(initialRole: 'contractor' | 'homeowner' = 'contractor') {

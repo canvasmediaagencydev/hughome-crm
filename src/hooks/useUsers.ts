@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import axios from 'axios'
+import { axiosAdmin } from '@/lib/axios-admin'
 import { toast } from 'sonner'
 import { User, Pagination } from '@/types'
 
@@ -27,7 +27,7 @@ export function useUsers(params: UseUsersParams = {}) {
   const fetchUsers = useCallback(async (page: number, role: string, search: string) => {
     try {
       setIsLoading(true)
-      const response = await axios.get('/api/admin/users', {
+      const response = await axiosAdmin.get('/api/admin/users', {
         params: { page, limit: 9, role, search }
       })
 
