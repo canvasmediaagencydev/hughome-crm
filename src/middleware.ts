@@ -1,8 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
 
 export async function middleware(request: NextRequest) {
-  // Temporarily disable middleware for admin routes
-  // Let client-side authentication handle redirects to avoid cookie issues
+  // Temporarily disabled - let client-side handle all auth
+  // Admin auth protection is handled in layout.tsx
   return NextResponse.next()
 }
 
@@ -14,7 +15,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
+     * - api routes (handled separately)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

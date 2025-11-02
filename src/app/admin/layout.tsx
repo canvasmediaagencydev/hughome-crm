@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { AdminAuthProvider, useAdminAuth } from '@/hooks/useAdminAuth'
 import { Toaster } from '@/components/ui/sonner'
 import { Button } from '@/components/ui/button'
+import { PERMISSIONS } from '@/types/admin'
 import {
   Users,
   Receipt,
@@ -14,17 +15,31 @@ import {
   Home,
   X,
   Menu,
-  Settings
+  Settings,
+  ShieldCheck,
+  Package,
 } from 'lucide-react'
 import Link from 'next/link'
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
-  const { user, loading, signOut, isAuthenticated } = useAdminAuth()
+  const {
+    user,
+    adminUser,
+    roles,
+    permissions,
+    isSuperAdmin,
+    loading,
+    signOut,
+    isAuthenticated,
+    hasPermission,
+  } = useAdminAuth()
   const router = useRouter()
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
+    // Only redirect if we're done loading AND not authenticated
+    // This prevents redirect loops during initial auth check
     if (!loading && !isAuthenticated && pathname !== '/admin/login') {
       router.push('/admin/login')
     }
@@ -54,13 +69,68 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     return null
   }
 
-  const navigation = [
-    { name: 'Dashboard', href: '/admin', icon: Home, current: pathname === '/admin' },
-    { name: 'จัดการผู้ใช้', href: '/admin/users', icon: Users, current: pathname === '/admin/users' },
-    { name: 'ตรวจสอบใบเสร็จ', href: '/admin/receipts', icon: Receipt, current: pathname === '/admin/receipts' },
-    { name: 'จัดการรางวัล', href: '/admin/rewards', icon: Gift, current: pathname === '/admin/rewards' },
-    { name: 'คำขอแลกของรางวัล', href: '/admin/redemptions', icon: BarChart3, current: pathname === '/admin/redemptions' },
+  // Navigation items with permission checks
+  const allNavigationItems = [
+    {
+      name: 'Dashboard',
+      href: '/admin',
+      icon: Home,
+      current: pathname === '/admin',
+      show: true, // Dashboard แสดงทุกคน
+    },
+    {
+      name: 'ตรวจสอบใบเสร็จ',
+      href: '/admin/receipts',
+      icon: Receipt,
+      current: pathname.startsWith('/admin/receipts'),
+      show: hasPermission(PERMISSIONS.RECEIPTS_VIEW),
+    },
+    {
+      name: 'จัดการผู้ใช้',
+      href: '/admin/users',
+      icon: Users,
+      current: pathname.startsWith('/admin/users'),
+      show: hasPermission(PERMISSIONS.USERS_VIEW),
+    },
+    {
+      name: 'จัดการรางวัล',
+      href: '/admin/rewards',
+      icon: Gift,
+      current: pathname.startsWith('/admin/rewards'),
+      show: hasPermission(PERMISSIONS.REWARDS_VIEW),
+    },
+    {
+      name: 'คำขอแลกรางวัล',
+      href: '/admin/redemptions',
+      icon: Package,
+      current: pathname.startsWith('/admin/redemptions'),
+      show: hasPermission(PERMISSIONS.REDEMPTIONS_VIEW),
+    },
+    {
+      name: 'รายงาน',
+      href: '/admin/reports',
+      icon: BarChart3,
+      current: pathname.startsWith('/admin/reports'),
+      show: true, // หรือจะเพิ่ม permission สำหรับ reports
+    },
+    {
+      name: 'จัดการ Admin',
+      href: '/admin/admins',
+      icon: ShieldCheck,
+      current: pathname.startsWith('/admin/admins'),
+      show: hasPermission(PERMISSIONS.ADMINS_MANAGE),
+    },
+    {
+      name: 'จัดการ Role',
+      href: '/admin/roles',
+      icon: Settings,
+      current: pathname.startsWith('/admin/roles'),
+      show: hasPermission(PERMISSIONS.ADMINS_MANAGE),
+    },
   ]
+
+  // Filter navigation items based on permissions
+  const navigation = allNavigationItems.filter((item) => item.show)
 
   return (
     <div className="min-h-screen bg-slate-50 lg:flex">
@@ -95,13 +165,19 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           <div className="px-4 py-4 border-b border-slate-800">
             <div className="flex items-center">
               <div className="w-9 h-9 bg-slate-700 rounded-full flex items-center justify-center text-slate-200 font-medium text-sm ring-2 ring-slate-600">
-                {user?.email?.[0]?.toUpperCase() || 'A'}
+                {adminUser?.full_name?.[0]?.toUpperCase() ||
+                  user?.email?.[0]?.toUpperCase() ||
+                  'A'}
               </div>
               <div className="ml-3 min-w-0 flex-1">
                 <p className="text-sm font-medium text-slate-200 truncate">
-                  {user?.email}
+                  {adminUser?.full_name || user?.email}
                 </p>
-                <p className="text-xs text-slate-400">ผู้ดูแลระบบ</p>
+                <p className="text-xs text-slate-400">
+                  {isSuperAdmin
+                    ? 'Super Admin'
+                    : roles[0]?.display_name || 'Admin'}
+                </p>
               </div>
             </div>
           </div>
