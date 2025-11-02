@@ -14,6 +14,178 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_permissions: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          display_name: string
+          id: string
+          permission_key: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string | null
+          display_name: string
+          id?: string
+          permission_key: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          id?: string
+          permission_key?: string
+        }
+        Relationships: []
+      }
+      admin_role_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          permission_id: string
+          role_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          permission_id: string
+          role_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          permission_id?: string
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_role_permissions_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "admin_permissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "admin_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_roles: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_name: string
+          id: string
+          is_system: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_name: string
+          id?: string
+          is_system?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          id?: string
+          is_system?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      admin_user_roles: {
+        Row: {
+          admin_user_id: string
+          assigned_at: string
+          assigned_by: string | null
+          id: string
+          role_id: string
+        }
+        Insert: {
+          admin_user_id: string
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          role_id: string
+        }
+        Update: {
+          admin_user_id?: string
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_user_roles_admin_user_id_fkey"
+            columns: ["admin_user_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_user_roles_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_user_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "admin_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_users: {
+        Row: {
+          auth_user_id: string
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          is_active: boolean
+          last_login_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          auth_user_id: string
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id?: string
+          is_active?: boolean
+          last_login_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          auth_user_id?: string
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          is_active?: boolean
+          last_login_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       point_settings: {
         Row: {
           created_at: string | null
@@ -337,6 +509,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_active: boolean | null
+          is_archived: boolean
           name: string
           points_cost: number
           sort_order: number | null
@@ -350,6 +523,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          is_archived?: boolean
           name: string
           points_cost: number
           sort_order?: number | null
@@ -363,6 +537,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean | null
+          is_archived?: boolean
           name?: string
           points_cost?: number
           sort_order?: number | null
@@ -374,7 +549,8 @@ export type Database = {
       user_notes: {
         Row: {
           created_at: string | null
-          created_by: string
+          created_by: string | null
+          created_by_admin_id: string | null
           id: string
           note_content: string
           updated_at: string | null
@@ -382,7 +558,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
-          created_by: string
+          created_by?: string | null
+          created_by_admin_id?: string | null
           id?: string
           note_content: string
           updated_at?: string | null
@@ -390,13 +567,21 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
-          created_by?: string
+          created_by?: string | null
+          created_by_admin_id?: string | null
           id?: string
           note_content?: string
           updated_at?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "user_notes_created_by_admin_id_fkey"
+            columns: ["created_by_admin_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "user_notes_created_by_fkey"
             columns: ["created_by"]
@@ -498,38 +683,8 @@ export type Database = {
       }
     }
     Functions: {
-      gtrgm_compress: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_decompress: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_in: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_options: {
-        Args: { "": unknown }
-        Returns: undefined
-      }
-      gtrgm_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      set_limit: {
-        Args: { "": number }
-        Returns: number
-      }
-      show_limit: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      show_trgm: {
-        Args: { "": string }
-        Returns: string[]
-      }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       receipt_status: "pending" | "processing" | "approved" | "rejected"
@@ -670,3 +825,5 @@ export const Constants = {
     },
   },
 } as const
+
+export {}

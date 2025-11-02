@@ -41,7 +41,20 @@ export function useReceipts(params: UseReceiptsParams = {}) {
         params.append('search', search.trim())
       }
 
-      const response = await fetch(`/api/admin/receipts?${params}`)
+      const { supabaseAdmin } = await import('@/lib/supabase-admin')
+      const { data: { session } } = await supabaseAdmin.auth.getSession()
+
+      if (!session?.access_token) {
+        toast.error('ไม่พบ session กรุณา login ใหม่')
+        setLoading(false)
+        return
+      }
+
+      const response = await fetch(`/api/admin/receipts?${params}`, {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
+      })
       if (response.ok) {
         const data: ReceiptListResponse = await response.json()
         setReceipts(data.receipts)

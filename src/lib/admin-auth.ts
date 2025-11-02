@@ -307,9 +307,12 @@ export async function requirePermission(
 ): Promise<AdminUser> {
   const adminUser = await requireAdmin()
 
-  const hasPermission = await checkPermission(adminUser.id, permissionKey)
+  const [hasPermissionValue, superAdmin] = await Promise.all([
+    checkPermission(adminUser.id, permissionKey),
+    isSuperAdmin(adminUser.id),
+  ])
 
-  if (!hasPermission) {
+  if (!hasPermissionValue && !superAdmin) {
     throw new Error(`Forbidden: Missing permission '${permissionKey}'`)
   }
 

@@ -93,7 +93,7 @@
 - [x] ตารางแสดง admin ทั้งหมด (จาก admin_users)
 - [x] แสดง roles ของแต่ละคน
 - [x] ปุ่ม "เพิ่ม Admin"
-- [x] ปุ่ม "แก้ไข Roles" (TODO: Coming soon)
+- [x] ปุ่ม "แก้ไขบทบาท" (เปิด dialog ปรับ role)
 - [x] ปุ่ม "ปิดการใช้งาน"
 
 ### Task 3.2: Create Admin Dialog ✅
@@ -144,8 +144,8 @@
   - [x] GET: get admin by id (มีอยู่แล้ว)
   - [x] PUT: update admin
   - [x] DELETE: soft delete (set is_active = false)
-- [ ] สร้าง `src/app/api/admin/admins/[id]/roles/route.ts` (TODO)
-  - [ ] PUT: update admin roles
+- [x] สร้าง `src/app/api/admin/admins/[id]/roles/route.ts`
+  - [x] PUT: update admin roles
 
 ### Task 4.2: Role CRUD APIs ✅
 - [x] สร้าง `src/app/api/admin/roles/route.ts`
@@ -221,8 +221,9 @@
 - [x] `src/app/admin/redemptions/page.tsx`
   - [x] ซ่อนทั้งหน้าถ้าไม่มี `redemptions.view`
   - [x] ซ่อนปุ่ม Process ถ้าไม่มี `redemptions.process`
-- [ ] `src/app/admin/reports/page.tsx`
-  - [ ] ซ่อนทั้งหน้าถ้าไม่มี permission (TBD - ยังไม่มี reports permission)
+- [x] `src/app/admin/page.tsx`
+  - [x] Require `dashboard.view` ก่อนเข้าถึง Dashboard
+  - [x] ซ่อนแท็บ Analytics & Settings + Point Settings form ถ้าไม่มี `settings.edit`
 
 ### Task 6.2: Update Admin Sidebar ✅
 - [x] แก้ไขไฟล์ `src/app/admin/layout.tsx`
@@ -230,6 +231,7 @@
 - [x] ซ่อน "จัดการผู้ใช้" ถ้าไม่มี `users.view`
 - [x] ซ่อน "จัดการรางวัล" ถ้าไม่มี `rewards.view`
 - [x] ซ่อน "คำขอแลกรางวัล" ถ้าไม่มี `redemptions.view`
+- [x] ซ่อน "Dashboard" ถ้าไม่มี `dashboard.view`
 - [x] ซ่อน "จัดการ Admin" ถ้าไม่มี `admins.manage`
 - [x] ซ่อน "จัดการ Role" ถ้าไม่มี `admins.manage`
 

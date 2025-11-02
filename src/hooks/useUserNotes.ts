@@ -6,6 +6,12 @@ export interface UserNote {
   created_at: string
   updated_at: string | null
   created_by: string
+  created_by_admin_id: string | null
+  created_by_admin?: {
+    id: string
+    full_name: string | null
+    email: string | null
+  } | null
   user_profiles: {
     id: string
     display_name: string | null
@@ -37,8 +43,21 @@ export function useUserNotes() {
   const fetchNotes = async (userId: string, page: number = 1) => {
     setLoadingNotes(true)
     try {
+      const { supabaseAdmin } = await import('@/lib/supabase-admin')
+      const { data: { session } } = await supabaseAdmin.auth.getSession()
+
+      if (!session?.access_token) {
+        alert('ไม่พบ session กรุณา login ใหม่')
+        return
+      }
+
       const response = await fetch(
-        `/api/admin/users/${userId}/notes?page=${page}&limit=${pagination.limit}`
+        `/api/admin/users/${userId}/notes?page=${page}&limit=${pagination.limit}`,
+        {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`
+          }
+        }
       )
 
       if (!response.ok) {
@@ -64,9 +83,20 @@ export function useUserNotes() {
 
     setSubmittingNote(true)
     try {
+      const { supabaseAdmin } = await import('@/lib/supabase-admin')
+      const { data: { session } } = await supabaseAdmin.auth.getSession()
+
+      if (!session?.access_token) {
+        alert('ไม่พบ session กรุณา login ใหม่')
+        return
+      }
+
       const response = await fetch(`/api/admin/users/${userId}/notes`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ note_content: newNoteContent }),
       })
 
@@ -99,9 +129,20 @@ export function useUserNotes() {
 
     setSubmittingNote(true)
     try {
+      const { supabaseAdmin } = await import('@/lib/supabase-admin')
+      const { data: { session } } = await supabaseAdmin.auth.getSession()
+
+      if (!session?.access_token) {
+        alert('ไม่พบ session กรุณา login ใหม่')
+        return
+      }
+
       const response = await fetch(`/api/admin/users/${userId}/notes/${noteId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ note_content: editNoteContent }),
       })
 
@@ -136,8 +177,19 @@ export function useUserNotes() {
     }
 
     try {
+      const { supabaseAdmin } = await import('@/lib/supabase-admin')
+      const { data: { session } } = await supabaseAdmin.auth.getSession()
+
+      if (!session?.access_token) {
+        alert('ไม่พบ session กรุณา login ใหม่')
+        return
+      }
+
       const response = await fetch(`/api/admin/users/${userId}/notes/${noteId}`, {
         method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        },
       })
 
       if (!response.ok) {

@@ -22,7 +22,8 @@ export async function GET(request: NextRequest) {
     // Count total rewards
     const { count, error: countError } = await supabase
       .from("rewards")
-      .select("*", { count: 'exact', head: true });
+      .select("*", { count: 'exact', head: true })
+      .eq('is_archived', false);
 
     if (countError) {
       return NextResponse.json({ error: countError.message }, { status: 500 });
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
     const { data: rewards, error } = await supabase
       .from("rewards")
       .select("*")
+      .eq('is_archived', false)
       .order("sort_order", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);

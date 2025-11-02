@@ -13,6 +13,8 @@ import {
 } from '@/lib/utils'
 import { useUserNotes } from '@/hooks/useUserNotes'
 import { useEffect } from 'react'
+import { useAdminAuth } from '@/hooks/useAdminAuth'
+import { PERMISSIONS } from '@/types/admin'
 
 interface UserDetailModalProps {
   isOpen: boolean
@@ -52,11 +54,15 @@ export function UserDetailModal({
     handlePageChange: handleNotesPageChange,
   } = useUserNotes()
 
+  const { hasPermission } = useAdminAuth()
+  const canManageNotes = hasPermission(PERMISSIONS.USERS_MANAGE_NOTES)
+  const canViewNotes = canManageNotes || hasPermission(PERMISSIONS.USERS_VIEW)
+
   useEffect(() => {
-    if (isOpen && user) {
+    if (isOpen && user && canViewNotes) {
       fetchNotes(user.id)
     }
-  }, [isOpen, user?.id])
+  }, [isOpen, user?.id, canViewNotes])
 
   if (!isOpen || !user) return null
 
@@ -212,28 +218,32 @@ export function UserDetailModal({
                 <h3 className="font-semibold text-slate-900 mb-4">บันทึกจากแอดมิน</h3>
 
                 {/* Add Note Form */}
-                <div className="mb-4">
-                  <textarea
-                    value={newNoteContent}
-                    onChange={(e) => setNewNoteContent(e.target.value)}
-                    placeholder="เขียนบันทึกเกี่ยวกับผู้ใช้คนนี้..."
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                    rows={3}
-                    disabled={submittingNote}
-                  />
-                  <div className="flex justify-end mt-2">
-                    <button
-                      onClick={() => addNote(user.id)}
-                      disabled={submittingNote || !newNoteContent.trim()}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {submittingNote ? 'กำลังบันทึก...' : 'เพิ่มบันทึก'}
-                    </button>
+                {canManageNotes && (
+                  <div className="mb-4">
+                    <textarea
+                      value={newNoteContent}
+                      onChange={(e) => setNewNoteContent(e.target.value)}
+                      placeholder="เขียนบันทึกเกี่ยวกับผู้ใช้คนนี้..."
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      rows={3}
+                      disabled={submittingNote}
+                    />
+                    <div className="flex justify-end mt-2">
+                      <button
+                        onClick={() => addNote(user.id)}
+                        disabled={submittingNote || !newNoteContent.trim()}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {submittingNote ? 'กำลังบันทึก...' : 'เพิ่มบันทึก'}
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Notes List */}
-                {loadingNotes ? (
+                {!canViewNotes ? (
+                  <p className="text-center text-slate-500 py-8">คุณไม่มีสิทธิ์ดูบันทึก</p>
+                ) : loadingNotes ? (
                   <div className="text-center py-8">
                     <div className="relative inline-flex">
                       <div className="animate-spin rounded-full h-8 w-8 border-4 border-slate-200"></div>
@@ -246,7 +256,65 @@ export function UserDetailModal({
                   <div className="space-y-3">
                     {notes.map((note) => (
                       <div key={note.id} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                        {editingNoteId === note.id ? (
+                        {(() => {
+                          const authorIsAdmin = !!note.created_by_admin
+                          const authorName = authorIsAdmin
+                            ? note.created_by_admin?.full_name || note.created_by_admin?.email || 'ทีมแอดมิน'
+                            : note.user_profiles?.display_name || 'ผู้ใช้'
+                          const authorAvatar = authorIsAdmin
+                            ? (note.created_by_admin?.full_name || note.created_by_admin?.email || 'A').slice(0, 1).toUpperCase()
+                            : getUserDisplayName(user).slice(0, 1).toUpperCase()
+
+                          return (
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 text-sm font-medium">
+                                  {authorAvatar}
+                                </div>
+                                <div>
+                                  <div className="text-sm font-medium text-slate-900">
+                                    {authorName}
+                                    {authorIsAdmin && (
+                                      <span className="ml-2 text-xs font-semibold text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
+                                        Admin
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-slate-500">
+                                    {formatDate(note.created_at, { includeTime: true })}
+                                    {note.updated_at && note.updated_at !== note.created_at && (
+                                      <span className="ml-1">(แก้ไขแล้ว)</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              {canManageNotes && (
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={() => startEditing(note)}
+                                    className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"
+                                    title="แก้ไข"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={() => deleteNote(user.id, note.id)}
+                                    className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
+                                    title="ลบ"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })()}
+
+                        {editingNoteId === note.id && canManageNotes ? (
                           <div>
                             <textarea
                               value={editNoteContent}
@@ -273,49 +341,7 @@ export function UserDetailModal({
                             </div>
                           </div>
                         ) : (
-                          <div>
-                            <div className="flex items-start justify-between gap-3 mb-2">
-                              <div className="flex items-center gap-2">
-                                <img
-                                  src={getAvatarUrl(note.user_profiles?.picture_url, note.user_profiles?.display_name || 'System Admin')}
-                                  alt={note.user_profiles?.display_name || 'System Admin'}
-                                  className="w-8 h-8 rounded-full object-cover"
-                                />
-                                <div>
-                                  <div className="text-sm font-medium text-slate-900">
-                                    {note.user_profiles?.display_name || 'System Admin'}
-                                  </div>
-                                  <div className="text-xs text-slate-500">
-                                    {formatDate(note.created_at, { includeTime: true })}
-                                    {note.updated_at && note.updated_at !== note.created_at && (
-                                      <span className="ml-1">(แก้ไขแล้ว)</span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex gap-1">
-                                <button
-                                  onClick={() => startEditing(note)}
-                                  className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"
-                                  title="แก้ไข"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                  </svg>
-                                </button>
-                                <button
-                                  onClick={() => deleteNote(user.id, note.id)}
-                                  className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
-                                  title="ลบ"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                            <p className="text-sm text-slate-700 whitespace-pre-wrap">{note.note_content}</p>
-                          </div>
+                          <p className="text-sm text-slate-700 whitespace-pre-wrap">{note.note_content}</p>
                         )}
                       </div>
                     ))}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { requirePermission } from "@/lib/admin-auth";
+import { requirePermission, requireAdmin, hasAnyPermission } from "@/lib/admin-auth";
 import { PERMISSIONS } from "@/types/admin";
 
 export async function GET(
@@ -8,8 +8,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // ต้องมี users.manage_notes permission
-    await requirePermission(PERMISSIONS.USERS_MANAGE_NOTES);
+    const adminUser = await requireAdmin();
+    const canViewNotes = await hasAnyPermission(adminUser.id, [
+      PERMISSIONS.USERS_MANAGE_NOTES,
+      PERMISSIONS.USERS_VIEW,
+    ]);
+
+    if (!canViewNotes) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const { id } = await params;
     const supabase = createServerSupabaseClient();
@@ -32,10 +39,16 @@ export async function GET(
         created_at,
         updated_at,
         created_by,
+        created_by_admin_id,
         user_profiles!user_notes_created_by_fkey (
           id,
           display_name,
           picture_url
+        ),
+        created_by_admin:admin_users!user_notes_created_by_admin_id_fkey (
+          id,
+          full_name,
+          email
         )
       `, { count: "exact" })
       .eq("user_id", id)
@@ -83,23 +96,14 @@ export async function POST(
       );
     }
 
-    // Get the current authenticated admin user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
     // Insert new note with the authenticated admin user ID
     const { data: note, error } = await supabase
       .from("user_notes")
       .insert({
         user_id: id,
         note_content: note_content.trim(),
-        created_by: user.id,
+        created_by: id,
+        created_by_admin_id: adminUser.id,
       })
       .select(`
         id,
@@ -107,10 +111,16 @@ export async function POST(
         created_at,
         updated_at,
         created_by,
+        created_by_admin_id,
         user_profiles!user_notes_created_by_fkey (
           id,
           display_name,
           picture_url
+        ),
+        created_by_admin:admin_users!user_notes_created_by_admin_id_fkey (
+          id,
+          full_name,
+          email
         )
       `)
       .single();

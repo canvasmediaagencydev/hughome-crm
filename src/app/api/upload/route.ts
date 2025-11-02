@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { requireAdmin, checkPermission } from '@/lib/admin-auth'
+import { PERMISSIONS } from '@/types/admin'
+
+export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
   try {
+    const adminUser = await requireAdmin()
+    const [canCreate, canEdit] = await Promise.all([
+      checkPermission(adminUser.id, PERMISSIONS.REWARDS_CREATE),
+      checkPermission(adminUser.id, PERMISSIONS.REWARDS_EDIT)
+    ])
+
+    if (!canCreate && !canEdit) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const supabase = createServerSupabaseClient()
 
     // Get form data

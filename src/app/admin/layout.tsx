@@ -69,6 +69,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     return null
   }
 
+  const canViewDashboard = hasPermission(PERMISSIONS.DASHBOARD_VIEW) || isSuperAdmin
+
+
   // Navigation items with permission checks
   const allNavigationItems = [
     {
@@ -76,7 +79,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       href: '/admin',
       icon: Home,
       current: pathname === '/admin',
-      show: true, // Dashboard แสดงทุกคน
+      show: canViewDashboard,
     },
     {
       name: 'ตรวจสอบใบเสร็จ',
@@ -105,13 +108,6 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       icon: Package,
       current: pathname.startsWith('/admin/redemptions'),
       show: hasPermission(PERMISSIONS.REDEMPTIONS_VIEW),
-    },
-    {
-      name: 'รายงาน',
-      href: '/admin/reports',
-      icon: BarChart3,
-      current: pathname.startsWith('/admin/reports'),
-      show: true, // หรือจะเพิ่ม permission สำหรับ reports
     },
     {
       name: 'จัดการ Admin',

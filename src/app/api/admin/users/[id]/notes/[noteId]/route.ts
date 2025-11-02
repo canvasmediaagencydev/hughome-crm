@@ -37,10 +37,16 @@ export async function PATCH(
         created_at,
         updated_at,
         created_by,
+        created_by_admin_id,
         user_profiles!user_notes_created_by_fkey (
           id,
           display_name,
           picture_url
+        ),
+        created_by_admin:admin_users!user_notes_created_by_admin_id_fkey (
+          id,
+          full_name,
+          email
         )
       `)
       .single();

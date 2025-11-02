@@ -13,13 +13,13 @@ import { PERMISSIONS } from '@/types/admin'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await requirePermission(PERMISSIONS.ADMINS_MANAGE)
 
     const supabase = createServerSupabaseClient()
-    const roleId = params.id
+    const { id: roleId } = await context.params
 
     // ดึงข้อมูล role
     const { data: role, error: roleError } = await supabase
@@ -69,13 +69,13 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await requirePermission(PERMISSIONS.ADMINS_MANAGE)
 
     const supabase = createServerSupabaseClient()
-    const roleId = params.id
+    const { id: roleId } = await context.params
     const body = await request.json()
     const { display_name, description } = body
 
@@ -142,13 +142,13 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await requirePermission(PERMISSIONS.ADMINS_MANAGE)
 
     const supabase = createServerSupabaseClient()
-    const roleId = params.id
+    const { id: roleId } = await context.params
 
     // ตรวจสอบว่า role มีอยู่และไม่ใช่ system role
     const { data: role } = await supabase

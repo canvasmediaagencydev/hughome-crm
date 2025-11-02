@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js'
-import { Database } from '../../database.types'
 
 export const createServerSupabaseClient = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -9,7 +8,7 @@ export const createServerSupabaseClient = () => {
     throw new Error('Missing Supabase environment variables')
   }
 
-  return createClient<Database>(supabaseUrl, supabaseServiceKey, {
+  return createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
@@ -25,9 +24,5 @@ export const createClientSupabaseClient = () => {
     throw new Error('Missing Supabase environment variables')
   }
 
-  return createClient<Database>(supabaseUrl, supabaseAnonKey)
+  return createClient(supabaseUrl, supabaseAnonKey)
 }
-
-export type UserProfile = Database['public']['Tables']['user_profiles']['Row']
-export type UserProfileInsert = Database['public']['Tables']['user_profiles']['Insert']
-export type UserProfileUpdate = Database['public']['Tables']['user_profiles']['Update']

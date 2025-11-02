@@ -17,6 +17,7 @@ import {
   getRedemptionStatusLabel
 } from '@/lib/utils'
 import axios from 'axios'
+import { toast } from 'sonner'
 
 interface Redemption {
   id: string
@@ -82,16 +83,33 @@ export default function AdminRedemptionsPage() {
   const fetchRedemptions = async (page: number, status: string, search: string) => {
     try {
       setIsLoading(true)
+      const headers = await getAuthHeaders()
       const response = await axios.get('/api/admin/redemptions', {
-        params: { page, limit: 10, status, search }
+        params: { page, limit: 10, status, search },
+        headers,
       })
 
       setRedemptions(response.data.redemptions)
       setPagination(response.data.pagination)
     } catch (error) {
       console.error('Error fetching redemptions:', error)
+      toast.error('ไม่สามารถโหลดคำขอแลกรางวัลได้')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const getAuthHeaders = async () => {
+    const { supabaseAdmin } = await import('@/lib/supabase-admin')
+    const { data: { session } } = await supabaseAdmin.auth.getSession()
+
+    if (!session?.access_token) {
+      toast.error('ไม่พบ session กรุณา login ใหม่')
+      throw new Error('Missing session')
+    }
+
+    return {
+      Authorization: `Bearer ${session.access_token}`,
     }
   }
 
@@ -102,10 +120,15 @@ export default function AdminRedemptionsPage() {
   const handleApprove = async (redemptionId: string) => {
     try {
       setProcessingId(redemptionId)
-      await axios.post(`/api/admin/redemptions/${redemptionId}/complete`, {
-        adminId: null,
-        adminNotes: null
-      })
+      const headers = await getAuthHeaders()
+      await axios.post(
+        `/api/admin/redemptions/${redemptionId}/complete`,
+        {
+          adminId: null,
+          adminNotes: null,
+        },
+        { headers }
+      )
 
       fetchRedemptions(currentPage, statusFilter, searchQuery)
     } catch (error) {
@@ -127,10 +150,15 @@ export default function AdminRedemptionsPage() {
 
     try {
       setProcessingId(selectedRedemption.id)
-      await axios.post(`/api/admin/redemptions/${selectedRedemption.id}/cancel`, {
-        adminId: null,
-        adminNotes
-      })
+      const headers = await getAuthHeaders()
+      await axios.post(
+        `/api/admin/redemptions/${selectedRedemption.id}/cancel`,
+        {
+          adminId: null,
+          adminNotes,
+        },
+        { headers }
+      )
 
       setShowNotesModal(false)
       setSelectedRedemption(null)

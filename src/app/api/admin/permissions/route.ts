@@ -32,7 +32,9 @@ export async function GET() {
     }
 
     // จัดกลุ่มตาม category
-    const grouped = permissions.reduce((acc, perm) => {
+    const permissionList = (permissions ?? []) as AdminPermission[]
+
+    const grouped = permissionList.reduce((acc, perm) => {
       if (!acc[perm.category]) {
         acc[perm.category] = []
       }
@@ -41,9 +43,9 @@ export async function GET() {
     }, {} as Record<string, AdminPermission[]>)
 
     return NextResponse.json({
-      permissions,
+      permissions: permissionList,
       grouped,
-      total: permissions.length,
+      total: permissionList.length,
     })
   } catch (error: any) {
     console.error('Permissions API error:', error)

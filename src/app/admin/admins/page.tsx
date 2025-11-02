@@ -9,16 +9,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Edit, Ban, Shield, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import CreateAdminDialog from '@/components/admin/CreateAdminDialog'
+import EditAdminRolesDialog from '@/components/admin/EditAdminRolesDialog'
 
 interface AdminWithRoles extends AdminUser {
   roles: AdminRole[]
 }
 
 export default function AdminsPage() {
-  const { hasPermission, isSuperAdmin } = useAdminAuth()
+  const { hasPermission } = useAdminAuth()
   const [admins, setAdmins] = useState<AdminWithRoles[]>([])
   const [loading, setLoading] = useState(true)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [selectedAdmin, setSelectedAdmin] = useState<AdminWithRoles | null>(null)
 
   // Check permission
   if (!hasPermission(PERMISSIONS.ADMINS_MANAGE)) {
@@ -277,10 +280,13 @@ export default function AdminsPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => toast.info('Coming soon: Edit Admin')}
+                            onClick={() => {
+                              setSelectedAdmin(admin)
+                              setEditDialogOpen(true)
+                            }}
                           >
                             <Edit className="w-4 h-4 mr-1" />
-                            แก้ไข
+                            แก้ไขบทบาท
                           </Button>
 
                           {admin.is_active ? (
@@ -319,6 +325,15 @@ export default function AdminsPage() {
       <CreateAdminDialog
         open={createDialogOpen}
         onClose={() => setCreateDialogOpen(false)}
+        onSuccess={() => fetchAdmins()}
+      />
+      <EditAdminRolesDialog
+        open={editDialogOpen}
+        admin={selectedAdmin}
+        onClose={() => {
+          setEditDialogOpen(false)
+          setSelectedAdmin(null)
+        }}
         onSuccess={() => fetchAdmins()}
       />
     </div>

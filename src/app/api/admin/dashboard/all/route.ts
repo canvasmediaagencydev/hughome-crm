@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { startOfMonth, endOfMonth, subDays, startOfDay, endOfDay, eachDayOfInterval, format } from "date-fns";
+import { requirePermission } from '@/lib/admin-auth'
+import { PERMISSIONS } from '@/types/admin'
 
 export async function GET() {
   try {
+    await requirePermission(PERMISSIONS.DASHBOARD_VIEW)
+
     const supabase = createServerSupabaseClient();
 
     // Get current month boundaries
@@ -202,8 +206,19 @@ export async function GET() {
       analytics: analyticsData
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Consolidated dashboard API error:", error);
+
+    if (typeof error?.message === 'string') {
+      if (error.message.startsWith('Unauthorized')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      if (error.message.includes('Forbidden')) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
+
     return NextResponse.json(
       { error: "Failed to fetch dashboard data" },
       { status: 500 }

@@ -63,7 +63,7 @@ async function checkAdminPermission(token: string) {
 // GET /api/admin/admins/[id] - Get admin by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization')
@@ -85,6 +85,8 @@ export async function GET(
     }
 
     // Fetch admin with roles
+    const { id } = await context.params
+
     const { data: admin, error: adminError } = await supabase
       .from('admin_users')
       .select(`
@@ -98,7 +100,7 @@ export async function GET(
           )
         )
       `)
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (adminError || !admin) {
@@ -127,7 +129,7 @@ export async function GET(
 // PUT /api/admin/admins/[id] - Update admin
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization')
@@ -148,6 +150,8 @@ export async function PUT(
       )
     }
 
+    const { id } = await context.params
+
     const body = await request.json()
     const { full_name, is_active } = body
 
@@ -159,7 +163,7 @@ export async function PUT(
         ...(is_active !== undefined && { is_active }),
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single()
 
@@ -183,7 +187,7 @@ export async function PUT(
 // DELETE /api/admin/admins/[id] - Soft delete (deactivate) admin
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization')
@@ -205,13 +209,15 @@ export async function DELETE(
     }
 
     // Soft delete: set is_active = false
+    const { id } = await context.params
+
     const { data: deletedAdmin, error: deleteError } = await supabase
       .from('admin_users')
       .update({
         is_active: false,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single()
 

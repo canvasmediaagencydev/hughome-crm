@@ -77,15 +77,33 @@ export function useDashboard() {
     setReceiptsLoading(true)
 
     try {
-      console.log('[Dashboard] Fetching all data in single API call...')
-      const response = await fetch('/api/admin/dashboard/all')
+      const { supabaseAdmin } = await import('@/lib/supabase-admin')
+      const { data: { session } } = await supabaseAdmin.auth.getSession()
+
+      if (!session?.access_token) {
+        toast.error('ไม่พบ session กรุณา login ใหม่')
+        return
+      }
+
+      const response = await fetch('/api/admin/dashboard/all', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      })
 
       if (!response.ok) {
+        if (response.status === 403) {
+          toast.error('คุณไม่มีสิทธิ์ดูข้อมูล Dashboard')
+          return
+        }
+        if (response.status === 401) {
+          toast.error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่')
+          return
+        }
         throw new Error('Failed to fetch dashboard data')
       }
 
       const data = await response.json()
-      console.log('[Dashboard] All data received:', data)
 
       // Set metrics
       setDashboardMetrics({

@@ -7,8 +7,8 @@ import { formatDate, formatPoints, getUserDisplayName, getAvatarUrl } from '@/li
 interface UserCardProps {
   user: User & { latest_note?: { note_content: string; created_at: string } | null }
   onViewDetails: (user: User) => void
-  onEditPoints: (user: User) => void
-  onEditRole: (user: User) => void
+  onEditPoints?: (user: User) => void
+  onEditRole?: (user: User) => void
 }
 
 export function UserCard({ user, onViewDetails, onEditPoints, onEditRole }: UserCardProps) {
@@ -66,20 +66,24 @@ export function UserCard({ user, onViewDetails, onEditPoints, onEditRole }: User
           <HiEye className="w-4 h-4" />
           รายละเอียด
         </button>
-        <button
-          onClick={() => onEditPoints(user)}
-          className="flex items-center justify-center px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 text-sm transition-colors"
-          title="แก้ไขคะแนน"
-        >
-          <FaCoins className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => onEditRole(user)}
-          className="flex items-center justify-center px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 text-sm transition-colors"
-          title="แก้ไขบทบาท"
-        >
-          <HiPencil className="w-4 h-4" />
-        </button>
+        {onEditPoints && (
+          <button
+            onClick={() => onEditPoints(user)}
+            className="flex items-center justify-center px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 text-sm transition-colors"
+            title="แก้ไขคะแนน"
+          >
+            <FaCoins className="w-4 h-4" />
+          </button>
+        )}
+        {onEditRole && (
+          <button
+            onClick={() => onEditRole(user)}
+            className="flex items-center justify-center px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 text-sm transition-colors"
+            title="แก้ไขบทบาท"
+          >
+            <HiPencil className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </div>
   )

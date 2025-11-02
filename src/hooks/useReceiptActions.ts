@@ -7,15 +7,36 @@ export function useReceiptActions(onSuccess?: () => void) {
   const [autoApproving, setAutoApproving] = useState(false)
   const [autoRejecting, setAutoRejecting] = useState(false)
 
+  const getAuthHeaders = useCallback(async () => {
+    const { supabaseAdmin } = await import('@/lib/supabase-admin')
+    const { data: { session } } = await supabaseAdmin.auth.getSession()
+
+    if (!session?.access_token) {
+      toast.error('ไม่พบ session กรุณา login ใหม่')
+      return null
+    }
+
+    return {
+      Authorization: `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json'
+    }
+  }, [])
+
   const approveReceipt = useCallback(async (
     receipt: ReceiptWithRelations,
     pointsAwarded: number
   ) => {
     setProcessing(receipt.id)
     try {
+      const headers = await getAuthHeaders()
+      if (!headers) {
+        setProcessing(null)
+        return false
+      }
+
       const response = await fetch(`/api/admin/receipts/${receipt.id}/approve`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           points_awarded: pointsAwarded,
           admin_notes: 'อนุมัติโดยระบบ'
@@ -45,9 +66,15 @@ export function useReceiptActions(onSuccess?: () => void) {
   ) => {
     setProcessing(receiptId)
     try {
+      const headers = await getAuthHeaders()
+      if (!headers) {
+        setProcessing(null)
+        return false
+      }
+
       const response = await fetch(`/api/admin/receipts/${receiptId}/reject`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           admin_notes: reason
         })
@@ -73,9 +100,15 @@ export function useReceiptActions(onSuccess?: () => void) {
   const autoApproveReceipts = useCallback(async () => {
     setAutoApproving(true)
     try {
+      const headers = await getAuthHeaders()
+      if (!headers) {
+        setAutoApproving(false)
+        return false
+      }
+
       const response = await fetch('/api/admin/receipts/auto-approve', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers
       })
 
       if (response.ok) {
@@ -102,9 +135,15 @@ export function useReceiptActions(onSuccess?: () => void) {
   const autoRejectReceipts = useCallback(async () => {
     setAutoRejecting(true)
     try {
+      const headers = await getAuthHeaders()
+      if (!headers) {
+        setAutoRejecting(false)
+        return false
+      }
+
       const response = await fetch('/api/admin/receipts/auto-reject', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers
       })
 
       if (response.ok) {
@@ -126,7 +165,7 @@ export function useReceiptActions(onSuccess?: () => void) {
     } finally {
       setAutoRejecting(false)
     }
-  }, [onSuccess])
+  }, [getAuthHeaders, onSuccess])
 
   return {
     processing,

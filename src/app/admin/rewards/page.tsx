@@ -25,6 +25,7 @@ import Image from 'next/image'
 import { Pagination } from '@/components/Pagination'
 
 type Reward = Tables<'rewards'> & {
+  is_archived?: boolean | null
   remaining_stock?: number | null
   redeemed_count?: number
 }
@@ -74,6 +75,7 @@ export default function AdminRewards() {
     stock_quantity: '',
     is_active: true,
     sort_order: '',
+    is_archived: false,
   })
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
@@ -85,10 +87,18 @@ export default function AdminRewards() {
   const fetchRewards = async (page: number) => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/admin/rewards?page=${page}&limit=12`)
+      const headers = await getAuthHeaders()
+      if (!headers) {
+        setLoading(false)
+        return
+      }
+
+      const response = await fetch(`/api/admin/rewards?page=${page}&limit=12`, {
+        headers,
+      })
       if (response.ok) {
         const data = await response.json()
-        setRewards(data.rewards || [])
+        setRewards((data.rewards || []).filter((reward: Reward) => !reward.is_archived))
         setPagination(data.pagination)
       } else {
         toast.error('ไม่สามารถโหลดข้อมูลรางวัลได้')
@@ -97,6 +107,20 @@ export default function AdminRewards() {
       toast.error('เกิดข้อผิดพลาดในการโหลดข้อมูล')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const getAuthHeaders = async () => {
+    const { supabaseAdmin } = await import('@/lib/supabase-admin')
+    const { data: { session } } = await supabaseAdmin.auth.getSession()
+
+    if (!session?.access_token) {
+      toast.error('ไม่พบ session กรุณา login ใหม่')
+      return null
+    }
+
+    return {
+      Authorization: `Bearer ${session.access_token}`,
     }
   }
 
@@ -114,6 +138,7 @@ export default function AdminRewards() {
       stock_quantity: '',
       is_active: true,
       sort_order: '',
+      is_archived: false,
     })
     setImageFile(null)
     setImagePreview(null)
@@ -121,6 +146,12 @@ export default function AdminRewards() {
   }
 
   const handleOpenFormDialog = (reward?: Reward) => {
+    const allowed = reward ? canEdit : canCreate
+    if (!allowed) {
+      toast.error('คุณไม่มีสิทธิ์จัดการรางวัลนี้')
+      return
+    }
+
     if (reward) {
       setEditingReward(reward)
       setFormData({
@@ -131,6 +162,7 @@ export default function AdminRewards() {
         stock_quantity: reward.stock_quantity?.toString() || '',
         is_active: reward.is_active ?? true,
         sort_order: reward.sort_order?.toString() || '',
+        is_archived: reward.is_archived ?? false,
       })
       setImagePreview(reward.image_url)
     } else {
@@ -161,9 +193,15 @@ export default function AdminRewards() {
       const formData = new FormData()
       formData.append('file', file)
 
+      const headers = await getAuthHeaders()
+      if (!headers) {
+        return null
+      }
+
       const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
+        headers,
       })
 
       if (response.ok) {
@@ -179,6 +217,11 @@ export default function AdminRewards() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const canManageForm = editingReward ? canEdit : canCreate
+    if (!canManageForm) {
+      toast.error('คุณไม่มีสิทธิ์จัดการรางวัลนี้')
+      return
+    }
     setSubmitting(true)
 
     try {
@@ -205,19 +248,37 @@ export default function AdminRewards() {
         is_active: formData.is_active,
         sort_order: formData.sort_order ? parseInt(formData.sort_order) : null,
         image_url: imageUrl,
+        is_archived: formData.is_archived,
       }
 
       let response
       if (editingReward) {
+        const headers = await getAuthHeaders()
+        if (!headers) {
+          setSubmitting(false)
+          return
+        }
+
         response = await fetch(`/api/admin/rewards/${editingReward.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify(payload),
         })
       } else {
+        const headers = await getAuthHeaders()
+        if (!headers) {
+          setSubmitting(false)
+          return
+        }
         response = await fetch('/api/admin/rewards', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify(payload),
         })
       }
@@ -241,12 +302,20 @@ export default function AdminRewards() {
 
     setSubmitting(true)
     try {
+      const headers = await getAuthHeaders()
+      if (!headers) {
+        setSubmitting(false)
+        return
+      }
+
       const response = await fetch(`/api/admin/rewards/${deletingReward.id}`, {
         method: 'DELETE',
+        headers,
       })
 
       if (response.ok) {
-        toast.success('ลบรางวัลสำเร็จ')
+        const result = await response.json()
+        toast.success(result.archived ? 'ปิดการแสดงผลรางวัลสำเร็จ' : 'ลบรางวัลสำเร็จ')
         setShowDeleteDialog(false)
         setDeletingReward(null)
         fetchRewards(currentPage)
@@ -261,10 +330,22 @@ export default function AdminRewards() {
   }
 
   const handleToggleActive = async (reward: Reward) => {
+    if (!canEdit) {
+      toast.error('คุณไม่มีสิทธิ์แก้ไขรางวัล')
+      return
+    }
     try {
+      const headers = await getAuthHeaders()
+      if (!headers) {
+        return
+      }
+
       const response = await fetch(`/api/admin/rewards/${reward.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ is_active: !reward.is_active }),
       })
 
@@ -280,6 +361,9 @@ export default function AdminRewards() {
     }
   }
 
+  const canManageForm = editingReward ? canEdit : canCreate
+  const isFormDisabled = !canManageForm || submitting
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-7xl mx-auto">
@@ -290,10 +374,12 @@ export default function AdminRewards() {
               <h2 className="text-sm font-medium text-slate-600">จัดการรางวัล</h2>
               <p className="text-xs text-slate-500 mt-0.5">ทั้งหมด {pagination?.total || 0} รายการ</p>
             </div>
-            <Button onClick={() => handleOpenFormDialog()} className="bg-slate-900 text-white hover:bg-slate-800">
-              <Plus className="mr-2 h-4 w-4" />
-              เพิ่มรางวัล
-            </Button>
+            {canCreate && (
+              <Button onClick={() => handleOpenFormDialog()} className="bg-slate-900 text-white hover:bg-slate-800">
+                <Plus className="mr-2 h-4 w-4" />
+                เพิ่มรางวัล
+              </Button>
+            )}
           </div>
         </div>
 
@@ -311,10 +397,12 @@ export default function AdminRewards() {
             <div className="py-20 text-center">
               <Gift className="mx-auto h-16 w-16 text-slate-400 mb-4" />
               <p className="text-slate-500 mb-4">ยังไม่มีรางวัลในระบบ</p>
-              <Button onClick={() => handleOpenFormDialog()} className="bg-slate-900 text-white hover:bg-slate-800">
-                <Plus className="mr-2 h-4 w-4" />
-                เพิ่มรางวัลแรก
-              </Button>
+              {canCreate && (
+                <Button onClick={() => handleOpenFormDialog()} className="bg-slate-900 text-white hover:bg-slate-800">
+                  <Plus className="mr-2 h-4 w-4" />
+                  เพิ่มรางวัลแรก
+                </Button>
+              )}
             </div>
           </div>
         ) : (
@@ -412,28 +500,33 @@ export default function AdminRewards() {
                         id={`active-${reward.id}`}
                         checked={reward.is_active ?? true}
                         onCheckedChange={() => handleToggleActive(reward)}
+                        disabled={!canEdit}
                       />
                     </div>
                     <div className="flex space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleOpenFormDialog(reward)}
-                        className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setDeletingReward(reward)
-                          setShowDeleteDialog(true)
-                        }}
-                        className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
-                      >
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
+                      {canEdit && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenFormDialog(reward)}
+                          className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setDeletingReward(reward)
+                            setShowDeleteDialog(true)
+                          }}
+                          className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -472,6 +565,7 @@ export default function AdminRewards() {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
+                disabled={isFormDisabled}
               />
             </div>
 
@@ -482,62 +576,67 @@ export default function AdminRewards() {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={3}
+                disabled={isFormDisabled}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="points_cost">แต้มที่ใช้แลก *</Label>
-                <Input
-                  id="points_cost"
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={formData.points_cost}
-                  onChange={(e) =>
-                    setFormData({ ...formData, points_cost: e.target.value })
-                  }
-                  required
-                />
+              <Input
+                id="points_cost"
+                type="number"
+                min="0"
+                placeholder="0"
+                value={formData.points_cost}
+                onChange={(e) =>
+                  setFormData({ ...formData, points_cost: e.target.value })
+                }
+                required
+                disabled={isFormDisabled}
+              />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="category">หมวดหมู่</Label>
-                <Input
-                  id="category"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                />
+              <Input
+                id="category"
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                disabled={isFormDisabled}
+              />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="stock_quantity">จำนวนสต็อค (เว้นว่าง = ไม่จำกัด)</Label>
-                <Input
-                  id="stock_quantity"
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={formData.stock_quantity}
-                  onChange={(e) =>
-                    setFormData({ ...formData, stock_quantity: e.target.value })
-                  }
-                />
+              <Input
+                id="stock_quantity"
+                type="number"
+                min="0"
+                placeholder="0"
+                value={formData.stock_quantity}
+                onChange={(e) =>
+                  setFormData({ ...formData, stock_quantity: e.target.value })
+                }
+                disabled={isFormDisabled}
+              />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="sort_order">ลำดับการแสดง</Label>
-                <Input
-                  id="sort_order"
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={formData.sort_order}
-                  onChange={(e) =>
-                    setFormData({ ...formData, sort_order: e.target.value })
-                  }
-                />
+              <Input
+                id="sort_order"
+                type="number"
+                min="0"
+                placeholder="0"
+                value={formData.sort_order}
+                onChange={(e) =>
+                  setFormData({ ...formData, sort_order: e.target.value })
+                }
+                disabled={isFormDisabled}
+              />
               </div>
             </div>
 
@@ -548,7 +647,14 @@ export default function AdminRewards() {
                 type="file"
                 accept="image/*"
                 onChange={handleImageChange}
+                disabled={isFormDisabled}
               />
+              {(!editingReward && !canCreate) && (
+                <p className="text-xs text-slate-500">คุณไม่มีสิทธิ์เพิ่มรูปภาพใหม่</p>
+              )}
+              {(editingReward && !canEdit) && (
+                <p className="text-xs text-slate-500">คุณไม่มีสิทธิ์แก้ไขรูปภาพ</p>
+              )}
               {imagePreview && (
                 <div className="mt-2 relative w-full aspect-video bg-gray-100 rounded-lg overflow-hidden">
                   <Image
@@ -566,6 +672,7 @@ export default function AdminRewards() {
                 id="is_active"
                 checked={formData.is_active}
                 onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                disabled={isFormDisabled}
               />
               <Label htmlFor="is_active">เปิดใช้งานรางวัลนี้</Label>
             </div>
@@ -580,7 +687,7 @@ export default function AdminRewards() {
               >
                 ยกเลิก
               </Button>
-              <Button type="submit" disabled={submitting} className="bg-slate-900 text-white hover:bg-slate-800">
+              <Button type="submit" disabled={submitting || !canManageForm} className="bg-slate-900 text-white hover:bg-slate-800">
                 {submitting ? 'กำลังบันทึก...' : 'บันทึก'}
               </Button>
             </DialogFooter>

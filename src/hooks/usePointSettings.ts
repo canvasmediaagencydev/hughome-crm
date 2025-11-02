@@ -31,9 +31,20 @@ export function usePointSettings() {
             is_active: true
           }
 
+      const { supabaseAdmin } = await import('@/lib/supabase-admin')
+      const { data: { session } } = await supabaseAdmin.auth.getSession()
+
+      if (!session?.access_token) {
+        toast.error('ไม่พบ session กรุณา login ใหม่')
+        return false
+      }
+
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`
+        },
         body: JSON.stringify(body)
       })
 
@@ -41,6 +52,21 @@ export function usePointSettings() {
         toast.success('บันทึกสำเร็จ!')
         onSuccess?.()
         return true
+      }
+
+      if (response.status === 403) {
+        toast.error('คุณไม่มีสิทธิ์แก้ไขการตั้งค่านี้')
+        return false
+      }
+
+      if (response.status === 401) {
+        toast.error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่')
+        return false
+      }
+
+      const errorData = await response.json().catch(() => null)
+      if (errorData?.error) {
+        toast.error(errorData.error)
       }
 
       return false

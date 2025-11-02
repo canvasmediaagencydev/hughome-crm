@@ -81,11 +81,13 @@ export default function RolesPage() {
         return
       }
 
+      const authHeaders = {
+        Authorization: `Bearer ${session.access_token}`,
+      }
+
       // โหลด roles
       const rolesRes = await fetch('/api/admin/roles', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
+        headers: authHeaders,
       })
       if (rolesRes.ok) {
         const rolesData = await rolesRes.json()
@@ -93,7 +95,9 @@ export default function RolesPage() {
       }
 
       // โหลด permissions
-      const permsRes = await fetch('/api/admin/permissions')
+      const permsRes = await fetch('/api/admin/permissions', {
+        headers: authHeaders,
+      })
       if (permsRes.ok) {
         const permsData = await permsRes.json()
         setPermissions(permsData.permissions || [])
@@ -145,10 +149,23 @@ export default function RolesPage() {
     if (!selectedRole) return
 
     try {
+      const { supabaseAdmin } = await import('@/lib/supabase-admin')
+      const { data: { session } } = await supabaseAdmin.auth.getSession()
+
+      if (!session?.access_token) {
+        toast.error('ไม่พบ session กรุณา login ใหม่')
+        return
+      }
+
+      const authHeaders = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      }
+
       // อัพเดท role info
       const res = await fetch(`/api/admin/roles/${selectedRole.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           display_name: formData.display_name,
           description: formData.description,
@@ -166,7 +183,7 @@ export default function RolesPage() {
         `/api/admin/roles/${selectedRole.id}/permissions`,
         {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders,
           body: JSON.stringify({
             permission_ids: formData.permission_ids,
           }),
@@ -192,8 +209,19 @@ export default function RolesPage() {
     if (!selectedRole) return
 
     try {
+      const { supabaseAdmin } = await import('@/lib/supabase-admin')
+      const { data: { session } } = await supabaseAdmin.auth.getSession()
+
+      if (!session?.access_token) {
+        toast.error('ไม่พบ session กรุณา login ใหม่')
+        return
+      }
+
       const res = await fetch(`/api/admin/roles/${selectedRole.id}`, {
         method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       })
 
       if (res.ok) {
@@ -216,7 +244,19 @@ export default function RolesPage() {
 
     // โหลด permissions ของ role นี้
     try {
-      const res = await fetch(`/api/admin/roles/${role.id}`)
+      const { supabaseAdmin } = await import('@/lib/supabase-admin')
+      const { data: { session } } = await supabaseAdmin.auth.getSession()
+
+      if (!session?.access_token) {
+        toast.error('ไม่พบ session กรุณา login ใหม่')
+        return
+      }
+
+      const res = await fetch(`/api/admin/roles/${role.id}`, {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      })
       if (res.ok) {
         const data = await res.json()
         const rolePerms = data.role.permissions || []

@@ -63,6 +63,7 @@ export interface AdminPermission {
 }
 
 export type PermissionCategory =
+  | 'dashboard'
   | 'receipts'
   | 'users'
   | 'rewards'
@@ -108,6 +109,9 @@ export interface AdminUserRoleWithDetails extends AdminUserRole {
 // ============================================================================
 
 export const PERMISSIONS = {
+  // Dashboard
+  DASHBOARD_VIEW: 'dashboard.view',
+
   // Receipts
   RECEIPTS_VIEW: 'receipts.view',
   RECEIPTS_APPROVE: 'receipts.approve',

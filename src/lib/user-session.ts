@@ -1,5 +1,3 @@
-import { UserProfile } from './supabase-server'
-
 interface CachedUserSession {
   user: {
     id: string

@@ -11,13 +11,13 @@ import { PERMISSIONS } from '@/types/admin'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await requirePermission(PERMISSIONS.ADMINS_MANAGE)
 
     const supabase = createServerSupabaseClient()
-    const roleId = params.id
+    const { id: roleId } = await context.params
     const body = await request.json()
     const { permission_ids } = body
 
