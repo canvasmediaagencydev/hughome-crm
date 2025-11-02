@@ -233,10 +233,12 @@
 - [x] ซ่อน "จัดการ Admin" ถ้าไม่มี `admins.manage`
 - [x] ซ่อน "จัดการ Role" ถ้าไม่มี `admins.manage`
 
-### Task 6.3: Update Admin Login
-- [ ] แก้ไข `src/app/admin/login/page.tsx`
-- [ ] หลัง login สำเร็จ → verify มี admin_users record
-- [ ] ถ้าไม่มี → แสดง error "คุณไม่มีสิทธิ์เข้าถึงระบบ Admin"
+### Task 6.3: Update Admin Login ✅
+- [x] แก้ไข `src/app/admin/login/page.tsx`
+- [x] หลัง login สำเร็จ → verify มี admin_users record
+- [x] ถ้าไม่มี → แสดง error "คุณไม่มีสิทธิ์เข้าถึงระบบ Admin"
+- [x] ตรวจสอบ is_active flag
+- [x] Logout ทันทีถ้าไม่ผ่านการตรวจสอบ
 
 ---
 
@@ -302,14 +304,14 @@
 **Progress Tracking:**
 - [x] Phase 1: Database & Migration (5/5) ✅
 - [x] Phase 2: Server-Side Code (5/5) ✅
-- [x] Phase 3: Admin Management UI (5/6) ✅ (Missing: Admin Profile Page)
+- [x] Phase 3: Admin Management UI (5/6) ✅ (Missing: Admin Profile Page - optional)
 - [x] Phase 4: API Routes - Admin Management (4/4) ✅
 - [x] Phase 5: API Protection (5/5) ✅ **19 routes protected**
-- [x] Phase 6: Permission-Based UI (2/3) ✅ **Sidebar + 4 main pages complete** (Missing: Admin Login validation)
+- [x] Phase 6: Permission-Based UI (3/3) ✅ **100% COMPLETE** - Sidebar + Pages + Login validation
 - [ ] Phase 7: Testing & Verification (0/5) 🔜 NEXT
 - [ ] Phase 8: Documentation & Cleanup (0/3)
 
 ---
 
-**Last Updated:** 2025-11-02 (Updated after Phase 6 - Sidebar & UI protection complete)
-**Status:** 🎉 Phase 6 Complete! All admin pages and sidebar now hide based on permissions | Next: Testing with different roles
+**Last Updated:** 2025-11-02 (Updated after Phase 6 - 100% Complete!)
+**Status:** 🎉 Phase 6 完成! Login validation + Permission-based UI fully implemented | Next: Testing & Verification

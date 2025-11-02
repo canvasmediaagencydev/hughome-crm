@@ -28,6 +28,34 @@ export default function AdminLogin() {
         setError(error.message)
         toast.error(`เข้าสู่ระบบไม่สำเร็จ: ${error.message}`)
       } else if (data.user) {
+        // ตรวจสอบว่ามี admin_users record หรือไม่
+        const { data: adminUser, error: adminError } = await supabaseAdmin
+          .from('admin_users')
+          .select('id, is_active')
+          .eq('auth_user_id', data.user.id)
+          .single()
+
+        if (adminError || !adminUser) {
+          // ไม่มี admin_users record หรือ query error
+          setError('คุณไม่มีสิทธิ์เข้าถึงระบบ Admin')
+          toast.error('คุณไม่มีสิทธิ์เข้าถึงระบบ Admin')
+
+          // Logout ทันที
+          await supabaseAdmin.auth.signOut()
+          return
+        }
+
+        if (!adminUser.is_active) {
+          // Admin ถูกปิดการใช้งาน
+          setError('บัญชี Admin ของคุณถูกปิดการใช้งาน')
+          toast.error('บัญชี Admin ของคุณถูกปิดการใช้งาน')
+
+          // Logout ทันที
+          await supabaseAdmin.auth.signOut()
+          return
+        }
+
+        // ทุกอย่างผ่าน - redirect ไปหน้า admin
         toast.success('เข้าสู่ระบบสำเร็จ')
         setTimeout(() => {
           router.push('/admin')
