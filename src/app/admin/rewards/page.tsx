@@ -16,7 +16,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Gift, Plus, Edit, Trash2, Package, Image as ImageIcon } from 'lucide-react'
+import { Gift, Plus, Edit, Trash2, Package, Image as ImageIcon, Shield } from 'lucide-react'
+import { useAdminAuth } from '@/hooks/useAdminAuth'
+import { PERMISSIONS } from '@/types/admin'
 import { Tables } from '../../../../database.types'
 import { toast } from 'sonner'
 import Image from 'next/image'
@@ -35,6 +37,24 @@ interface PaginationType {
 }
 
 export default function AdminRewards() {
+  const { hasPermission } = useAdminAuth()
+
+  if (!hasPermission(PERMISSIONS.REWARDS_VIEW)) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">ไม่มีสิทธิ์เข้าถึง</h2>
+          <p className="text-slate-600">คุณไม่มีสิทธิ์ในการดูรางวัล</p>
+        </div>
+      </div>
+    )
+  }
+
+  const canCreate = hasPermission(PERMISSIONS.REWARDS_CREATE)
+  const canEdit = hasPermission(PERMISSIONS.REWARDS_EDIT)
+  const canDelete = hasPermission(PERMISSIONS.REWARDS_DELETE)
+
   const [rewards, setRewards] = useState<Reward[]>([])
   const [loading, setLoading] = useState(true)
   const [pagination, setPagination] = useState<PaginationType | null>(null)

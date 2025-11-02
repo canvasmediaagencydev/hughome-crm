@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { FaUser } from 'react-icons/fa'
+import { Shield } from 'lucide-react'
 import { Pagination } from '@/components/Pagination'
 import { EmptyState } from '@/components/EmptyState'
 import { User } from '@/types'
@@ -9,6 +10,8 @@ import { useUsers } from '@/hooks/useUsers'
 import { useUserDetails } from '@/hooks/useUserDetails'
 import { useUserPoints } from '@/hooks/useUserPoints'
 import { useUserRole } from '@/hooks/useUserRole'
+import { useAdminAuth } from '@/hooks/useAdminAuth'
+import { PERMISSIONS } from '@/types/admin'
 import { UserCard } from '@/components/admin/users/UserCard'
 import { SearchBar } from '@/components/admin/users/SearchBar'
 import { RoleTabs } from '@/components/admin/users/RoleTabs'
@@ -17,6 +20,23 @@ import { EditPointsModal } from '@/components/admin/users/EditPointsModal'
 import { EditRoleModal } from '@/components/admin/users/EditRoleModal'
 
 export default function AdminUsersPage() {
+  // Permission check
+  const { hasPermission } = useAdminAuth()
+
+  if (!hasPermission(PERMISSIONS.USERS_VIEW)) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">ไม่มีสิทธิ์เข้าถึง</h2>
+          <p className="text-slate-600">คุณไม่มีสิทธิ์ในการดูข้อมูลผู้ใช้</p>
+        </div>
+      </div>
+    )
+  }
+
+  const canEdit = hasPermission(PERMISSIONS.USERS_EDIT)
+  const canManagePoints = hasPermission(PERMISSIONS.USERS_MANAGE_POINTS)
   // Modal states
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showPointsModal, setShowPointsModal] = useState(false)
@@ -179,8 +199,8 @@ export default function AdminUsersPage() {
                   <UserCard
                     user={user}
                     onViewDetails={handleViewDetails}
-                    onEditPoints={handleEditPoints}
-                    onEditRole={handleEditRole}
+                    onEditPoints={canManagePoints ? handleEditPoints : undefined}
+                    onEditRole={canEdit ? handleEditRole : undefined}
                   />
                 </div>
               ))}

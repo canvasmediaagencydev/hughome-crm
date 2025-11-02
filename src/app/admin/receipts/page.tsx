@@ -4,12 +4,14 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Receipt, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Receipt, ChevronLeft, ChevronRight, Shield } from 'lucide-react'
 import { ReceiptWithRelations } from '@/types'
 import { getReceiptImageUrl } from '@/lib/supabase-storage'
 import { useReceipts } from '@/hooks/useReceipts'
 import { useReceiptActions } from '@/hooks/useReceiptActions'
 import { usePointCalculation } from '@/hooks/usePointCalculation'
+import { useAdminAuth } from '@/hooks/useAdminAuth'
+import { PERMISSIONS } from '@/types/admin'
 import { ReceiptCard } from '@/components/admin/receipts/ReceiptCard'
 import { FilterSection } from '@/components/admin/receipts/FilterSection'
 import { AutoActionCards } from '@/components/admin/receipts/AutoActionCards'
@@ -20,6 +22,26 @@ import { ReceiptImageModal } from '@/components/admin/ReceiptImageModal'
 import { RejectReceiptModal } from '@/components/admin/RejectReceiptModal'
 
 export default function AdminReceipts() {
+  // Permission check
+  const { hasPermission } = useAdminAuth()
+
+  // ตรวจสอบว่ามีสิทธิ์ดูหน้านี้หรือไม่
+  if (!hasPermission(PERMISSIONS.RECEIPTS_VIEW)) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">ไม่มีสิทธิ์เข้าถึง</h2>
+          <p className="text-slate-600">คุณไม่มีสิทธิ์ในการดูใบเสร็จ</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Permission flags
+  const canApprove = hasPermission(PERMISSIONS.RECEIPTS_APPROVE)
+  const canReject = hasPermission(PERMISSIONS.RECEIPTS_REJECT)
+  const canAutoProcess = hasPermission(PERMISSIONS.RECEIPTS_AUTO_PROCESS)
   // Modal states
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptWithRelations | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
@@ -140,8 +162,8 @@ export default function AdminReceipts() {
           />
         </div>
 
-        {/* Auto Actions */}
-        {status === 'pending' && (
+        {/* Auto Actions - แสดงเฉพาะถ้ามี auto_process permission */}
+        {status === 'pending' && canAutoProcess && (
           <AutoActionCards
             autoApproving={autoApproving}
             autoRejecting={autoRejecting}
@@ -185,8 +207,8 @@ export default function AdminReceipts() {
                     receipt={receipt}
                     points={points}
                     onViewDetail={openDetailModal}
-                    onApprove={handleApprove}
-                    onReject={handleReject}
+                    onApprove={canApprove ? handleApprove : undefined}
+                    onReject={canReject ? handleReject : undefined}
                     processing={processing === receipt.id}
                   />
                 )

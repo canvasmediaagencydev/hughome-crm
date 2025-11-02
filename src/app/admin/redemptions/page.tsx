@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { HiOutlineGift, HiCheckCircle, HiXCircle, HiSearch } from 'react-icons/hi'
+import { Shield } from 'lucide-react'
+import { useAdminAuth } from '@/hooks/useAdminAuth'
+import { PERMISSIONS } from '@/types/admin'
 import { FaUser, FaPhone } from 'react-icons/fa'
 import { UserSessionManager } from '@/lib/user-session'
 import { Pagination } from '@/components/Pagination'
@@ -48,6 +51,22 @@ interface PaginationType {
 }
 
 export default function AdminRedemptionsPage() {
+  const { hasPermission } = useAdminAuth()
+
+  if (!hasPermission(PERMISSIONS.REDEMPTIONS_VIEW)) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">ไม่มีสิทธิ์เข้าถึง</h2>
+          <p className="text-slate-600">คุณไม่มีสิทธิ์ในการดูการแลกรางวัล</p>
+        </div>
+      </div>
+    )
+  }
+
+  const canProcess = hasPermission(PERMISSIONS.REDEMPTIONS_PROCESS)
+
   const [redemptions, setRedemptions] = useState<Redemption[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [pagination, setPagination] = useState<PaginationType | null>(null)
