@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { requirePermission } from "@/lib/admin-auth";
+import { PERMISSIONS } from "@/types/admin";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // ต้องมี redemptions.process permission
+    await requirePermission(PERMISSIONS.REDEMPTIONS_PROCESS);
+
     const supabase = createServerSupabaseClient();
     const { id } = await params;
     const body = await request.json();

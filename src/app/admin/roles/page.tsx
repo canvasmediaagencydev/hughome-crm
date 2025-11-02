@@ -72,8 +72,21 @@ export default function RolesPage() {
   const loadData = async () => {
     setLoading(true)
     try {
+      // Get session token
+      const { supabaseAdmin } = await import('@/lib/supabase-admin')
+      const { data: { session } } = await supabaseAdmin.auth.getSession()
+
+      if (!session?.access_token) {
+        toast.error('ไม่พบ session กรุณา login ใหม่')
+        return
+      }
+
       // โหลด roles
-      const rolesRes = await fetch('/api/admin/roles')
+      const rolesRes = await fetch('/api/admin/roles', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      })
       if (rolesRes.ok) {
         const rolesData = await rolesRes.json()
         setRoles(rolesData.roles || [])
@@ -96,9 +109,20 @@ export default function RolesPage() {
 
   const handleCreateRole = async () => {
     try {
+      const { supabaseAdmin } = await import('@/lib/supabase-admin')
+      const { data: { session } } = await supabaseAdmin.auth.getSession()
+
+      if (!session?.access_token) {
+        toast.error('ไม่พบ session กรุณา login ใหม่')
+        return
+      }
+
       const res = await fetch('/api/admin/roles', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify(formData),
       })
 

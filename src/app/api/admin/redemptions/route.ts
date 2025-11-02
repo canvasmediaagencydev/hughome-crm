@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { requirePermission } from "@/lib/admin-auth";
+import { PERMISSIONS } from "@/types/admin";
 import type { Database } from "../../../../../database.types";
 import { parseISO, subDays, startOfDay, endOfDay } from "date-fns";
 
 export async function GET(request: NextRequest) {
   try {
+    // ต้องมี redemptions.view permission
+    await requirePermission(PERMISSIONS.REDEMPTIONS_VIEW);
+
     const supabase = createServerSupabaseClient();
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");

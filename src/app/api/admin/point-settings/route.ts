@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { requirePermission } from "@/lib/admin-auth";
+import { PERMISSIONS } from "@/types/admin";
 import { Tables, TablesInsert, TablesUpdate } from "../../../../../database.types";
 
 type PointSetting = Tables<"point_settings">;
@@ -8,6 +10,7 @@ type PointSettingUpdate = TablesUpdate<"point_settings">;
 
 export async function GET() {
   try {
+    // สำหรับ GET settings.edit permission ไม่ต้องการ (ทุกคนที่เป็น admin ดูได้)
     const supabase = createServerSupabaseClient();
 
     const { data: settings, error } = await supabase
@@ -30,6 +33,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    // ต้องมี settings.edit permission
+    await requirePermission(PERMISSIONS.SETTINGS_EDIT);
+
     const supabase = createServerSupabaseClient();
     const body: PointSettingInsert = await request.json();
 
@@ -54,6 +60,9 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    // ต้องมี settings.edit permission
+    await requirePermission(PERMISSIONS.SETTINGS_EDIT);
+
     const supabase = createServerSupabaseClient();
     const { id, ...updates }: { id: string } & PointSettingUpdate = await request.json();
 
@@ -79,6 +88,9 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    // ต้องมี settings.edit permission
+    await requirePermission(PERMISSIONS.SETTINGS_EDIT);
+
     const supabase = createServerSupabaseClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

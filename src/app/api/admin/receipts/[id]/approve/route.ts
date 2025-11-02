@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { requirePermission } from "@/lib/admin-auth";
+import { PERMISSIONS } from "@/types/admin";
 
 interface RouteParams {
   params: Promise<{
@@ -9,6 +11,9 @@ interface RouteParams {
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
+    // ต้องมี receipts.approve permission
+    const adminUser = await requirePermission(PERMISSIONS.RECEIPTS_APPROVE);
+
     const supabase = createServerSupabaseClient();
     const { id } = await params;
     const body = await request.json();

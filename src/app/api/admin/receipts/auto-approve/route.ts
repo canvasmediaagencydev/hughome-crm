@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { requirePermission } from "@/lib/admin-auth";
+import { PERMISSIONS } from "@/types/admin";
 
 export async function POST(request: NextRequest) {
   try {
+    // ต้องมี receipts.auto_process permission
+    await requirePermission(PERMISSIONS.RECEIPTS_AUTO_PROCESS);
+
     const supabase = createServerSupabaseClient();
 
     // Get all pending receipts with OCR data

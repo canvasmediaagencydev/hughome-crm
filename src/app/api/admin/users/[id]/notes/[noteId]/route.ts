@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { requirePermission } from "@/lib/admin-auth";
+import { PERMISSIONS } from "@/types/admin";
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; noteId: string }> }
 ) {
   try {
+    // ต้องมี users.manage_notes permission
+    await requirePermission(PERMISSIONS.USERS_MANAGE_NOTES);
+
     const { noteId } = await params;
     const supabase = createServerSupabaseClient();
     const body = await request.json();
@@ -64,6 +69,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; noteId: string }> }
 ) {
   try {
+    // ต้องมี users.manage_notes permission
+    await requirePermission(PERMISSIONS.USERS_MANAGE_NOTES);
+
     const { noteId } = await params;
     const supabase = createServerSupabaseClient();
 

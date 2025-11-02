@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { requirePermission } from "@/lib/admin-auth";
+import { PERMISSIONS } from "@/types/admin";
 
 interface ChangeRoleRequest {
   role: "contractor" | "homeowner";
@@ -10,6 +12,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // ต้องมี users.edit permission
+    await requirePermission(PERMISSIONS.USERS_EDIT);
+
     const { id } = await params;
     const body: ChangeRoleRequest = await request.json();
     const { role } = body;

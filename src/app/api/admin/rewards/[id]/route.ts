@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { requirePermission } from "@/lib/admin-auth";
+import { PERMISSIONS } from "@/types/admin";
 import { TablesUpdate } from "../../../../../../database.types";
 
 type RewardUpdate = TablesUpdate<"rewards">;
@@ -8,6 +10,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // ต้องมี rewards.edit permission
+  await requirePermission(PERMISSIONS.REWARDS_EDIT);
   try {
     const supabase = createServerSupabaseClient();
     const { id } = await params;
@@ -37,6 +41,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // ต้องมี rewards.delete permission
+  await requirePermission(PERMISSIONS.REWARDS_DELETE);
+
   try {
     const supabase = createServerSupabaseClient();
     const { id } = await params;

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { requirePermission } from "@/lib/admin-auth";
+import { PERMISSIONS } from "@/types/admin";
 import { Tables, TablesInsert } from "../../../../../database.types";
 
 type Reward = Tables<"rewards">;
@@ -7,6 +9,9 @@ type RewardInsert = TablesInsert<"rewards">;
 
 export async function GET(request: NextRequest) {
   try {
+    // ต้องมี rewards.view permission
+    await requirePermission(PERMISSIONS.REWARDS_VIEW);
+
     const supabase = createServerSupabaseClient();
     const { searchParams } = new URL(request.url);
 
@@ -92,6 +97,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // ต้องมี rewards.create permission
+    await requirePermission(PERMISSIONS.REWARDS_CREATE);
+
     const supabase = createServerSupabaseClient();
     const body: RewardInsert = await request.json();
 

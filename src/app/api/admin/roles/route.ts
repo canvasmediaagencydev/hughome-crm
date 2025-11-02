@@ -10,12 +10,56 @@ import { requirePermission } from '@/lib/admin-auth'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { PERMISSIONS } from '@/types/admin'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // ทุก admin ดู roles ได้
-    await requirePermission(PERMISSIONS.ADMINS_MANAGE)
+    // Get auth token from header
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Missing or invalid authorization header' },
+        { status: 401 }
+      )
+    }
 
-    const supabase = createServerSupabaseClient()
+    const token = authHeader.replace('Bearer ', '')
+
+    // Create supabase client with service role key for admin operations
+    const { createClient } = await import('@supabase/supabase-js')
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    )
+
+    // Verify token
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Invalid token or user not found' },
+        { status: 401 }
+      )
+    }
+
+    // Check if user is admin
+    const { data: adminUser } = await supabase
+      .from('admin_users')
+      .select('id, is_active')
+      .eq('auth_user_id', user.id)
+      .eq('is_active', true)
+      .single()
+
+    if (!adminUser) {
+      return NextResponse.json(
+        { error: 'User is not an admin' },
+        { status: 403 }
+      )
+    }
 
     // ดึง roles ทั้งหมด
     const { data: roles, error: rolesError } = await supabase

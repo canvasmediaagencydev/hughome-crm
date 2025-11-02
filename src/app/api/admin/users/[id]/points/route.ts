@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { requirePermission } from "@/lib/admin-auth";
+import { PERMISSIONS } from "@/types/admin";
 
 interface AdjustPointsRequest {
   amount: number;
@@ -12,6 +14,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // ต้องมี users.manage_points permission
+    const adminUser = await requirePermission(PERMISSIONS.USERS_MANAGE_POINTS);
+
     const { id } = await params;
     const body: AdjustPointsRequest = await request.json();
     const { amount, reason, type } = body;
