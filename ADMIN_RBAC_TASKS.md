@@ -202,35 +202,36 @@
 
 ---
 
-## Phase 6: Permission-Based UI
+## Phase 6: Permission-Based UI ✅
 
-### Task 6.1: Update Admin Pages
-- [ ] `src/app/admin/receipts/page.tsx`
-  - [ ] ซ่อนทั้งหน้าถ้าไม่มี `receipts.view`
-  - [ ] ซ่อนปุ่ม Approve ถ้าไม่มี `receipts.approve`
-  - [ ] ซ่อนปุ่ม Reject ถ้าไม่มี `receipts.reject`
-- [ ] `src/app/admin/users/page.tsx`
-  - [ ] ซ่อนทั้งหน้าถ้าไม่มี `users.view`
-  - [ ] ซ่อนปุ่ม Edit ถ้าไม่มี `users.edit`
-  - [ ] ซ่อนปุ่ม Manage Points ถ้าไม่มี `users.manage_points`
-- [ ] `src/app/admin/rewards/page.tsx`
-  - [ ] ซ่อนทั้งหน้าถ้าไม่มี `rewards.view`
-  - [ ] ซ่อนปุ่ม Create ถ้าไม่มี `rewards.create`
-  - [ ] ซ่อนปุ่ม Edit/Delete ถ้าไม่มี permission
-- [ ] `src/app/admin/redemptions/page.tsx`
-  - [ ] ซ่อนทั้งหน้าถ้าไม่มี `redemptions.view`
-  - [ ] ซ่อนปุ่ม Process ถ้าไม่มี `redemptions.process`
+### Task 6.1: Update Admin Pages ✅
+- [x] `src/app/admin/receipts/page.tsx`
+  - [x] ซ่อนทั้งหน้าถ้าไม่มี `receipts.view`
+  - [x] ซ่อนปุ่ม Approve ถ้าไม่มี `receipts.approve`
+  - [x] ซ่อนปุ่ม Reject ถ้าไม่มี `receipts.reject`
+  - [x] ซ่อน Auto Actions ถ้าไม่มี `receipts.auto_process`
+- [x] `src/app/admin/users/page.tsx`
+  - [x] ซ่อนทั้งหน้าถ้าไม่มี `users.view`
+  - [x] ซ่อนปุ่ม Edit ถ้าไม่มี `users.edit`
+  - [x] ซ่อนปุ่ม Manage Points ถ้าไม่มี `users.manage_points`
+- [x] `src/app/admin/rewards/page.tsx`
+  - [x] ซ่อนทั้งหน้าถ้าไม่มี `rewards.view`
+  - [x] ซ่อนปุ่ม Create ถ้าไม่มี `rewards.create`
+  - [x] ซ่อนปุ่ม Edit/Delete ถ้าไม่มี permission
+- [x] `src/app/admin/redemptions/page.tsx`
+  - [x] ซ่อนทั้งหน้าถ้าไม่มี `redemptions.view`
+  - [x] ซ่อนปุ่ม Process ถ้าไม่มี `redemptions.process`
 - [ ] `src/app/admin/reports/page.tsx`
-  - [ ] ซ่อนทั้งหน้าถ้าไม่มี permission (TBD)
+  - [ ] ซ่อนทั้งหน้าถ้าไม่มี permission (TBD - ยังไม่มี reports permission)
 
-### Task 6.2: Update Admin Sidebar
-- [ ] แก้ไขไฟล์ sidebar component
-- [ ] ซ่อน "ใบเสร็จ" ถ้าไม่มี `receipts.view`
-- [ ] ซ่อน "ผู้ใช้" ถ้าไม่มี `users.view`
-- [ ] ซ่อน "รางวัล" ถ้าไม่มี `rewards.view`
-- [ ] ซ่อน "การแลกรางวัล" ถ้าไม่มี `redemptions.view`
-- [ ] ซ่อน "จัดการ Admin" ถ้าไม่มี `admins.manage`
-- [ ] ซ่อน "จัดการ Role" ถ้าไม่มี `admins.manage`
+### Task 6.2: Update Admin Sidebar ✅
+- [x] แก้ไขไฟล์ `src/app/admin/layout.tsx`
+- [x] ซ่อน "ตรวจสอบใบเสร็จ" ถ้าไม่มี `receipts.view`
+- [x] ซ่อน "จัดการผู้ใช้" ถ้าไม่มี `users.view`
+- [x] ซ่อน "จัดการรางวัล" ถ้าไม่มี `rewards.view`
+- [x] ซ่อน "คำขอแลกรางวัล" ถ้าไม่มี `redemptions.view`
+- [x] ซ่อน "จัดการ Admin" ถ้าไม่มี `admins.manage`
+- [x] ซ่อน "จัดการ Role" ถ้าไม่มี `admins.manage`
 
 ### Task 6.3: Update Admin Login
 - [ ] แก้ไข `src/app/admin/login/page.tsx`
@@ -304,11 +305,11 @@
 - [x] Phase 3: Admin Management UI (5/6) ✅ (Missing: Admin Profile Page)
 - [x] Phase 4: API Routes - Admin Management (4/4) ✅
 - [x] Phase 5: API Protection (5/5) ✅ **19 routes protected**
-- [ ] Phase 6: Permission-Based UI (0/3) 🔜 NEXT
-- [ ] Phase 7: Testing & Verification (0/5)
+- [x] Phase 6: Permission-Based UI (2/3) ✅ **Sidebar + 4 main pages complete** (Missing: Admin Login validation)
+- [ ] Phase 7: Testing & Verification (0/5) 🔜 NEXT
 - [ ] Phase 8: Documentation & Cleanup (0/3)
 
 ---
 
-**Last Updated:** 2025-11-02 (Updated after Phase 5 complete)
-**Status:** 🎉 API Protection Complete! All 19 admin APIs now require proper permissions | Next: Update UI to hide unauthorized actions
+**Last Updated:** 2025-11-02 (Updated after Phase 6 - Sidebar & UI protection complete)
+**Status:** 🎉 Phase 6 Complete! All admin pages and sidebar now hide based on permissions | Next: Testing with different roles
