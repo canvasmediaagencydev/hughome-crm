@@ -17,6 +17,7 @@ interface User {
 export default function Home() {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [showWelcome, setShowWelcome] = useState(true)
   const router = useRouter()
 
   const authenticateWithBackend = async (profile: any, forceValidation = false, retryCount = 0) => {
@@ -122,14 +123,38 @@ export default function Home() {
     }
   }, [])
 
+  // Welcome message timer - show for 1 second then switch to loading
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowWelcome(false)
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [])
+
   if (isLoading) {
     return (
-      <div className="py-70 flex items-center justify-center">
-        <div className="text-center space-y-8">
-          <div className="relative w-16 h-16 sm:w-20 sm:h-20 mx-auto">
-            <div className="absolute inset-0 rounded-full border-4 border-gray-200"></div>
-            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-red-500 animate-spin duration-1000"></div>
-          </div>
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="text-center">
+          {showWelcome ? (
+            // Welcome message - first 1 second
+            <div className="animate-fade-in">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
+                ยินดีต้อนรับสู่ Hughome
+              </h1>
+            </div>
+          ) : (
+            // Loading spinner - after 1 second
+            <div className="space-y-6 animate-fade-in">
+              <div className="relative w-16 h-16 sm:w-20 sm:h-20 mx-auto">
+                <div className="absolute inset-0 rounded-full border-4 border-gray-200"></div>
+                <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-red-500 animate-spin"></div>
+              </div>
+              <p className="text-base sm:text-lg text-gray-600">
+                กำลังเข้าสู่ระบบ...
+              </p>
+            </div>
+          )}
         </div>
       </div>
     )
