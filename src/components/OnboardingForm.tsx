@@ -74,20 +74,20 @@ export default function OnboardingForm() {
       })
 
       const data = response.data
-      
+
       if (data.success && data.user) {
-        // Update localStorage with complete user data including is_onboarded
+        // Update localStorage with complete user data
+        // is_onboarded is already calculated by backend using shared utility
         const updatedUserData = {
           ...userData,
-          ...data.user,
-          is_onboarded: true
+          ...data.user
         }
-        
+
         localStorage.setItem('user', JSON.stringify(updatedUserData))
-        
+
         // Also update UserSessionManager
         UserSessionManager.saveSession(updatedUserData)
-        
+
         // Redirect to dashboard
         router.push('/dashboard')
       } else {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { verifyLineIdToken, extractUserProfileData } from '@/lib/line-auth'
+import { isUserOnboarded } from '@/lib/onboarding-utils'
 
 interface LoginRequestBody {
   idToken: string
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
       }
     } else {
       // Create new user
-      const { data: newUser } = await supabase
+      const { data: newUser, error: insertError } = await supabase
         .from('user_profiles')
         .insert({
           id: uuidv4(),
@@ -98,21 +99,27 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
         })
         .select()
         .single()
-      
+
+      if (insertError) {
+        console.error('Failed to create user profile:', insertError)
+        throw new Error(`Database insert failed: ${insertError.message}`)
+      }
+
+      if (!newUser) {
+        console.error('User profile creation returned null')
+        throw new Error('Database insert returned no data')
+      }
+
       userProfile = newUser
     }
 
     if (!userProfile) {
+      console.error('User profile is null after database operations')
       throw new Error('Failed to create or update user profile')
     }
 
-    // Check if user is onboarded
-    const isOnboarded = !!(
-      userProfile.role &&
-      userProfile.first_name &&
-      userProfile.last_name &&
-      userProfile.phone
-    )
+    // Check if user is onboarded using shared utility
+    const onboardedStatus = isUserOnboarded(userProfile)
 
     return NextResponse.json({
       success: true,
@@ -125,7 +132,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<LoginResp
         first_name: userProfile.first_name,
         last_name: userProfile.last_name,
         phone: userProfile.phone,
-        is_onboarded: isOnboarded,
+        is_onboarded: onboardedStatus,
         points_balance: userProfile.points_balance || 0
       }
     })

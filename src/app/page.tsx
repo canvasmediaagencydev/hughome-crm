@@ -84,40 +84,26 @@ export default function Home() {
     }
   }
 
-  const handleCachedUser = () => {
-    const cachedUser = UserSessionManager.getCachedUser()
-    if (cachedUser) {
-      // Instant redirect for cached users
-      if (!cachedUser.is_onboarded) {
-        router.push('/onboarding')
-      } else {
-        router.push('/dashboard')
-      }
-      return true
-    }
-    return false
-  }
-
   const main = async () => {
     try {
       // First, migrate any old localStorage data
       UserSessionManager.migrateOldUserData()
-      
-      // Check cached session first for instant redirect
-      if (handleCachedUser()) {
-        setIsLoading(false)
-        return
-      }
+
+      // REMOVED FAST PATH - Always validate with backend before redirecting
+      // This prevents race conditions where cached data is stale
 
       await liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID || "2000719050-rGVOBePm" })
-      
+
       if (liff.isLoggedIn()) {
         const profile = await liff.getProfile()
-        
-        // Try to authenticate with backend
+
+        // Always authenticate with backend to get fresh user state
+        // This ensures is_onboarded status is accurate
         const success = await authenticateWithBackend(profile)
-        
+
         if (!success) {
+          // Backend authentication failed - clear cache and show error
+          UserSessionManager.clearSession()
           setUser(profile) // Fallback to show LINE profile
         }
       } else {
@@ -130,34 +116,8 @@ export default function Home() {
     }
   }
 
-  // Background validation for cached users
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const cachedUser = UserSessionManager.getCachedUser()
-      
-      if (cachedUser && UserSessionManager.needsValidation()) {
-        // Background validation - don't block UI
-        const validateInBackground = async () => {
-          try {
-            await liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID || "2000719050-rGVOBePm" })
-            
-            if (liff.isLoggedIn()) {
-              const profile = await liff.getProfile()
-              await authenticateWithBackend(profile, true)
-              UserSessionManager.updateValidationTime()
-            } else {
-              // User not logged in to LINE anymore
-              UserSessionManager.clearSession()
-            }
-          } catch (error) {
-            console.warn('Background validation failed:', error)
-          }
-        }
-        
-        // Run validation in background after a short delay
-        setTimeout(validateInBackground, 100)
-      }
-      
       main()
     }
   }, [])

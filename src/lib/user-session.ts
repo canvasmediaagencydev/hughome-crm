@@ -1,3 +1,5 @@
+import { isUserOnboarded } from './onboarding-utils'
+
 interface CachedUserSession {
   user: {
     id: string
@@ -110,25 +112,21 @@ export class UserSessionManager {
   }
   
   static isUserDataComplete(user: CachedUserSession['user']): boolean {
-    return !!(
-      user.first_name &&
-      user.last_name &&
-      user.phone &&
-      user.role
-    )
+    // Use shared utility function to ensure consistency
+    return isUserOnboarded(user)
   }
-  
+
   static updateUserData(updates: Partial<CachedUserSession['user']>): void {
     const session = this.getCachedSession()
     if (!session) return
-    
+
     session.user = { ...session.user, ...updates }
-    
-    // Auto-calculate is_onboarded based on data completeness
-    session.user.is_onboarded = this.isUserDataComplete(session.user)
-    
+
+    // Auto-calculate is_onboarded using shared utility
+    session.user.is_onboarded = isUserOnboarded(session.user)
+
     session.timestamp = Date.now()
-    
+
     try {
       localStorage.setItem(SESSION_KEY, JSON.stringify(session))
       // Also update the old format for backward compatibility

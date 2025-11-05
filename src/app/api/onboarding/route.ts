@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { isUserOnboarded } from '@/lib/onboarding-utils'
 
 interface OnboardingRequestBody {
   line_user_id: string
@@ -45,6 +46,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (!updatedUser) {
+      console.error('Onboarding update returned null')
+      return NextResponse.json(
+        { success: false, error: 'Failed to update profile - no data returned' },
+        { status: 500 }
+      )
+    }
+
+    // Calculate is_onboarded using shared utility
+    const onboardedStatus = isUserOnboarded(updatedUser)
+
     return NextResponse.json({
       success: true,
       user: {
@@ -57,7 +69,7 @@ export async function POST(request: NextRequest) {
         last_name: updatedUser.last_name,
         phone: updatedUser.phone,
         points_balance: updatedUser.points_balance || 0,
-        is_onboarded: true
+        is_onboarded: onboardedStatus
       }
     })
 
