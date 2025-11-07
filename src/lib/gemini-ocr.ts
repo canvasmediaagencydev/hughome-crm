@@ -8,7 +8,7 @@ interface OCRResult {
   ความถูกต้อง: number
 }
 
-export async function processReceiptWithGemini(imageFile: File): Promise<OCRResult> {
+async function processReceiptInternal(base64: string, mimeType: string): Promise<OCRResult> {
   const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY
 
   if (!apiKey) {
@@ -20,13 +20,6 @@ export async function processReceiptWithGemini(imageFile: File): Promise<OCRResu
     const ai = new GoogleGenAI({
       apiKey: apiKey,
     })
-
-    // Convert file to base64
-    const arrayBuffer = await imageFile.arrayBuffer()
-    const base64 = Buffer.from(arrayBuffer).toString('base64')
-
-    // Get MIME type
-    const mimeType = imageFile.type || mime.getType(imageFile.name) || 'image/jpeg'
 
     // Configure the model
     const config = {
@@ -119,6 +112,39 @@ export async function processReceiptWithGemini(imageFile: File): Promise<OCRResu
 
   } catch (error) {
     console.error('OCR error:')
+    throw error
+  }
+}
+
+// Main function that accepts File object
+export async function processReceiptWithGemini(imageFile: File): Promise<OCRResult> {
+  try {
+    // Convert file to base64
+    const arrayBuffer = await imageFile.arrayBuffer()
+    const base64 = Buffer.from(arrayBuffer).toString('base64')
+
+    // Get MIME type
+    const mimeType = imageFile.type || mime.getType(imageFile.name) || 'image/jpeg'
+
+    return await processReceiptInternal(base64, mimeType)
+  } catch (error) {
+    console.error('OCR error from file:')
+    throw error
+  }
+}
+
+// Function that accepts Buffer (for re-processing from storage)
+export async function processReceiptFromBuffer(
+  imageBuffer: Buffer,
+  mimeType: string = 'image/jpeg'
+): Promise<OCRResult> {
+  try {
+    // Convert buffer to base64
+    const base64 = imageBuffer.toString('base64')
+
+    return await processReceiptInternal(base64, mimeType)
+  } catch (error) {
+    console.error('OCR error from buffer:')
     throw error
   }
 }

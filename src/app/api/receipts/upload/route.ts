@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
 
     // Process image with Gemini AI OCR
     const ocrResult = await processReceiptWithGemini(imageFile)
+    const ocrProcessedAt = new Date().toISOString()
 
     // Create file hash for duplicate detection
     const arrayBuffer = await imageFile.arrayBuffer()
@@ -131,6 +132,7 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         status: 'pending' as any,
         ocr_data: ocrResult as any,
+        ocr_processed_at: ocrProcessedAt,
         vendor_name: null, // We store this info in ocr_data instead
         total_amount: ocrResult.ยอดรวม,
         receipt_date: isoDate,

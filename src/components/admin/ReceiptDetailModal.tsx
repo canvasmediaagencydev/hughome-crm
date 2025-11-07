@@ -26,15 +26,56 @@ interface ReceiptDetailModalProps {
   onClose: () => void
   receipt: ReceiptWithRelations | null
   onImageClick: (imageUrl: string) => void
+  onReprocess?: (receiptId: string) => Promise<void>
+  canReprocess?: boolean
+  isReprocessing?: boolean
 }
 
 export function ReceiptDetailModal({
   open,
   onClose,
   receipt,
-  onImageClick
+  onImageClick,
+  onReprocess,
+  canReprocess = false,
+  isReprocessing = false
 }: ReceiptDetailModalProps) {
   if (!receipt) return null
+
+  const handleReprocess = async () => {
+    console.log('ReceiptDetailModal: Re-check button clicked', {
+      hasOnReprocess: !!onReprocess,
+      receiptId: receipt.id,
+      isReprocessing
+    })
+
+    if (onReprocess && receipt.id) {
+      try {
+        await onReprocess(receipt.id)
+      } catch (error) {
+        console.error('ReceiptDetailModal: Reprocess error', error)
+      }
+    } else {
+      console.warn('ReceiptDetailModal: Cannot reprocess - missing handler or receipt ID')
+    }
+  }
+
+  // Format OCR timestamp
+  const formatOcrTimestamp = (timestamp: string | null) => {
+    if (!timestamp) return 'ไม่มีข้อมูล'
+    try {
+      const date = new Date(timestamp)
+      return date.toLocaleString('th-TH', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch {
+      return 'ไม่ถูกต้อง'
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -82,7 +123,25 @@ export function ReceiptDetailModal({
           {/* OCR Data */}
           {receipt.ocr_data && (
             <div>
-              <strong className="text-slate-900">ข้อมูล OCR:</strong>
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <strong className="text-slate-900">ข้อมูล OCR:</strong>
+                  <p className="text-xs text-slate-500 mt-1">
+                    ประมวลผลเมื่อ: {formatOcrTimestamp(receipt.ocr_processed_at)}
+                  </p>
+                </div>
+                {canReprocess && receipt.status === 'pending' && (
+                  <Button
+                    onClick={handleReprocess}
+                    disabled={isReprocessing}
+                    size="sm"
+                    variant="outline"
+                    className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-300"
+                  >
+                    {isReprocessing ? 'กำลังตรวจสอบ...' : 'Re-check with AI'}
+                  </Button>
+                )}
+              </div>
               <pre className="bg-slate-50 border border-slate-200 p-3 rounded text-xs overflow-auto max-h-32 text-slate-700">
                 {JSON.stringify(receipt.ocr_data, null, 2)}
               </pre>
