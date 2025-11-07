@@ -13,7 +13,6 @@ interface User {
   statusMessage?: string
 }
 
-
 export default function Home() {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -69,7 +68,6 @@ export default function Home() {
         } catch (liffError) {
           console.warn('LIFF logout failed:', liffError)
         }
-        
         return false
       }
       
@@ -80,7 +78,6 @@ export default function Home() {
         await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)))
         return authenticateWithBackend(profile, forceValidation, retryCount + 1)
       }
-      
       return false
     }
   }

@@ -53,7 +53,9 @@ export function ReceiptCard({
   processing
 }: ReceiptCardProps) {
   const user = receipt.user_profiles
-  const displayName = user?.display_name || user?.first_name || 'ไม่ระบุชื่อ'
+  const fullName = user?.first_name && user?.last_name
+    ? `${user.first_name} ${user.last_name}`
+    : user?.first_name || user?.last_name || 'ไม่ระบุชื่อ'
   const storeName = getStoreName(receipt.ocr_data)
   const isPending = receipt.status === 'pending'
 
@@ -64,7 +66,7 @@ export function ReceiptCard({
         <div className="flex-1">
           <div className="flex items-center space-x-3 mb-2">
             <p className="text-slate-600">ชื่อลูกค้า : </p>
-            <h3 className="font-medium text-slate-900">{displayName}</h3>
+            <h3 className="font-medium text-slate-900">{fullName}</h3>
             {getStatusBadge(receipt.status || 'pending')}
           </div>
 
