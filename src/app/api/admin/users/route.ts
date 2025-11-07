@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("user_profiles")
       .select("*", { count: "exact" })
+      .not("role", "is", null) // Filter only users with role (not null)
       .order("points_balance", { ascending: false, nullsFirst: false });
 
     // Date filtering (only if explicitly provided)
