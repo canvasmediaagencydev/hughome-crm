@@ -54,7 +54,9 @@ export function RecentReceiptsTable({
           <div className="space-y-3">
             {receipts.map((receipt) => {
               const user = receipt.user_profiles
-              const displayName = user?.display_name || user?.first_name || 'ไม่ระบุชื่อ'
+              const displayName = user?.first_name && user?.last_name
+                ? `${user.first_name} ${user.last_name}`
+                : user?.first_name || user?.display_name || 'ไม่ระบุชื่อ'
               const points = receipt.total_amount ? calculatePoints(receipt.total_amount) : 0
               const storeName = extractStoreName(receipt.ocr_data)
 
