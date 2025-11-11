@@ -47,6 +47,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       .from("receipts")
       .update({
         ocr_data: ocr_data,
+        total_amount: ocr_data.ยอดรวม || 0,
         ocr_processed_at: currentTime,
         updated_at: currentTime
       })
