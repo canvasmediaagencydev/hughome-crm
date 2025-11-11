@@ -345,6 +345,7 @@ export type Database = {
           created_at: string | null
           id: string
           ocr_data: Json | null
+          ocr_processed_at: string | null
           points_awarded: number | null
           receipt_date: string | null
           receipt_number: string | null
@@ -361,6 +362,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           ocr_data?: Json | null
+          ocr_processed_at?: string | null
           points_awarded?: number | null
           receipt_date?: string | null
           receipt_number?: string | null
@@ -377,6 +379,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           ocr_data?: Json | null
+          ocr_processed_at?: string | null
           points_awarded?: number | null
           receipt_date?: string | null
           receipt_number?: string | null
@@ -825,5 +828,3 @@ export const Constants = {
     },
   },
 } as const
-
-export {}

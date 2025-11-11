@@ -260,8 +260,7 @@ export default function AdminReceipts() {
           'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
-          ocr_data: newOcrData,
-          ocr_processed_at: newOcrTimestamp
+          ocr_data: newOcrData
         })
       })
 
@@ -285,8 +284,7 @@ export default function AdminReceipts() {
       if (updatedReceipt) {
         setSelectedReceipt({
           ...updatedReceipt,
-          ocr_data: data.ocr_data,
-          ocr_processed_at: data.ocr_processed_at
+          ocr_data: data.ocr_data
         })
       }
     } catch (error) {
