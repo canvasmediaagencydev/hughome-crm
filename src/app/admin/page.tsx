@@ -13,6 +13,7 @@ import { UsageStatistics } from '@/components/admin/dashboard/UsageStatistics'
 import { RecentReceiptsTable } from '@/components/admin/dashboard/RecentReceiptsTable'
 import { PointSettingsForm } from '@/components/admin/dashboard/PointSettingsForm'
 import { QuickActions } from '@/components/admin/dashboard/QuickActions'
+import { MetricCardSkeleton, ChartSkeleton, TableSkeleton } from '@/components/ui/skeleton'
 import { calculatePoints } from '@/utils/receiptHelpers'
 import { useAdminAuth } from '@/hooks/useAdminAuth'
 import { PERMISSIONS } from '@/types/admin'
@@ -38,11 +39,7 @@ export default function AdminDashboard() {
   const canViewDashboard = hasPermission(PERMISSIONS.DASHBOARD_VIEW) || isSuperAdmin
   const canEditSettings = hasPermission(PERMISSIONS.SETTINGS_EDIT) || isSuperAdmin
 
-  useEffect(() => {
-    if (canViewDashboard) {
-      fetchAllDashboardData()
-    }
-  }, [canViewDashboard, fetchAllDashboardData])
+  // Remove manual fetch - React Query handles this automatically
 
   const handleSavePointSetting = async () => {
     const success = await savePointSetting(pointSetting, bahtPerPoint, fetchAllDashboardData)
@@ -106,31 +103,61 @@ export default function AdminDashboard() {
 
         <TabsContent value="overview" className="space-y-6">
           {/* Key Metrics Cards */}
-          <DashboardMetrics metrics={dashboardMetrics} loading={metricsLoading} />
+          {metricsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => <MetricCardSkeleton key={i} />)}
+            </div>
+          ) : (
+            <DashboardMetrics metrics={dashboardMetrics} loading={false} />
+          )}
 
           {/* User Statistics */}
-          <UserStatistics metrics={dashboardMetrics} loading={metricsLoading} />
+          {metricsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(3)].map((_, i) => <MetricCardSkeleton key={i} />)}
+            </div>
+          ) : (
+            <UserStatistics metrics={dashboardMetrics} loading={false} />
+          )}
 
           {/* Charts Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <TimeSeriesChart data={timeSeriesData} />
-            <ReceiptStatusChart data={receiptStatusDistribution} />
-          </div>
+          {metricsLoading ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <ChartSkeleton />
+              <ChartSkeleton />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <TimeSeriesChart data={timeSeriesData} />
+              <ReceiptStatusChart data={receiptStatusDistribution} />
+            </div>
+          )}
 
           {/* Recent Receipts */}
-          <RecentReceiptsTable
-            receipts={recentReceipts}
-            loading={receiptsLoading}
-            calculatePoints={calcPoints}
-          />
+          {receiptsLoading ? (
+            <TableSkeleton rows={5} />
+          ) : (
+            <RecentReceiptsTable
+              receipts={recentReceipts}
+              loading={false}
+              calculatePoints={calcPoints}
+            />
+          )}
         </TabsContent>
 
         {showAnalyticsTab && (
           <TabsContent value="analytics" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <UserDistributionChart data={userDistribution} />
-              <UsageStatistics metrics={dashboardMetrics} loading={metricsLoading} />
-            </div>
+            {metricsLoading ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <ChartSkeleton />
+                <ChartSkeleton />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <UserDistributionChart data={userDistribution} />
+                <UsageStatistics metrics={dashboardMetrics} loading={false} />
+              </div>
+            )}
 
             {/* Point Settings */}
             <PointSettingsForm

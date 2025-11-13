@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ReceiptWithRelations, ReceiptListResponse } from '@/types'
 import debounce from 'lodash.debounce'
@@ -9,6 +10,47 @@ interface UseReceiptsParams {
   initialSearch?: string
 }
 
+async function fetchReceipts(
+  status: string,
+  page: number,
+  search: string
+): Promise<ReceiptListResponse> {
+  const params = new URLSearchParams({
+    status,
+    page: page.toString(),
+    limit: '20'
+  })
+
+  if (search.trim()) {
+    params.append('search', search.trim())
+  }
+
+  const { supabaseAdmin } = await import('@/lib/supabase-admin')
+  const { data: { session } } = await supabaseAdmin.auth.getSession()
+
+  if (!session?.access_token) {
+    throw new Error('No session found')
+  }
+
+  const response = await fetch(`/api/admin/receipts?${params}`, {
+    headers: {
+      Authorization: `Bearer ${session.access_token}`
+    }
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('Unauthorized: Session expired')
+    }
+    if (response.status === 403) {
+      throw new Error('Forbidden: No permission to view receipts')
+    }
+    throw new Error('Failed to fetch receipts')
+  }
+
+  return response.json()
+}
+
 export function useReceipts(params: UseReceiptsParams = {}) {
   const {
     initialStatus = 'pending',
@@ -16,119 +58,92 @@ export function useReceipts(params: UseReceiptsParams = {}) {
     initialSearch = ''
   } = params
 
-  const [receipts, setReceipts] = useState<ReceiptWithRelations[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [status, setStatus] = useState(initialStatus)
   const [search, setSearch] = useState(initialSearch)
   const [page, setPage] = useState(initialPage)
-  const [pagination, setPagination] = useState({
+  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch)
+
+  // Debounce search input (300ms instead of 1000ms for better UX)
+  const debouncedSetSearch = useMemo(
+    () => debounce((value: string) => {
+      setDebouncedSearch(value)
+      setPage(1) // Reset to first page on search
+    }, 300),
+    []
+  )
+
+  // Update debounced search when search changes
+  useMemo(() => {
+    debouncedSetSearch(search)
+  }, [search, debouncedSetSearch])
+
+  // Main receipts query with React Query
+  const {
+    data,
+    isLoading,
+    error,
+    refetch
+  } = useQuery({
+    queryKey: ['receipts', status, page, debouncedSearch],
+    queryFn: () => fetchReceipts(status, page, debouncedSearch),
+    staleTime: 1 * 60 * 1000, // 1 minute - receipts update frequently
+    gcTime: 3 * 60 * 1000, // Keep in cache for 3 minutes
+    refetchOnWindowFocus: true,
+    retry: 1,
+  })
+
+  const receipts = data?.receipts || []
+  const pagination = data?.pagination || {
     page: 1,
     limit: 20,
     total: 0,
     totalPages: 0
-  })
+  }
 
-  const fetchReceipts = useCallback(async () => {
-    setLoading(true)
-    try {
-      const params = new URLSearchParams({
-        status,
-        page: page.toString(),
-        limit: '20'
-      })
+  // Handle errors
+  if (error) {
+    const errorMessage = error instanceof Error ? error.message : 'ไม่สามารถโหลดข้อมูลใบเสร็จได้'
 
-      if (search.trim()) {
-        params.append('search', search.trim())
-      }
-
-      const { supabaseAdmin } = await import('@/lib/supabase-admin')
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-      if (!session?.access_token) {
-        toast.error('ไม่พบ session กรุณา login ใหม่')
-        setLoading(false)
-        return
-      }
-
-      const response = await fetch(`/api/admin/receipts?${params}`, {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
-        }
-      })
-      if (response.ok) {
-        const data: ReceiptListResponse = await response.json()
-        setReceipts(data.receipts)
-        setPagination(data.pagination)
-      }
-    } catch (error) {
-      console.error('Failed to fetch receipts:', error)
-      toast.error('ไม่สามารถโหลดข้อมูลใบเสร็จได้')
-    } finally {
-      setLoading(false)
+    if (errorMessage.includes('Unauthorized')) {
+      toast.error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่')
+    } else if (errorMessage.includes('Forbidden')) {
+      toast.error('คุณไม่มีสิทธิ์ดูใบเสร็จ')
+    } else {
+      toast.error(errorMessage)
     }
-  }, [status, page, search])
+  }
 
-  // Create debounced version that updates when fetchReceipts changes
-  const debouncedFetchReceipts = useMemo(
-    () => debounce(fetchReceipts, 1000),
-    [fetchReceipts]
-  )
-
-  // Cleanup debounce on unmount
-  useEffect(() => {
-    return () => {
-      debouncedFetchReceipts.cancel()
-    }
-  }, [debouncedFetchReceipts])
-
-  // Fetch on mount
-  useEffect(() => {
-    fetchReceipts()
-  }, [])
-
-  // Fetch immediately when status or page changes (not search)
-  const prevStatusRef = useRef(status)
-  const prevPageRef = useRef(page)
-
-  useEffect(() => {
-    if (prevStatusRef.current !== status || prevPageRef.current !== page) {
-      fetchReceipts()
-      prevStatusRef.current = status
-      prevPageRef.current = page
-    }
-  }, [status, page, fetchReceipts])
-
-  // Debounced fetch when search changes
-  const prevSearchRef = useRef(search)
-
-  useEffect(() => {
-    if (prevSearchRef.current !== search) {
-      debouncedFetchReceipts()
-      prevSearchRef.current = search
-    }
-  }, [search, debouncedFetchReceipts])
-
-  const handleSearch = useCallback(() => {
-    setPage(1)
-    fetchReceipts()
-  }, [fetchReceipts])
-
-  const handleStatusChange = useCallback((newStatus: string) => {
+  const handleStatusChange = (newStatus: string) => {
     setStatus(newStatus)
     setPage(1)
-  }, [])
+  }
 
-  const handlePageChange = useCallback((newPage: number) => {
+  const handlePageChange = (newPage: number) => {
     setPage(newPage)
-  }, [])
+  }
 
-  const refreshReceipts = useCallback(() => {
-    fetchReceipts()
-  }, [fetchReceipts])
+  const handleSearch = () => {
+    setDebouncedSearch(search)
+    setPage(1)
+  }
+
+  const refreshReceipts = () => {
+    refetch()
+  }
+
+  // Prefetch next page for better UX
+  if (page < pagination.totalPages) {
+    queryClient.prefetchQuery({
+      queryKey: ['receipts', status, page + 1, debouncedSearch],
+      queryFn: () => fetchReceipts(status, page + 1, debouncedSearch),
+      staleTime: 1 * 60 * 1000,
+    })
+  }
 
   return {
     receipts,
-    loading,
+    loading: isLoading,
     status,
     search,
     page,

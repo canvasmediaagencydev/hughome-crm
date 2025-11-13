@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react'
+import { useState, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Tables } from '../../database.types'
 
@@ -34,12 +35,73 @@ export interface ChartData {
   [key: string]: string | number
 }
 
-export function useDashboard() {
-  const [loading, setLoading] = useState(true)
-  const [metricsLoading, setMetricsLoading] = useState(true)
-  const [receiptsLoading, setReceiptsLoading] = useState(true)
+interface DashboardData {
+  metrics: DashboardMetrics & { pointSettings: PointSetting[] }
+  recentReceipts: any[]
+  analytics: TimeSeriesData[]
+}
 
-  const [dashboardMetrics, setDashboardMetrics] = useState<DashboardMetrics>({
+async function fetchDashboardData(): Promise<DashboardData> {
+  const { supabaseAdmin } = await import('@/lib/supabase-admin')
+  const { data: { session } } = await supabaseAdmin.auth.getSession()
+
+  if (!session?.access_token) {
+    throw new Error('No session found')
+  }
+
+  const response = await fetch('/api/admin/dashboard/all', {
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  })
+
+  if (!response.ok) {
+    if (response.status === 403) {
+      throw new Error('Forbidden: You do not have permission to view dashboard')
+    }
+    if (response.status === 401) {
+      throw new Error('Unauthorized: Session expired')
+    }
+    throw new Error('Failed to fetch dashboard data')
+  }
+
+  return response.json()
+}
+
+export function useDashboard() {
+  const queryClient = useQueryClient()
+  const [bahtPerPoint, setBahtPerPoint] = useState('')
+  const [pointSetting, setPointSetting] = useState<PointSetting | null>(null)
+  const [hasSession, setHasSession] = useState(false)
+
+  // Check session availability
+  useEffect(() => {
+    const checkSession = async () => {
+      const { supabaseAdmin } = await import('@/lib/supabase-admin')
+      const { data: { session } } = await supabaseAdmin.auth.getSession()
+      setHasSession(!!session)
+    }
+    checkSession()
+  }, [])
+
+  // Main dashboard data query with React Query
+  const {
+    data,
+    isLoading,
+    error,
+    refetch
+  } = useQuery({
+    queryKey: ['dashboard', 'all'],
+    queryFn: fetchDashboardData,
+    enabled: hasSession, // Only fetch when session is available
+    staleTime: 2 * 60 * 1000, // Data is fresh for 2 minutes
+    gcTime: 5 * 60 * 1000, // Cache for 5 minutes
+    refetchOnWindowFocus: true,
+    retry: 1,
+  })
+
+  // Process data when available
+  const dashboardMetrics: DashboardMetrics = data?.metrics || {
     totalUsers: 0,
     contractorCount: 0,
     homeownerCount: 0,
@@ -54,118 +116,56 @@ export function useDashboard() {
     totalReceiptValue: 0,
     monthlyActiveUsers: 0,
     averageProcessingTime: 0
-  })
+  }
 
-  const [recentReceipts, setRecentReceipts] = useState<any[]>([])
-  const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesData[]>([])
-  const [userDistribution, setUserDistribution] = useState<ChartData[]>([
-    { name: 'ช่าง', value: 0 },
-    { name: 'เจ้าของบ้าน', value: 0 }
-  ])
-  const [receiptStatusDistribution, setReceiptStatusDistribution] = useState<ChartData[]>([
-    { name: 'รออนุมัติ', value: 0 },
-    { name: 'อนุมัติแล้ว', value: 0 },
-    { name: 'ปฏิเสธแล้ว', value: 0 }
-  ])
+  const recentReceipts = data?.recentReceipts || []
+  const timeSeriesData = data?.analytics || []
 
-  const [pointSetting, setPointSetting] = useState<PointSetting | null>(null)
-  const [bahtPerPoint, setBahtPerPoint] = useState('')
-
-  const fetchAllDashboardData = useCallback(async () => {
-    setLoading(true)
-    setMetricsLoading(true)
-    setReceiptsLoading(true)
-
-    try {
-      const { supabaseAdmin } = await import('@/lib/supabase-admin')
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-      if (!session?.access_token) {
-        toast.error('ไม่พบ session กรุณา login ใหม่')
-        return
-      }
-
-      const response = await fetch('/api/admin/dashboard/all', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      })
-
-      if (!response.ok) {
-        if (response.status === 403) {
-          toast.error('คุณไม่มีสิทธิ์ดูข้อมูล Dashboard')
-          return
-        }
-        if (response.status === 401) {
-          toast.error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่')
-          return
-        }
-        throw new Error('Failed to fetch dashboard data')
-      }
-
-      const data = await response.json()
-
-      // Set metrics
-      setDashboardMetrics({
-        totalUsers: data.metrics.totalUsers,
-        contractorCount: data.metrics.contractorCount,
-        homeownerCount: data.metrics.homeownerCount,
-        totalReceipts: data.metrics.totalReceipts,
-        pendingReceipts: data.metrics.pendingReceipts,
-        approvedReceipts: data.metrics.approvedReceipts,
-        rejectedReceipts: data.metrics.rejectedReceipts,
-        totalPointsEarned: data.metrics.totalPointsEarned,
-        totalPointsSpent: data.metrics.totalPointsSpent,
-        activeRewards: data.metrics.activeRewards,
-        pendingRedemptions: data.metrics.pendingRedemptions,
-        totalReceiptValue: data.metrics.totalReceiptValue,
-        monthlyActiveUsers: data.metrics.monthlyActiveUsers,
-        averageProcessingTime: data.metrics.averageProcessingTime
-      })
-
-      // Set point settings
-      if (data.metrics.pointSettings) {
-        const bahtSetting = data.metrics.pointSettings.find(
-          (s: PointSetting) => s.setting_key === 'baht_per_point'
-        )
-        if (bahtSetting) {
-          setPointSetting(bahtSetting)
-          setBahtPerPoint(bahtSetting.setting_value.toString())
-        }
-      }
-
-      // Set recent receipts
-      setRecentReceipts(data.recentReceipts || [])
-
-      // Set analytics data
-      setTimeSeriesData(data.analytics || [])
-
-      // Update chart data
-      setUserDistribution([
-        { name: 'ช่าง', value: data.metrics.contractorCount },
-        { name: 'เจ้าของบ้าน', value: data.metrics.homeownerCount }
-      ])
-
-      setReceiptStatusDistribution([
-        { name: 'รออนุมัติ', value: data.metrics.pendingReceipts },
-        { name: 'อนุมัติแล้ว', value: data.metrics.approvedReceipts },
-        { name: 'ปฏิเสธแล้ว', value: data.metrics.rejectedReceipts }
-      ])
-    } catch (error) {
-      console.error('Failed to fetch dashboard data:', error)
-      toast.error('ไม่สามารถโหลดข้อมูล dashboard ได้')
-    } finally {
-      setLoading(false)
-      setMetricsLoading(false)
-      setReceiptsLoading(false)
+  // Point settings
+  if (data?.metrics?.pointSettings && !pointSetting) {
+    const bahtSetting = data.metrics.pointSettings.find(
+      (s: PointSetting) => s.setting_key === 'baht_per_point'
+    )
+    if (bahtSetting) {
+      setPointSetting(bahtSetting)
+      setBahtPerPoint(bahtSetting.setting_value.toString())
     }
-  }, [])
+  }
+
+  // Chart data
+  const userDistribution: ChartData[] = [
+    { name: 'ช่าง', value: dashboardMetrics.contractorCount },
+    { name: 'เจ้าของบ้าน', value: dashboardMetrics.homeownerCount }
+  ]
+
+  const receiptStatusDistribution: ChartData[] = [
+    { name: 'รออนุมัติ', value: dashboardMetrics.pendingReceipts },
+    { name: 'อนุมัติแล้ว', value: dashboardMetrics.approvedReceipts },
+    { name: 'ปฏิเสธแล้ว', value: dashboardMetrics.rejectedReceipts }
+  ]
+
+  // Handle errors
+  if (error) {
+    const errorMessage = error instanceof Error ? error.message : 'ไม่สามารถโหลดข้อมูล dashboard ได้'
+
+    if (errorMessage.includes('Forbidden')) {
+      toast.error('คุณไม่มีสิทธิ์ดูข้อมูล Dashboard')
+    } else if (errorMessage.includes('Unauthorized')) {
+      toast.error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่')
+    } else {
+      toast.error(errorMessage)
+    }
+  }
+
+  const fetchAllDashboardData = async () => {
+    await refetch()
+  }
 
   return {
     // State
-    loading,
-    metricsLoading,
-    receiptsLoading,
+    loading: isLoading,
+    metricsLoading: isLoading,
+    receiptsLoading: isLoading,
     dashboardMetrics,
     recentReceipts,
     timeSeriesData,

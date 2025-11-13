@@ -1,12 +1,51 @@
-import { useState, useEffect, useCallback } from 'react'
-import { axiosAdmin } from '@/lib/axios-admin'
+import { useState, useCallback, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { User, Pagination } from '@/types'
+import debounce from 'lodash.debounce'
 
 interface UseUsersParams {
   initialPage?: number
   initialRole?: string
   initialSearch?: string
+}
+
+async function getAuthHeaders() {
+  const { supabaseAdmin } = await import('@/lib/supabase-admin')
+  const { data: { session } } = await supabaseAdmin.auth.getSession()
+
+  if (!session?.access_token) {
+    throw new Error('No session found')
+  }
+
+  return {
+    Authorization: `Bearer ${session.access_token}`,
+  }
+}
+
+async function fetchUsers(page: number, role: string, search: string) {
+  const headers = await getAuthHeaders()
+  const params = new URLSearchParams({
+    page: page.toString(),
+    limit: '9',
+    role,
+  })
+
+  if (search.trim()) {
+    params.append('search', search.trim())
+  }
+
+  const response = await fetch(`/api/admin/users?${params}`, {
+    headers,
+  })
+
+  if (!response.ok) {
+    if (response.status === 401) throw new Error('Unauthorized')
+    if (response.status === 403) throw new Error('Forbidden')
+    throw new Error('Failed to fetch users')
+  }
+
+  return response.json()
 }
 
 export function useUsers(params: UseUsersParams = {}) {
@@ -16,43 +55,73 @@ export function useUsers(params: UseUsersParams = {}) {
     initialSearch = ''
   } = params
 
-  const [users, setUsers] = useState<User[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [pagination, setPagination] = useState<Pagination | null>(null)
+  const queryClient = useQueryClient()
   const [currentPage, setCurrentPage] = useState(initialPage)
   const [roleFilter, setRoleFilter] = useState(initialRole)
-  const [searchQuery, setSearchQuery] = useState(initialSearch)
   const [searchInput, setSearchInput] = useState(initialSearch)
+  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch)
 
-  const fetchUsers = useCallback(async (page: number, role: string, search: string) => {
-    try {
-      setIsLoading(true)
-      const response = await axiosAdmin.get('/api/admin/users', {
-        params: { page, limit: 9, role, search }
-      })
+  // Debounce search (300ms)
+  const debouncedSetSearch = useMemo(
+    () => debounce((value: string) => {
+      setDebouncedSearch(value)
+      setCurrentPage(1)
+    }, 300),
+    []
+  )
 
-      setUsers(response.data.users)
-      setPagination(response.data.pagination)
-    } catch (error) {
-      console.error('Error fetching users:', error)
-      toast.error('เกิดข้อผิดพลาดในการโหลดข้อมูล')
-    } finally {
-      setIsLoading(false)
+  // Update debounced search when input changes
+  useMemo(() => {
+    debouncedSetSearch(searchInput)
+  }, [searchInput, debouncedSetSearch])
+
+  // Main users query with React Query
+  const {
+    data,
+    isLoading,
+    error,
+    refetch
+  } = useQuery({
+    queryKey: ['users', currentPage, roleFilter, debouncedSearch],
+    queryFn: () => fetchUsers(currentPage, roleFilter, debouncedSearch),
+    staleTime: 2 * 60 * 1000, // 2 minutes - user data relatively stable
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    refetchOnWindowFocus: true,
+    retry: 1,
+  })
+
+  const users = data?.users || []
+  const pagination: Pagination | null = data?.pagination || null
+
+  // Handle errors
+  if (error) {
+    const errorMessage = error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูล'
+    if (errorMessage.includes('Unauthorized')) {
+      toast.error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่')
+    } else if (errorMessage.includes('Forbidden')) {
+      toast.error('คุณไม่มีสิทธิ์ดูข้อมูลผู้ใช้')
+    } else {
+      toast.error(errorMessage)
     }
-  }, [])
+  }
 
-  useEffect(() => {
-    fetchUsers(currentPage, roleFilter, searchQuery)
-  }, [currentPage, roleFilter, searchQuery, fetchUsers])
+  // Prefetch next page for better UX
+  if (pagination && currentPage < pagination.totalPages) {
+    queryClient.prefetchQuery({
+      queryKey: ['users', currentPage + 1, roleFilter, debouncedSearch],
+      queryFn: () => fetchUsers(currentPage + 1, roleFilter, debouncedSearch),
+      staleTime: 2 * 60 * 1000,
+    })
+  }
 
   const handleSearch = useCallback(() => {
-    setSearchQuery(searchInput)
+    setDebouncedSearch(searchInput)
     setCurrentPage(1)
   }, [searchInput])
 
   const handleClearSearch = useCallback(() => {
     setSearchInput('')
-    setSearchQuery('')
+    setDebouncedSearch('')
     setCurrentPage(1)
   }, [])
 
@@ -67,8 +136,8 @@ export function useUsers(params: UseUsersParams = {}) {
   }, [])
 
   const refreshUsers = useCallback(() => {
-    fetchUsers(currentPage, roleFilter, searchQuery)
-  }, [currentPage, roleFilter, searchQuery, fetchUsers])
+    refetch()
+  }, [refetch])
 
   return {
     users,
@@ -76,7 +145,7 @@ export function useUsers(params: UseUsersParams = {}) {
     pagination,
     currentPage,
     roleFilter,
-    searchQuery,
+    searchQuery: debouncedSearch, // For backward compatibility
     searchInput,
     setSearchInput,
     handleSearch,

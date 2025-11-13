@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { AdminAuthProvider, useAdminAuth } from '@/hooks/useAdminAuth'
+import { ReactQueryProvider } from '@/lib/react-query'
 import { Toaster } from '@/components/ui/sonner'
 import { Button } from '@/components/ui/button'
 import { PERMISSIONS } from '@/types/admin'
@@ -248,11 +249,13 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   return (
-    <AdminAuthProvider>
-      <AdminLayoutContent>
-        {children}
-      </AdminLayoutContent>
-      <Toaster />
-    </AdminAuthProvider>
+    <ReactQueryProvider>
+      <AdminAuthProvider>
+        <AdminLayoutContent>
+          {children}
+        </AdminLayoutContent>
+        <Toaster />
+      </AdminAuthProvider>
+    </ReactQueryProvider>
   )
 }

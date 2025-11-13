@@ -54,43 +54,37 @@ export async function GET(request: NextRequest) {
       query = query.gte('created_at', cutoffDate.toISOString());
     }
 
-    const { data: allReceipts, error, count: totalCount } = await query;
+    // Search filtering at database level (much faster than JavaScript filtering)
+    if (search && search.trim()) {
+      const searchTrim = search.trim();
+      const searchNum = parseFloat(searchTrim);
+
+      // If search is a number, also search by total_amount
+      if (!isNaN(searchNum)) {
+        query = query.or(`user_profiles.display_name.ilike.%${searchTrim}%,user_profiles.first_name.ilike.%${searchTrim}%,user_profiles.last_name.ilike.%${searchTrim}%,total_amount.eq.${searchNum}`);
+      } else {
+        // Text search only in user profile fields
+        query = query.or(`user_profiles.display_name.ilike.%${searchTrim}%,user_profiles.first_name.ilike.%${searchTrim}%,user_profiles.last_name.ilike.%${searchTrim}%`);
+      }
+    }
+
+    // Apply pagination at database level
+    query = query.range(offset, offset + limit - 1);
+
+    const { data: receipts, error, count: totalCount } = await query;
 
     if (error) {
       console.error("Error fetching receipts:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Filter by search on server side
-    let filteredReceipts = allReceipts || [];
-    if (search && filteredReceipts.length > 0) {
-      const searchLower = search.toLowerCase();
-      const searchNum = parseFloat(search);
-
-      filteredReceipts = filteredReceipts.filter((receipt: any) => {
-        const user = receipt.user_profiles;
-        const displayName = (user?.display_name || '').toLowerCase();
-        const firstName = (user?.first_name || '').toLowerCase();
-        const lastName = (user?.last_name || '').toLowerCase();
-        const totalAmount = receipt.total_amount || 0;
-
-        return displayName.includes(searchLower) ||
-               firstName.includes(searchLower) ||
-               lastName.includes(searchLower) ||
-               (!isNaN(searchNum) && totalAmount === searchNum);
-      });
-    }
-
-    // Apply pagination to filtered results
-    const receipts = filteredReceipts.slice(offset, offset + limit);
-
     return NextResponse.json({
-      receipts,
+      receipts: receipts || [],
       pagination: {
         page,
         limit,
-        total: filteredReceipts.length,
-        totalPages: Math.ceil(filteredReceipts.length / limit)
+        total: totalCount || 0,
+        totalPages: Math.ceil((totalCount || 0) / limit)
       }
     });
 
