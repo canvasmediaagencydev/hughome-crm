@@ -46,6 +46,10 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Check if we're on login/signup page
+  const isLoginPage = typeof window !== 'undefined' &&
+    (window.location.pathname === '/admin/login' || window.location.pathname === '/admin/signup')
+
   // ฟังก์ชันโหลดข้อมูล admin, roles, และ permissions
   const loadAdminData = async (authUserId: string, retryCount = 0) => {
     const maxRetries = 2
@@ -129,6 +133,13 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
+    // Skip auth init on login/signup pages
+    if (isLoginPage) {
+      console.log('[useAdminAuth] Skipping auth init on login page')
+      setLoading(false)
+      return
+    }
+
     const initAuth = async () => {
       try {
         console.log('[useAdminAuth] Starting init auth...')
@@ -162,8 +173,6 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
     initAuth()
 
-    return () => clearTimeout(safetyTimeout)
-
     const { data: { subscription } } = supabaseAdmin.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state change:', event, session?.user?.email)
@@ -191,8 +200,11 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       }
     )
 
-    return () => subscription.unsubscribe()
-  }, [])
+    return () => {
+      clearTimeout(safetyTimeout)
+      subscription.unsubscribe()
+    }
+  }, [isLoginPage])
 
   const signIn = async (email: string, password: string) => {
     setLoading(true)
