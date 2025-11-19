@@ -129,21 +129,29 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    supabaseAdmin.auth.getSession().then(async ({ data: { session }, error }) => {
-      if (error) {
-        console.error('Auth session error:', error)
-        setError(error.message)
+    const initAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabaseAdmin.auth.getSession()
+
+        if (error) {
+          console.error('Auth session error:', error)
+          setError(error.message)
+        }
+
+        const authUser = session?.user ?? null
+        setUser(authUser)
+
+        if (authUser) {
+          await loadAdminData(authUser.id)
+        }
+      } catch (err) {
+        console.error('Init auth error:', err)
+      } finally {
+        setLoading(false)
       }
+    }
 
-      const authUser = session?.user ?? null
-      setUser(authUser)
-
-      if (authUser) {
-        await loadAdminData(authUser.id)
-      }
-
-      setLoading(false)
-    })
+    initAuth()
 
     const { data: { subscription } } = supabaseAdmin.auth.onAuthStateChange(
       async (event, session) => {
