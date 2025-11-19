@@ -291,6 +291,10 @@ interface AdminLayoutProps {
   children: React.ReactNode
 }
 
+// Force dynamic rendering for all admin pages - no caching
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <ReactQueryProvider>
