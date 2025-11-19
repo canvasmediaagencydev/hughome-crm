@@ -190,7 +190,7 @@ export default function AdminUsersPage() {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
-              {users.map((user, index) => (
+              {users.map((user: User, index: number) => (
                 <div
                   key={user.id}
                   className="animate-fade-in"
