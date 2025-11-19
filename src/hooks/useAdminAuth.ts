@@ -164,12 +164,19 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           setAdminUser(null)
           setRoles([])
           setPermissions([])
+          setLoading(false)
           toast.success('ออกจากระบบเรียบร้อยแล้ว')
-        } else if (authUser) {
-          await loadAdminData(authUser.id)
+        } else if (event === 'SIGNED_IN' && authUser) {
+          // Only load data on sign in, not on token refresh
+          try {
+            setLoading(true)
+            await loadAdminData(authUser.id)
+          } catch (err) {
+            console.error('Error loading admin data on sign in:', err)
+          } finally {
+            setLoading(false)
+          }
         }
-
-        setLoading(false)
       }
     )
 
