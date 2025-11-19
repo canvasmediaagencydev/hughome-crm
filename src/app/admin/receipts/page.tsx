@@ -21,7 +21,7 @@ import { AutoRejectConfirmModal } from '@/components/admin/AutoRejectConfirmModa
 import { ReceiptDetailModal } from '@/components/admin/ReceiptDetailModal'
 import { ReceiptImageModal } from '@/components/admin/ReceiptImageModal'
 import { RejectReceiptModal } from '@/components/admin/RejectReceiptModal'
-import { OcrConfirmModal } from '@/components/admin/OcrConfirmModal'
+import { EditReceiptModal } from '@/components/admin/EditReceiptModal'
 
 export default function AdminReceipts() {
   // Permission check
@@ -53,16 +53,9 @@ export default function AdminReceipts() {
   const [showRejectModal, setShowRejectModal] = useState(false)
   const [receiptToReject, setReceiptToReject] = useState<ReceiptWithRelations | null>(null)
   const [selectedImageUrl, setSelectedImageUrl] = useState('')
-  const [isReprocessing, setIsReprocessing] = useState(false)
-
-  // OCR Confirmation states
-  const [showOcrConfirmModal, setShowOcrConfirmModal] = useState(false)
-  const [newOcrData, setNewOcrData] = useState<any>(null)
-  const [newOcrTimestamp, setNewOcrTimestamp] = useState<string | null>(null)
-  const [isConfirmingOcr, setIsConfirmingOcr] = useState(false)
-
-  // Use ref to track processing state to prevent race conditions
-  const isProcessingRef = useRef(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [receiptToEdit, setReceiptToEdit] = useState<ReceiptWithRelations | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
 
   // Custom hooks
   const {
@@ -111,6 +104,8 @@ export default function AdminReceipts() {
   const closeImageModal = () => {
     setSelectedImageUrl('')
     setShowImageModal(false)
+    // กลับไปเปิด DetailModal อีกครั้ง
+    setShowDetailModal(true)
   }
 
   const closeAutoApproveModal = () => {
@@ -160,99 +155,25 @@ export default function AdminReceipts() {
     await autoRejectReceipts()
   }
 
-  const handleReprocess = useCallback(async (receiptId: string) => {
-    console.log('AdminReceipts: handleReprocess called', {
-      receiptId,
-      isProcessingRef: isProcessingRef.current,
-      timestamp: new Date().toISOString()
-    })
-
-    // Prevent multiple concurrent requests using ref (more reliable than state)
-    if (isProcessingRef.current) {
-      console.log('AdminReceipts: Already reprocessing (ref check), ignoring request')
-      alert('กรุณารอจนกว่าการตรวจสอบปัจจุบันจะเสร็จสิ้น')
-      return
+  const handleEditAmount = (receiptId: string) => {
+    const receipt = receipts.find(r => r.id === receiptId)
+    if (receipt) {
+      setReceiptToEdit(receipt)
+      setShowEditModal(true)
     }
+  }
 
-    console.log('AdminReceipts: Setting isProcessingRef to true')
-    isProcessingRef.current = true
-    setIsReprocessing(true)
+  const confirmEditAmount = async (editedAmount: number, isValidStore: boolean) => {
+    if (!receiptToEdit) return
+
+    setIsEditing(true)
     try {
-      // Get current session token
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
-      console.log('AdminReceipts: Got session', { hasSession: !!session, hasToken: !!session?.access_token })
-
-      if (!session?.access_token) {
-        throw new Error('No active session')
-      }
-
-      console.log('AdminReceipts: Calling reprocess API for receipt', receiptId)
-
-      // Create abort controller for timeout
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => {
-        console.log('AdminReceipts: Request timeout - aborting')
-        controller.abort()
-      }, 60000) // 60 second timeout
-
-      const response = await fetch(`/api/admin/receipts/${receiptId}/reprocess`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        signal: controller.signal
-      })
-
-      clearTimeout(timeoutId)
-
-      console.log('AdminReceipts: API response', { status: response.status, ok: response.ok })
-      const data = await response.json()
-      console.log('AdminReceipts: API data', data)
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to reprocess receipt')
-      }
-
-      // Store new OCR data and show confirmation modal
-      setNewOcrData(data.ocr_data)
-      setNewOcrTimestamp(data.ocr_processed_at)
-      setShowOcrConfirmModal(true)
-      console.log('AdminReceipts: Showing OCR confirm modal')
-
-    } catch (error) {
-      console.error('AdminReceipts: Reprocess error:', error)
-
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          alert('การตรวจสอบใบเสร็จใช้เวลานานเกินไป กรุณาลองใหม่อีกครั้ง')
-        } else {
-          alert(error.message)
-        }
-      } else {
-        alert('ไม่สามารถตรวจสอบใบเสร็จใหม่ได้')
-      }
-    } finally {
-      console.log('AdminReceipts: Setting isProcessingRef to false')
-      isProcessingRef.current = false
-      setIsReprocessing(false)
-      console.log('AdminReceipts: Reprocess finished')
-    }
-  }, [])
-
-  const handleConfirmOcr = async () => {
-    if (!selectedReceipt || !newOcrData) return
-
-    setIsConfirmingOcr(true)
-    try {
-      // Get current session token
       const { data: { session } } = await supabaseAdmin.auth.getSession()
       if (!session?.access_token) {
         throw new Error('No active session')
       }
 
-      const response = await fetch(`/api/admin/receipts/${selectedReceipt.id}/confirm-ocr`, {
+      const response = await fetch(`/api/admin/receipts/${receiptToEdit.id}/edit-amount`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
@@ -260,46 +181,50 @@ export default function AdminReceipts() {
           'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
-          ocr_data: newOcrData
+          total_amount: editedAmount,
+          is_valid_store: isValidStore
         })
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to confirm OCR data')
+        throw new Error(data.error || 'Failed to update amount')
       }
 
-      // Success - close modal and refresh
-      alert('บันทึกข้อมูล OCR ใหม่เรียบร้อยแล้ว')
-      setShowOcrConfirmModal(false)
-      setNewOcrData(null)
-      setNewOcrTimestamp(null)
+      alert('แก้ไขเรียบร้อยแล้ว')
+      setShowEditModal(false)
+      setReceiptToEdit(null)
 
       // Refresh receipts
       await refreshReceipts()
 
-      // Update selected receipt
-      const updatedReceipt = receipts.find(r => r.id === selectedReceipt.id)
-      if (updatedReceipt) {
+      // Update selected receipt if it's the same one
+      if (selectedReceipt?.id === receiptToEdit.id) {
+        const currentOcrData = (selectedReceipt.ocr_data || {}) as any
+        const updatedOcrData = {
+          ...currentOcrData,
+          ชื่อร้าน: isValidStore
+        }
         setSelectedReceipt({
-          ...updatedReceipt,
-          ocr_data: data.ocr_data
+          ...selectedReceipt,
+          total_amount: editedAmount,
+          ocr_data: updatedOcrData
         })
       }
     } catch (error) {
-      console.error('Confirm OCR error:', error)
-      alert(error instanceof Error ? error.message : 'ไม่สามารถบันทึกข้อมูล OCR ได้')
+      console.error('Edit amount error:', error)
+      alert(error instanceof Error ? error.message : 'ไม่สามารถแก้ไขยอดเงินได้')
     } finally {
-      setIsConfirmingOcr(false)
+      setIsEditing(false)
     }
   }
 
-  const handleCloseOcrConfirm = () => {
-    setShowOcrConfirmModal(false)
-    setNewOcrData(null)
-    setNewOcrTimestamp(null)
+  const closeEditModal = () => {
+    setShowEditModal(false)
+    setReceiptToEdit(null)
   }
+
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -434,9 +359,8 @@ export default function AdminReceipts() {
         onClose={closeDetailModal}
         receipt={selectedReceipt}
         onImageClick={openImageModal}
-        onReprocess={handleReprocess}
-        canReprocess={canApprove}
-        isReprocessing={isReprocessing}
+        onEditAmount={handleEditAmount}
+        canEdit={canApprove}
       />
 
       <ReceiptImageModal
@@ -445,21 +369,14 @@ export default function AdminReceipts() {
         imageUrl={selectedImageUrl}
       />
 
-      <OcrConfirmModal
-        open={showOcrConfirmModal}
-        onClose={handleCloseOcrConfirm}
-        oldOcrData={selectedReceipt?.ocr_data as any}
-        newOcrData={newOcrData}
-        onConfirm={handleConfirmOcr}
-        onRecheck={() => {
-          if (selectedReceipt) {
-            handleCloseOcrConfirm()
-            handleReprocess(selectedReceipt.id)
-          }
-        }}
-        isConfirming={isConfirmingOcr}
-        isRechecking={isReprocessing}
+      <EditReceiptModal
+        open={showEditModal}
+        onClose={closeEditModal}
+        onConfirm={confirmEditAmount}
+        isEditing={isEditing}
+        receiptData={receiptToEdit}
       />
+
     </div>
   )
 }

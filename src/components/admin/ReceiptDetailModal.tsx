@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
+import { Pencil } from 'lucide-react'
 import { Tables } from '../../../database.types'
 import { getReceiptImageUrl } from '@/lib/supabase-storage'
 
@@ -26,9 +27,8 @@ interface ReceiptDetailModalProps {
   onClose: () => void
   receipt: ReceiptWithRelations | null
   onImageClick: (imageUrl: string) => void
-  onReprocess?: (receiptId: string) => Promise<void>
-  canReprocess?: boolean
-  isReprocessing?: boolean
+  onEditAmount?: (receiptId: string) => void
+  canEdit?: boolean
 }
 
 export function ReceiptDetailModal({
@@ -36,29 +36,10 @@ export function ReceiptDetailModal({
   onClose,
   receipt,
   onImageClick,
-  onReprocess,
-  canReprocess = false,
-  isReprocessing = false
+  onEditAmount,
+  canEdit = false
 }: ReceiptDetailModalProps) {
   if (!receipt) return null
-
-  const handleReprocess = async () => {
-    console.log('ReceiptDetailModal: Re-check button clicked', {
-      hasOnReprocess: !!onReprocess,
-      receiptId: receipt.id,
-      isReprocessing
-    })
-
-    if (onReprocess && receipt.id) {
-      try {
-        await onReprocess(receipt.id)
-      } catch (error) {
-        console.error('ReceiptDetailModal: Reprocess error', error)
-      }
-    } else {
-      console.warn('ReceiptDetailModal: Cannot reprocess - missing handler or receipt ID')
-    }
-  }
 
   // Format OCR timestamp
   const formatOcrTimestamp = (timestamp: string | null) => {
@@ -120,6 +101,33 @@ export function ReceiptDetailModal({
             </div>
           )}
 
+          {/* Receipt Amount */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-blue-700 font-medium mb-1">ยอดเงินใบเสร็จ:</p>
+                <p className="text-3xl font-bold text-blue-900">
+                  {receipt.total_amount?.toLocaleString() || '0'} บาท
+                </p>
+                {receipt.receipt_date && (
+                  <p className="text-sm text-blue-700 mt-1">
+                    วันที่: {receipt.receipt_date}
+                  </p>
+                )}
+              </div>
+              {canEdit && onEditAmount && (
+                <Button
+                  onClick={() => onEditAmount(receipt.id)}
+                  size="sm"
+                  className="bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  <Pencil className="mr-2 h-4 w-4" />
+                  แก้ไขข้อมูล
+                </Button>
+              )}
+            </div>
+          </div>
+
           {/* OCR Data */}
           {receipt.ocr_data && (
             <div>
@@ -130,17 +138,6 @@ export function ReceiptDetailModal({
                     ประมวลผลเมื่อ: {formatOcrTimestamp(receipt.ocr_processed_at)}
                   </p>
                 </div>
-                {canReprocess && receipt.status === 'pending' && (
-                  <Button
-                    onClick={handleReprocess}
-                    disabled={isReprocessing}
-                    size="sm"
-                    variant="outline"
-                    className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-300"
-                  >
-                    {isReprocessing ? 'กำลังตรวจสอบ...' : 'Re-check with AI'}
-                  </Button>
-                )}
               </div>
               <pre className="bg-slate-50 border border-slate-200 p-3 rounded text-xs overflow-auto max-h-32 text-slate-700">
                 {JSON.stringify(receipt.ocr_data, null, 2)}

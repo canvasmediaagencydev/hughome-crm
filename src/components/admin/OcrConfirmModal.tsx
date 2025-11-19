@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 interface OCRData {
   ชื่อร้าน: boolean
@@ -13,7 +15,7 @@ interface OcrConfirmModalProps {
   onClose: () => void
   oldOcrData: OCRData | null
   newOcrData: OCRData | null
-  onConfirm: () => void
+  onConfirm: (editedData: OCRData) => void
   onRecheck: () => void
   isConfirming: boolean
   isRechecking: boolean
@@ -25,13 +27,34 @@ export function OcrConfirmModal({
   oldOcrData,
   newOcrData,
   onConfirm,
-  onRecheck,
   isConfirming,
   isRechecking
 }: OcrConfirmModalProps) {
+  // Editable fields state
+  const [editedAmount, setEditedAmount] = useState<string>('')
+  const [editedDate, setEditedDate] = useState<string>('')
+
+  // Initialize with newOcrData when modal opens
+  useEffect(() => {
+    if (newOcrData) {
+      setEditedAmount(newOcrData.ยอดรวม.toString())
+      setEditedDate(newOcrData.วันที่)
+    }
+  }, [newOcrData, open])
+
   if (!newOcrData) return null
 
   const hasChanges = JSON.stringify(oldOcrData) !== JSON.stringify(newOcrData)
+
+  const handleConfirmClick = () => {
+    // Create edited OCR data
+    const editedOcrData: OCRData = {
+      ...newOcrData,
+      ยอดรวม: parseFloat(editedAmount) || newOcrData.ยอดรวม,
+      วันที่: editedDate || newOcrData.วันที่
+    }
+    onConfirm(editedOcrData)
+  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -72,10 +95,10 @@ export function OcrConfirmModal({
               </div>
             </div>
 
-            {/* New OCR */}
+            {/* New OCR - Editable */}
             <div>
-              <h3 className="font-semibold text-sm text-slate-700 mb-2">ข้อมูลใหม่</h3>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+              <h3 className="font-semibold text-sm text-slate-700 mb-2">ข้อมูลใหม่ (แก้ไขได้)</h3>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
                 <div>
                   <span className="text-xs text-slate-500">ชื่อร้าน:</span>
                   <p className={`font-medium ${
@@ -84,22 +107,36 @@ export function OcrConfirmModal({
                     {newOcrData.ชื่อร้าน ? '✓ ถูกต้อง' : '✗ ไม่ถูกต้อง'}
                   </p>
                 </div>
+
+                {/* Editable Amount */}
                 <div>
-                  <span className="text-xs text-slate-500">ยอดรวม:</span>
-                  <p className={`font-medium ${
-                    oldOcrData?.ยอดรวม !== newOcrData.ยอดรวม ? 'text-blue-700' : ''
-                  }`}>
-                    {newOcrData.ยอดรวม.toLocaleString()} บาท
-                  </p>
+                  <label className="text-xs text-slate-500 block mb-1">ยอดรวม (บาท):</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editedAmount}
+                    onChange={(e) => setEditedAmount(e.target.value)}
+                    className={`font-medium ${
+                      oldOcrData?.ยอดรวม !== parseFloat(editedAmount) ? 'border-blue-500 bg-blue-100' : 'bg-white'
+                    }`}
+                    placeholder="ระบุยอดเงิน"
+                  />
                 </div>
+
+                {/* Editable Date */}
                 <div>
-                  <span className="text-xs text-slate-500">วันที่:</span>
-                  <p className={`font-medium ${
-                    oldOcrData?.วันที่ !== newOcrData.วันที่ ? 'text-blue-700' : ''
-                  }`}>
-                    {newOcrData.วันที่}
-                  </p>
+                  <label className="text-xs text-slate-500 block mb-1">วันที่ (dd/mm/yyyy):</label>
+                  <Input
+                    type="text"
+                    value={editedDate}
+                    onChange={(e) => setEditedDate(e.target.value)}
+                    className={`font-medium ${
+                      oldOcrData?.วันที่ !== editedDate ? 'border-blue-500 bg-blue-100' : 'bg-white'
+                    }`}
+                    placeholder="15/03/2567"
+                  />
                 </div>
+
                 <div>
                   <span className="text-xs text-slate-500">ความถูกต้อง:</span>
                   <p className={`font-medium ${
@@ -141,7 +178,7 @@ export function OcrConfirmModal({
               ยกเลิก
             </Button>
             <Button
-              onClick={onConfirm}
+              onClick={handleConfirmClick}
               disabled={isConfirming || isRechecking}
               className="bg-green-600 text-white hover:bg-green-700"
             >
