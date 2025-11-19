@@ -10,7 +10,22 @@ const nextConfig: NextConfig = {
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
-  
+
+  // Disable caching for admin pages
+  async headers() {
+    return [
+      {
+        source: '/admin/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          },
+        ],
+      },
+    ]
+  },
+
   // Image optimization
   images: {
     formats: ['image/webp'],

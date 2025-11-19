@@ -131,27 +131,38 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initAuth = async () => {
       try {
+        console.log('[useAdminAuth] Starting init auth...')
         const { data: { session }, error } = await supabaseAdmin.auth.getSession()
 
         if (error) {
-          console.error('Auth session error:', error)
+          console.error('[useAdminAuth] Auth session error:', error)
           setError(error.message)
         }
 
         const authUser = session?.user ?? null
+        console.log('[useAdminAuth] Auth user:', authUser?.email)
         setUser(authUser)
 
         if (authUser) {
           await loadAdminData(authUser.id)
         }
       } catch (err) {
-        console.error('Init auth error:', err)
+        console.error('[useAdminAuth] Init auth error:', err)
       } finally {
+        console.log('[useAdminAuth] Setting loading to false')
         setLoading(false)
       }
     }
 
+    // Safety timeout - force loading to false after 10 seconds
+    const safetyTimeout = setTimeout(() => {
+      console.warn('[useAdminAuth] Safety timeout triggered - forcing loading to false')
+      setLoading(false)
+    }, 10000)
+
     initAuth()
+
+    return () => clearTimeout(safetyTimeout)
 
     const { data: { subscription } } = supabaseAdmin.auth.onAuthStateChange(
       async (event, session) => {
