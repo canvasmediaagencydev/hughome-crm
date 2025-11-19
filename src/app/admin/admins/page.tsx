@@ -16,12 +16,24 @@ interface AdminWithRoles extends AdminUser {
 }
 
 export default function AdminsPage() {
-  const { hasPermission } = useAdminAuth()
+  const { hasPermission, loading: authLoading } = useAdminAuth()
   const [admins, setAdmins] = useState<AdminWithRoles[]>([])
   const [loading, setLoading] = useState(true)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [selectedAdmin, setSelectedAdmin] = useState<AdminWithRoles | null>(null)
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 border-t-2 border-t-slate-200 mx-auto mb-2"></div>
+          <p className="text-slate-500">กำลังตรวจสอบสิทธิ์...</p>
+        </div>
+      </div>
+    )
+  }
 
   // Check permission
   if (!hasPermission(PERMISSIONS.ADMINS_MANAGE)) {
