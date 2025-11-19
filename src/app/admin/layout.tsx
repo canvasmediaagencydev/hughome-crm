@@ -33,18 +33,25 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     signOut,
     isAuthenticated,
     hasPermission,
+    refetch,
   } = useAdminAuth()
   const router = useRouter()
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
     // Only redirect if we're done loading AND not authenticated
     // This prevents redirect loops during initial auth check
     if (!loading && !isAuthenticated && pathname !== '/admin/login') {
-      router.push('/admin/login')
+      // Check if we have a session but no admin data (indicates load error)
+      if (user && !adminUser) {
+        setLoadError(true)
+      } else {
+        router.push('/admin/login')
+      }
     }
-  }, [isAuthenticated, loading, router, pathname])
+  }, [isAuthenticated, loading, router, pathname, user, adminUser])
 
   const handleLogout = async () => {
     await signOut()
@@ -61,6 +68,43 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900 border-t-2 border-t-slate-200 mx-auto mb-4"></div>
           <p className="text-slate-600">กำลังโหลด...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state with retry option
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <X className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-xl font-semibold text-slate-900 mb-2">
+            เกิดข้อผิดพลาดในการโหลดข้อมูล
+          </h2>
+          <p className="text-slate-600 mb-6">
+            ไม่สามารถโหลดข้อมูล Admin ได้ กรุณาลองใหม่อีกครั้ง
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Button
+              onClick={async () => {
+                setLoadError(false)
+                await refetch()
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              ลองใหม่อีกครั้ง
+            </Button>
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              className="border-slate-300 text-slate-700 hover:bg-slate-100"
+            >
+              ออกจากระบบ
+            </Button>
+          </div>
         </div>
       </div>
     )

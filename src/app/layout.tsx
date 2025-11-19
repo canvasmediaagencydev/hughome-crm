@@ -6,9 +6,11 @@ import "./globals.css";
 const notoSansThai = Noto_Sans_Thai({
   variable: "--font-noto-sans-thai",
   subsets: ["thai", "latin"],
-  weight: ["400", "500", "600", "700"], // Reduced font weights for better performance
+  weight: ["400", "600", "700"], // Essential weights: normal, semibold, bold
   display: "swap", // Critical for CLS optimization
   preload: true,
+  fallback: ["system-ui", "-apple-system", "sans-serif"],
+  adjustFontFallback: true, // Reduce layout shift with fallback font
 });
 
 export const metadata: Metadata = {

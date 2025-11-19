@@ -94,11 +94,20 @@ export async function GET(request: NextRequest) {
 
     const permissions = Array.from(permissionSet)
 
-    return NextResponse.json({
-      adminUser: admin,
-      roles,
-      permissions
-    })
+    return NextResponse.json(
+      {
+        adminUser: admin,
+        roles,
+        permissions
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
+    )
   } catch (error) {
     console.error('Error in /api/admin/me:', error)
     return NextResponse.json(

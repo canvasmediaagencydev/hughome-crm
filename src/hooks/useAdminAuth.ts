@@ -47,7 +47,10 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
 
   // ฟังก์ชันโหลดข้อมูล admin, roles, และ permissions
-  const loadAdminData = async (authUserId: string) => {
+  const loadAdminData = async (authUserId: string, retryCount = 0) => {
+    const maxRetries = 2
+    const timeout = 10000 // 10 seconds timeout
+
     try {
       // Get current session token
       const { data: { session } } = await supabaseAdmin.auth.getSession()
@@ -58,25 +61,65 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      // Call API to get admin data (server-side with service role key)
-      const response = await fetch('/api/admin/me', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
+      // Create abort controller for timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+      try {
+        // Call API to get admin data (server-side with service role key)
+        const response = await fetch('/api/admin/me', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          signal: controller.signal
+        })
+
+        clearTimeout(timeoutId)
+
+        // Handle unauthorized - session expired or invalid
+        if (response.status === 401 || response.status === 403) {
+          console.warn('Session invalid, signing out')
+          await supabaseAdmin.auth.signOut()
+          setAdminUser(null)
+          setRoles([])
+          setPermissions([])
+          return
         }
-      })
 
-      if (!response.ok) {
-        setAdminUser(null)
-        setRoles([])
-        setPermissions([])
-        return
+        if (!response.ok) {
+          // Retry on 500 errors
+          if (response.status >= 500 && retryCount < maxRetries) {
+            console.log(`API error, retrying... (${retryCount + 1}/${maxRetries})`)
+            await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)))
+            return loadAdminData(authUserId, retryCount + 1)
+          }
+
+          setAdminUser(null)
+          setRoles([])
+          setPermissions([])
+          return
+        }
+
+        const { adminUser, roles, permissions } = await response.json()
+
+        setAdminUser(adminUser)
+        setRoles(roles)
+        setPermissions(permissions)
+      } catch (fetchErr: any) {
+        clearTimeout(timeoutId)
+
+        // Handle timeout or network errors
+        if (fetchErr.name === 'AbortError') {
+          console.error('Admin data fetch timeout')
+          if (retryCount < maxRetries) {
+            console.log(`Timeout, retrying... (${retryCount + 1}/${maxRetries})`)
+            await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)))
+            return loadAdminData(authUserId, retryCount + 1)
+          }
+        }
+
+        throw fetchErr
       }
-
-      const { adminUser, roles, permissions } = await response.json()
-
-      setAdminUser(adminUser)
-      setRoles(roles)
-      setPermissions(permissions)
     } catch (err) {
       console.error('Error loading admin data:', err)
       setAdminUser(null)

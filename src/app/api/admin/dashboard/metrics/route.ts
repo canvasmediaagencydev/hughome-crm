@@ -79,23 +79,32 @@ export async function GET() {
     const totalValue = approvedReceipts.reduce((sum, r) => sum + (r.total_amount || 0), 0);
 
     // Return consolidated metrics (including point settings)
-    return NextResponse.json({
-      totalUsers,
-      contractorCount,
-      homeownerCount,
-      monthlyActiveUsers,
-      totalReceipts,
-      pendingReceipts,
-      approvedReceipts: approvedCount,
-      rejectedReceipts,
-      totalReceiptValue: totalValue,
-      activeRewards: activeRewardsCount.count || 0,
-      pendingRedemptions: pendingRedemptionsCount.count || 0,
-      totalPointsEarned: 0, // TODO: Calculate from point_transactions if needed
-      totalPointsSpent: 0, // TODO: Calculate from point_transactions if needed
-      averageProcessingTime: 0, // TODO: Calculate if needed
-      pointSettings: pointSettings.data || []
-    });
+    return NextResponse.json(
+      {
+        totalUsers,
+        contractorCount,
+        homeownerCount,
+        monthlyActiveUsers,
+        totalReceipts,
+        pendingReceipts,
+        approvedReceipts: approvedCount,
+        rejectedReceipts,
+        totalReceiptValue: totalValue,
+        activeRewards: activeRewardsCount.count || 0,
+        pendingRedemptions: pendingRedemptionsCount.count || 0,
+        totalPointsEarned: 0, // TODO: Calculate from point_transactions if needed
+        totalPointsSpent: 0, // TODO: Calculate from point_transactions if needed
+        averageProcessingTime: 0, // TODO: Calculate if needed
+        pointSettings: pointSettings.data || []
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
+    );
 
   } catch (error: any) {
     console.error("Dashboard metrics error:", error);

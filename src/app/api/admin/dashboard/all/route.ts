@@ -184,27 +184,36 @@ export async function GET() {
     });
 
     // Return consolidated response
-    return NextResponse.json({
-      metrics: {
-        totalUsers,
-        contractorCount,
-        homeownerCount,
-        monthlyActiveUsers,
-        totalReceipts,
-        pendingReceipts,
-        approvedReceipts: approvedCount,
-        rejectedReceipts,
-        totalReceiptValue: totalValue,
-        activeRewards: activeRewardsCount.count || 0,
-        pendingRedemptions: pendingRedemptionsCount.count || 0,
-        totalPointsEarned: 0,
-        totalPointsSpent: 0,
-        averageProcessingTime: 0,
-        pointSettings: pointSettings.data || []
+    return NextResponse.json(
+      {
+        metrics: {
+          totalUsers,
+          contractorCount,
+          homeownerCount,
+          monthlyActiveUsers,
+          totalReceipts,
+          pendingReceipts,
+          approvedReceipts: approvedCount,
+          rejectedReceipts,
+          totalReceiptValue: totalValue,
+          activeRewards: activeRewardsCount.count || 0,
+          pendingRedemptions: pendingRedemptionsCount.count || 0,
+          totalPointsEarned: 0,
+          totalPointsSpent: 0,
+          averageProcessingTime: 0,
+          pointSettings: pointSettings.data || []
+        },
+        recentReceipts: recentReceipts.data || [],
+        analytics: analyticsData
       },
-      recentReceipts: recentReceipts.data || [],
-      analytics: analyticsData
-    });
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
+    );
 
   } catch (error: any) {
     console.error("Consolidated dashboard API error:", error);
