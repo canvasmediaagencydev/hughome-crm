@@ -14,6 +14,7 @@ import { axiosAdmin } from '@/lib/axios-admin'
 import type { User } from '@supabase/supabase-js'
 import type { AdminUser, AdminRole, PermissionKey } from '@/types/admin'
 import { toast } from 'sonner'
+import { useQueryClient } from '@tanstack/react-query'
 
 interface AdminAuthContextType {
   // Auth User (จาก Supabase Auth)
@@ -59,6 +60,11 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const [adminDataError, setAdminDataError] = useState(false)
   const focusRefreshInProgress = useRef(false)
+  const queryClient = useQueryClient()
+
+  const invalidateQueries = useCallback(() => {
+    queryClient.invalidateQueries()
+  }, [queryClient])
 
   // Check if we're on login/signup page
   const isLoginPage = typeof window !== 'undefined' &&
@@ -100,7 +106,11 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   )
 
   // ฟังก์ชันโหลดข้อมูล admin, roles, และ permissions
-  const loadAdminData = useCallback(async (authUserId: string, retryCount = 0) => {
+  const loadAdminData = useCallback(async (
+    authUserId: string,
+    retryCount = 0,
+    hasRefreshedSession = false
+  ) => {
     const maxRetries = 2
     const timeout = 10000 // 10 seconds timeout
 
@@ -149,13 +159,24 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           if (retryCount < maxRetries) {
             console.log(`Timeout, retrying... (${retryCount + 1}/${maxRetries})`)
             await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)))
-            return loadAdminData(authUserId, retryCount + 1)
+            return loadAdminData(authUserId, retryCount + 1, hasRefreshedSession)
           }
         }
 
         // Handle 401/403 from axios error response
         if (fetchErr.response && (fetchErr.response.status === 401 || fetchErr.response.status === 403)) {
-          console.warn('Session invalid, signing out')
+          console.warn('Session invalid, attempting refresh...')
+          if (!hasRefreshedSession) {
+            const { error: refreshError } = await supabase.auth.refreshSession()
+            if (refreshError) {
+              console.error('Failed to refresh session:', refreshError.message)
+            } else {
+              console.log('Session refreshed, retrying admin data load')
+              return loadAdminData(authUserId, retryCount, true)
+            }
+          }
+
+          console.warn('Session invalid after refresh, signing out')
           await supabase.auth.signOut()
           setAdminUser(null)
           setRoles([])
@@ -166,7 +187,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         if (fetchErr.response && fetchErr.response.status >= 500 && retryCount < maxRetries) {
             console.log(`API error, retrying... (${retryCount + 1}/${maxRetries})`)
             await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)))
-            return loadAdminData(authUserId, retryCount + 1)
+            return loadAdminData(authUserId, retryCount + 1, hasRefreshedSession)
         }
 
         setAdminDataError(true)
@@ -205,6 +226,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
         if (authUser) {
           await loadAdminData(authUser.id)
+          invalidateQueries()
         }
       } catch (err) {
         console.error('[useAdminAuth] Init auth error:', err)
@@ -215,10 +237,19 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Safety timeout - force loading to false after 10 seconds
-    const safetyTimeout = setTimeout(() => {
-      console.warn('[useAdminAuth] Safety timeout triggered - forcing loading to false')
-      setLoading(false)
-    }, 10000)
+    // Reset on each auth state change to ensure it's always active
+    let safetyTimeout: ReturnType<typeof setTimeout> | null = null
+    const resetSafetyTimeout = () => {
+      if (safetyTimeout) {
+        clearTimeout(safetyTimeout)
+      }
+      safetyTimeout = setTimeout(() => {
+        console.warn('[useAdminAuth] Safety timeout triggered - forcing loading to false')
+        setLoading(false)
+      }, 10000)
+    }
+
+    resetSafetyTimeout()
 
     initAuth()
 
@@ -228,6 +259,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         const authUser = session?.user ?? null
         setUser(authUser)
         setError(null)
+
+        // Reset safety timeout on every auth state change
+        resetSafetyTimeout()
 
         if (event === 'SIGNED_OUT') {
           setAdminUser(null)
@@ -240,20 +274,37 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           try {
             setLoading(true)
             await loadAdminData(authUser.id)
+            invalidateQueries()
           } catch (err) {
             console.error('Error loading admin data on sign in:', err)
           } finally {
             setLoading(false)
           }
+        } else if (event === 'TOKEN_REFRESHED') {
+          // Token was refreshed (happens when tab regains focus)
+          // No need to reload admin data, just ensure loading state is false
+          console.log('[useAdminAuth] Token refreshed, ensuring loading state is false')
+          setLoading(false)
+        } else if (event === 'USER_UPDATED') {
+          // User data was updated
+          console.log('[useAdminAuth] User updated, ensuring loading state is false')
+          setLoading(false)
+        } else {
+          // Handle any other events (INITIAL_SESSION, PASSWORD_RECOVERY, etc.)
+          // Ensure loading state is always resolved
+          console.log('[useAdminAuth] Unhandled auth event:', event, '- ensuring loading state is false')
+          setLoading(false)
         }
       }
     )
 
     return () => {
-      clearTimeout(safetyTimeout)
+      if (safetyTimeout) {
+        clearTimeout(safetyTimeout)
+      }
       subscription.unsubscribe()
     }
-  }, [getSessionWithTimeout, isLoginPage, loadAdminData, supabase])
+  }, [getSessionWithTimeout, invalidateQueries, isLoginPage, loadAdminData, supabase])
 
   const refreshOnFocus = useCallback(async () => {
     if (focusRefreshInProgress.current || loading || isLoginPage) {
@@ -273,6 +324,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
       if (authUser) {
         await loadAdminData(authUser.id)
+        invalidateQueries()
       } else {
         setAdminUser(null)
         setRoles([])
@@ -283,7 +335,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       focusRefreshInProgress.current = false
     }
-  }, [getSessionWithTimeout, isLoginPage, loadAdminData, loading])
+  }, [getSessionWithTimeout, invalidateQueries, isLoginPage, loadAdminData, loading])
 
   useEffect(() => {
     if (isLoginPage || typeof window === 'undefined' || typeof document === 'undefined') {
@@ -291,12 +343,17 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const handleVisibility = () => {
+      console.log('[useAdminAuth] Visibility changed:', document.visibilityState)
       if (document.visibilityState === 'visible') {
+        console.log('[useAdminAuth] Tab became visible, refreshing session...')
         refreshOnFocus()
+      } else {
+        console.log('[useAdminAuth] Tab became hidden')
       }
     }
 
     const handleFocus = () => {
+      console.log('[useAdminAuth] Window gained focus, refreshing session...')
       refreshOnFocus()
     }
 

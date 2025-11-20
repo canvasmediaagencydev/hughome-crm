@@ -16,8 +16,8 @@ export function ReactQueryProvider({ children }: { children: React.ReactNode }) 
             gcTime: 10 * 60 * 1000,
             // Retry failed requests
             retry: 1,
-            // Refetch on window focus (good for admin panels)
-            refetchOnWindowFocus: true,
+            // We'll refetch manually after Supabase session refresh completes
+            refetchOnWindowFocus: false,
             // Don't refetch on mount if data is fresh
             refetchOnMount: false,
           },
