@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { axiosAdmin } from '@/lib/axios-admin'
 import { ReceiptWithRelations, ReceiptListResponse } from '@/types'
 import debounce from 'lodash.debounce'
 
@@ -25,30 +26,8 @@ async function fetchReceipts(
     params.append('search', search.trim())
   }
 
-  const { supabaseAdmin } = await import('@/lib/supabase-admin')
-  const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-  if (!session?.access_token) {
-    throw new Error('No session found')
-  }
-
-  const response = await fetch(`/api/admin/receipts?${params}`, {
-    headers: {
-      Authorization: `Bearer ${session.access_token}`
-    }
-  })
-
-  if (!response.ok) {
-    if (response.status === 401) {
-      throw new Error('Unauthorized: Session expired')
-    }
-    if (response.status === 403) {
-      throw new Error('Forbidden: No permission to view receipts')
-    }
-    throw new Error('Failed to fetch receipts')
-  }
-
-  return response.json()
+  const response = await axiosAdmin.get(`/api/admin/receipts?${params}`)
+  return response.data
 }
 
 export function useReceipts(params: UseReceiptsParams = {}) {

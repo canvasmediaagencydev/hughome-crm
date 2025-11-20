@@ -23,6 +23,7 @@ import { Tables } from '../../../../database.types'
 import { toast } from 'sonner'
 import Image from 'next/image'
 import { Pagination } from '@/components/Pagination'
+import { axiosAdmin } from '@/lib/axios-admin'
 
 type Reward = Tables<'rewards'> & {
   is_archived?: boolean | null
@@ -99,22 +100,10 @@ export default function AdminRewards() {
   const fetchRewards = async (page: number) => {
     try {
       setLoading(true)
-      const headers = await getAuthHeaders()
-      if (!headers) {
-        setLoading(false)
-        return
-      }
-
-      const response = await fetch(`/api/admin/rewards?page=${page}&limit=12`, {
-        headers,
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setRewards((data.rewards || []).filter((reward: Reward) => !reward.is_archived))
-        setPagination(data.pagination)
-      } else {
-        toast.error('ไม่สามารถโหลดข้อมูลรางวัลได้')
-      }
+      const response = await axiosAdmin.get(`/api/admin/rewards?page=${page}&limit=12`)
+      const data = response.data
+      setRewards((data.rewards || []).filter((reward: Reward) => !reward.is_archived))
+      setPagination(data.pagination)
     } catch (error) {
       toast.error('เกิดข้อผิดพลาดในการโหลดข้อมูล')
     } finally {
@@ -122,19 +111,7 @@ export default function AdminRewards() {
     }
   }
 
-  const getAuthHeaders = async () => {
-    const { supabaseAdmin } = await import('@/lib/supabase-admin')
-    const { data: { session } } = await supabaseAdmin.auth.getSession()
 
-    if (!session?.access_token) {
-      toast.error('ไม่พบ session กรุณา login ใหม่')
-      return null
-    }
-
-    return {
-      Authorization: `Bearer ${session.access_token}`,
-    }
-  }
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage)
@@ -205,22 +182,13 @@ export default function AdminRewards() {
       const formData = new FormData()
       formData.append('file', file)
 
-      const headers = await getAuthHeaders()
-      if (!headers) {
-        return null
-      }
-
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-        headers,
+      const response = await axiosAdmin.post('/api/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        return data.url
-      }
-      return null
+      return response.data.url
     } catch (error) {
       console.error('Image upload error:', error)
       return null
@@ -263,45 +231,15 @@ export default function AdminRewards() {
         is_archived: formData.is_archived,
       }
 
-      let response
       if (editingReward) {
-        const headers = await getAuthHeaders()
-        if (!headers) {
-          setSubmitting(false)
-          return
-        }
-
-        response = await fetch(`/api/admin/rewards/${editingReward.id}`, {
-          method: 'PUT',
-          headers: {
-            ...headers,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        })
+        await axiosAdmin.put(`/api/admin/rewards/${editingReward.id}`, payload)
       } else {
-        const headers = await getAuthHeaders()
-        if (!headers) {
-          setSubmitting(false)
-          return
-        }
-        response = await fetch('/api/admin/rewards', {
-          method: 'POST',
-          headers: {
-            ...headers,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        })
+        await axiosAdmin.post('/api/admin/rewards', payload)
       }
 
-      if (response.ok) {
-        toast.success(editingReward ? 'แก้ไขรางวัลสำเร็จ' : 'เพิ่มรางวัลสำเร็จ')
-        handleCloseFormDialog()
-        fetchRewards(currentPage)
-      } else {
-        toast.error('ไม่สามารถบันทึกข้อมูลได้')
-      }
+      toast.success(editingReward ? 'แก้ไขรางวัลสำเร็จ' : 'เพิ่มรางวัลสำเร็จ')
+      handleCloseFormDialog()
+      fetchRewards(currentPage)
     } catch (error) {
       toast.error('เกิดข้อผิดพลาด')
     } finally {
@@ -314,26 +252,12 @@ export default function AdminRewards() {
 
     setSubmitting(true)
     try {
-      const headers = await getAuthHeaders()
-      if (!headers) {
-        setSubmitting(false)
-        return
-      }
-
-      const response = await fetch(`/api/admin/rewards/${deletingReward.id}`, {
-        method: 'DELETE',
-        headers,
-      })
-
-      if (response.ok) {
-        const result = await response.json()
-        toast.success(result.archived ? 'ปิดการแสดงผลรางวัลสำเร็จ' : 'ลบรางวัลสำเร็จ')
-        setShowDeleteDialog(false)
-        setDeletingReward(null)
-        fetchRewards(currentPage)
-      } else {
-        toast.error('ไม่สามารถลบรางวัลได้')
-      }
+      const response = await axiosAdmin.delete(`/api/admin/rewards/${deletingReward.id}`)
+      const result = response.data
+      toast.success(result.archived ? 'ปิดการแสดงผลรางวัลสำเร็จ' : 'ลบรางวัลสำเร็จ')
+      setShowDeleteDialog(false)
+      setDeletingReward(null)
+      fetchRewards(currentPage)
     } catch (error) {
       toast.error('เกิดข้อผิดพลาด')
     } finally {
@@ -347,27 +271,10 @@ export default function AdminRewards() {
       return
     }
     try {
-      const headers = await getAuthHeaders()
-      if (!headers) {
-        return
-      }
-
-      const response = await fetch(`/api/admin/rewards/${reward.id}`, {
-        method: 'PUT',
-        headers: {
-          ...headers,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ is_active: !reward.is_active }),
-      })
-
-      if (response.ok) {
-        const updatedReward = await response.json()
-        setRewards(prev => prev.map(r => r.id === reward.id ? updatedReward : r))
-        toast.success('อัปเดตสถานะสำเร็จ')
-      } else {
-        toast.error('ไม่สามารถอัปเดตสถานะได้')
-      }
+      const response = await axiosAdmin.put(`/api/admin/rewards/${reward.id}`, { is_active: !reward.is_active })
+      const updatedReward = response.data
+      setRewards(prev => prev.map(r => r.id === reward.id ? updatedReward : r))
+      toast.success('อัปเดตสถานะสำเร็จ')
     } catch (error) {
       toast.error('เกิดข้อผิดพลาด')
     }
@@ -427,121 +334,120 @@ export default function AdminRewards() {
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
                   <Card className="overflow-hidden bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-lg hover:border-slate-300 transition-all duration-200">
-                <div className="aspect-video bg-slate-100 relative">
-                  {reward.image_url ? (
-                    <Image
-                      src={reward.image_url}
-                      alt={reward.name}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <ImageIcon className="h-12 w-12 text-slate-400" />
-                    </div>
-                  )}
-                  {reward.stock_quantity !== null && (
-                    <div className="absolute top-2 right-2">
-                      <Badge
-                        className={`text-white hover:opacity-90 ${
-                          reward.remaining_stock === 0
-                            ? 'bg-red-500'
-                            : (reward.remaining_stock !== undefined && reward.remaining_stock !== null && reward.remaining_stock < 10)
-                              ? 'bg-orange-500'
-                              : 'bg-slate-900'
-                        }`}
-                      >
-                        <Package className="mr-1 h-3 w-3" />
-                        {reward.remaining_stock !== undefined ? reward.remaining_stock : reward.stock_quantity} ชิ้น
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <CardTitle className="text-lg text-slate-900">{reward.name}</CardTitle>
-                    <Badge
-                      variant={reward.is_active ? 'default' : 'secondary'}
-                      className={reward.is_active ? 'bg-green-500 hover:bg-green-600' : 'bg-slate-200 text-slate-700'}
-                    >
-                      {reward.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
-                    </Badge>
-                  </div>
-                  {reward.category && (
-                    <CardDescription className="text-slate-600">{reward.category}</CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {reward.description && (
-                    <p className="text-sm text-slate-600 line-clamp-2">
-                      {reward.description}
-                    </p>
-                  )}
-                  <div className="flex justify-between items-center text-sm">
-                    <div className="flex items-center text-blue-400 font-semibold">
-                      <Gift className="mr-1 h-4 w-4" />
-                      {reward.points_cost.toLocaleString()} แต้ม
-                    </div>
-                    <div className="flex flex-col items-end text-slate-600 text-xs">
-                      {reward.stock_quantity !== null ? (
-                        <>
-                          <div className="flex items-center font-semibold">
-                            <Package className="mr-1 h-3 w-3" />
-                            สต็อก: {reward.stock_quantity} ชิ้น
-                          </div>
-                          {reward.redeemed_count !== undefined && reward.redeemed_count > 0 && (
-                            <div className="text-slate-500">
-                              (แลกไป {reward.redeemed_count} ชิ้น)
-                            </div>
-                          )}
-                        </>
+                    <div className="aspect-video bg-slate-100 relative">
+                      {reward.image_url ? (
+                        <Image
+                          src={reward.image_url}
+                          alt={reward.name}
+                          fill
+                          className="object-cover"
+                        />
                       ) : (
-                        <div className="flex items-center">
-                          <Package className="mr-1 h-3 w-3" />
-                          ไม่จำกัด
+                        <div className="w-full h-full flex items-center justify-center">
+                          <ImageIcon className="h-12 w-12 text-slate-400" />
+                        </div>
+                      )}
+                      {reward.stock_quantity !== null && (
+                        <div className="absolute top-2 right-2">
+                          <Badge
+                            className={`text-white hover:opacity-90 ${reward.remaining_stock === 0
+                                ? 'bg-red-500'
+                                : (reward.remaining_stock !== undefined && reward.remaining_stock !== null && reward.remaining_stock < 10)
+                                  ? 'bg-orange-500'
+                                  : 'bg-slate-900'
+                              }`}
+                          >
+                            <Package className="mr-1 h-3 w-3" />
+                            {reward.remaining_stock !== undefined ? reward.remaining_stock : reward.stock_quantity} ชิ้น
+                          </Badge>
                         </div>
                       )}
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-200">
-                    <div className="flex items-center space-x-2">
-                      <Label htmlFor={`active-${reward.id}`} className="text-sm text-slate-700">
-                        เปิดใช้งาน
-                      </Label>
-                      <Switch
-                        id={`active-${reward.id}`}
-                        checked={reward.is_active ?? true}
-                        onCheckedChange={() => handleToggleActive(reward)}
-                        disabled={!canEdit}
-                      />
-                    </div>
-                    <div className="flex space-x-2">
-                      {canEdit && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleOpenFormDialog(reward)}
-                          className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <CardTitle className="text-lg text-slate-900">{reward.name}</CardTitle>
+                        <Badge
+                          variant={reward.is_active ? 'default' : 'secondary'}
+                          className={reward.is_active ? 'bg-green-500 hover:bg-green-600' : 'bg-slate-200 text-slate-700'}
                         >
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                          {reward.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                        </Badge>
+                      </div>
+                      {reward.category && (
+                        <CardDescription className="text-slate-600">{reward.category}</CardDescription>
                       )}
-                      {canDelete && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setDeletingReward(reward)
-                            setShowDeleteDialog(true)
-                          }}
-                          className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {reward.description && (
+                        <p className="text-sm text-slate-600 line-clamp-2">
+                          {reward.description}
+                        </p>
                       )}
-                    </div>
-                  </div>
-                </CardContent>
+                      <div className="flex justify-between items-center text-sm">
+                        <div className="flex items-center text-blue-400 font-semibold">
+                          <Gift className="mr-1 h-4 w-4" />
+                          {reward.points_cost.toLocaleString()} แต้ม
+                        </div>
+                        <div className="flex flex-col items-end text-slate-600 text-xs">
+                          {reward.stock_quantity !== null ? (
+                            <>
+                              <div className="flex items-center font-semibold">
+                                <Package className="mr-1 h-3 w-3" />
+                                สต็อก: {reward.stock_quantity} ชิ้น
+                              </div>
+                              {reward.redeemed_count !== undefined && reward.redeemed_count > 0 && (
+                                <div className="text-slate-500">
+                                  (แลกไป {reward.redeemed_count} ชิ้น)
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="flex items-center">
+                              <Package className="mr-1 h-3 w-3" />
+                              ไม่จำกัด
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+                        <div className="flex items-center space-x-2">
+                          <Label htmlFor={`active-${reward.id}`} className="text-sm text-slate-700">
+                            เปิดใช้งาน
+                          </Label>
+                          <Switch
+                            id={`active-${reward.id}`}
+                            checked={reward.is_active ?? true}
+                            onCheckedChange={() => handleToggleActive(reward)}
+                            disabled={!canEdit}
+                          />
+                        </div>
+                        <div className="flex space-x-2">
+                          {canEdit && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenFormDialog(reward)}
+                              className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setDeletingReward(reward)
+                                setShowDeleteDialog(true)
+                              }}
+                              className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
                   </Card>
                 </div>
               ))}
@@ -595,60 +501,60 @@ export default function AdminRewards() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="points_cost">แต้มที่ใช้แลก *</Label>
-              <Input
-                id="points_cost"
-                type="number"
-                min="0"
-                placeholder="0"
-                value={formData.points_cost}
-                onChange={(e) =>
-                  setFormData({ ...formData, points_cost: e.target.value })
-                }
-                required
-                disabled={isFormDisabled}
-              />
+                <Input
+                  id="points_cost"
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={formData.points_cost}
+                  onChange={(e) =>
+                    setFormData({ ...formData, points_cost: e.target.value })
+                  }
+                  required
+                  disabled={isFormDisabled}
+                />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="category">หมวดหมู่</Label>
-              <Input
-                id="category"
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                disabled={isFormDisabled}
-              />
+                <Input
+                  id="category"
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  disabled={isFormDisabled}
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="stock_quantity">จำนวนสต็อค (เว้นว่าง = ไม่จำกัด)</Label>
-              <Input
-                id="stock_quantity"
-                type="number"
-                min="0"
-                placeholder="0"
-                value={formData.stock_quantity}
-                onChange={(e) =>
-                  setFormData({ ...formData, stock_quantity: e.target.value })
-                }
-                disabled={isFormDisabled}
-              />
+                <Input
+                  id="stock_quantity"
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={formData.stock_quantity}
+                  onChange={(e) =>
+                    setFormData({ ...formData, stock_quantity: e.target.value })
+                  }
+                  disabled={isFormDisabled}
+                />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="sort_order">ลำดับการแสดง</Label>
-              <Input
-                id="sort_order"
-                type="number"
-                min="0"
-                placeholder="0"
-                value={formData.sort_order}
-                onChange={(e) =>
-                  setFormData({ ...formData, sort_order: e.target.value })
-                }
-                disabled={isFormDisabled}
-              />
+                <Input
+                  id="sort_order"
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={formData.sort_order}
+                  onChange={(e) =>
+                    setFormData({ ...formData, sort_order: e.target.value })
+                  }
+                  disabled={isFormDisabled}
+                />
               </div>
             </div>
 

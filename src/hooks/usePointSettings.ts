@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { axiosAdmin } from '@/lib/axios-admin'
 import { Tables } from '../../database.types'
 
 type PointSetting = Tables<'point_settings'>
@@ -21,7 +22,7 @@ export function usePointSettings() {
       }
 
       const url = '/api/admin/point-settings'
-      const method = pointSetting ? 'PUT' : 'POST'
+      const method = pointSetting ? 'put' : 'post'
       const body = pointSetting
         ? { id: pointSetting.id, setting_value: value }
         : {
@@ -31,48 +32,24 @@ export function usePointSettings() {
             is_active: true
           }
 
-      const { supabaseAdmin } = await import('@/lib/supabase-admin')
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
+      await axiosAdmin[method](url, body)
 
-      if (!session?.access_token) {
-        toast.error('ไม่พบ session กรุณา login ใหม่')
-        return false
-      }
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify(body)
-      })
-
-      if (response.ok) {
-        toast.success('บันทึกสำเร็จ!')
-        onSuccess?.()
-        return true
-      }
-
-      if (response.status === 403) {
+      toast.success('บันทึกสำเร็จ!')
+      onSuccess?.()
+      return true
+    } catch (error: any) {
+      if (error.response?.status === 403) {
         toast.error('คุณไม่มีสิทธิ์แก้ไขการตั้งค่านี้')
         return false
       }
 
-      if (response.status === 401) {
-        toast.error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่')
-        return false
-      }
-
-      const errorData = await response.json().catch(() => null)
+      const errorData = error.response?.data
       if (errorData?.error) {
         toast.error(errorData.error)
+      } else {
+        console.error('Failed to save point setting:', error)
+        toast.error('เกิดข้อผิดพลาด')
       }
-
-      return false
-    } catch (error) {
-      console.error('Failed to save point setting:', error)
-      toast.error('เกิดข้อผิดพลาด')
       return false
     } finally {
       setSaving(false)

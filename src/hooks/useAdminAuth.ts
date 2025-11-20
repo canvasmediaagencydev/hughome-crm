@@ -1,7 +1,8 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createClient } from '@/lib/supabase-browser'
+import { axiosAdmin } from '@/lib/axios-admin'
 import type { User } from '@supabase/supabase-js'
 import type { AdminUser, AdminRole, PermissionKey } from '@/types/admin'
 import { toast } from 'sonner'
@@ -34,12 +35,14 @@ interface AdminAuthContextType {
   signOut: () => Promise<{ error: any }>
   clearError: () => void
   refetch: () => Promise<void>
+  getToken: () => Promise<string | null>
 }
 
 const AdminAuthContext = createContext<AdminAuthContextType | null>(null)
 
 export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const supabase = createClient()
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null)
   const [roles, setRoles] = useState<AdminRole[]>([])
   const [permissions, setPermissions] = useState<string[]>([])
@@ -57,13 +60,16 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       // Get current session token
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
+      const { data: { session } } = await supabase.auth.getSession()
       if (!session?.access_token) {
+        console.log('[loadAdminData] No session token found')
         setAdminUser(null)
         setRoles([])
         setPermissions([])
         return
       }
+
+      console.log('[loadAdminData] Session found, fetching admin data...')
 
       // Create abort controller for timeout
       const controller = new AbortController()
@@ -71,40 +77,16 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
       try {
         // Call API to get admin data (server-side with service role key)
-        const response = await fetch('/api/admin/me', {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
-          },
+        // Call API to get admin data (server-side with service role key)
+        const response = await axiosAdmin.get('/api/admin/me', {
           signal: controller.signal
         })
 
         clearTimeout(timeoutId)
 
         // Handle unauthorized - session expired or invalid
-        if (response.status === 401 || response.status === 403) {
-          console.warn('Session invalid, signing out')
-          await supabaseAdmin.auth.signOut()
-          setAdminUser(null)
-          setRoles([])
-          setPermissions([])
-          return
-        }
-
-        if (!response.ok) {
-          // Retry on 500 errors
-          if (response.status >= 500 && retryCount < maxRetries) {
-            console.log(`API error, retrying... (${retryCount + 1}/${maxRetries})`)
-            await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)))
-            return loadAdminData(authUserId, retryCount + 1)
-          }
-
-          setAdminUser(null)
-          setRoles([])
-          setPermissions([])
-          return
-        }
-
-        const { adminUser, roles, permissions } = await response.json()
+        const { adminUser, roles, permissions } = response.data
+        console.log('[loadAdminData] Admin data fetched successfully', adminUser.email)
 
         setAdminUser(adminUser)
         setRoles(roles)
@@ -113,13 +95,29 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(timeoutId)
 
         // Handle timeout or network errors
-        if (fetchErr.name === 'AbortError') {
+        if (fetchErr.name === 'CanceledError' || fetchErr.code === 'ERR_CANCELED') {
           console.error('Admin data fetch timeout')
           if (retryCount < maxRetries) {
             console.log(`Timeout, retrying... (${retryCount + 1}/${maxRetries})`)
             await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)))
             return loadAdminData(authUserId, retryCount + 1)
           }
+        }
+
+        // Handle 401/403 from axios error response
+        if (fetchErr.response && (fetchErr.response.status === 401 || fetchErr.response.status === 403)) {
+          console.warn('Session invalid, signing out')
+          await supabase.auth.signOut()
+          setAdminUser(null)
+          setRoles([])
+          setPermissions([])
+          return
+        }
+
+        if (fetchErr.response && fetchErr.response.status >= 500 && retryCount < maxRetries) {
+            console.log(`API error, retrying... (${retryCount + 1}/${maxRetries})`)
+            await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)))
+            return loadAdminData(authUserId, retryCount + 1)
         }
 
         throw fetchErr
@@ -143,7 +141,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     const initAuth = async () => {
       try {
         console.log('[useAdminAuth] Starting init auth...')
-        const { data: { session }, error } = await supabaseAdmin.auth.getSession()
+        const { data: { session }, error } = await supabase.auth.getSession()
 
         if (error) {
           console.error('[useAdminAuth] Auth session error:', error)
@@ -173,7 +171,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
     initAuth()
 
-    const { data: { subscription } } = supabaseAdmin.auth.onAuthStateChange(
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state change:', event, session?.user?.email)
         const authUser = session?.user ?? null
@@ -210,7 +208,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true)
     setError(null)
 
-    const { data, error } = await supabaseAdmin.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
@@ -229,7 +227,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true)
     setError(null)
 
-    const { data, error } = await supabaseAdmin.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
     })
@@ -249,7 +247,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true)
     setError(null)
 
-    const { error } = await supabaseAdmin.auth.signOut()
+    const { error } = await supabase.auth.signOut()
 
     if (error) {
       setError(error.message)
@@ -299,6 +297,10 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     clearError,
     refetch,
+    getToken: async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      return session?.access_token ?? null
+    }
   }
 
   return React.createElement(AdminAuthContext.Provider, { value }, children)

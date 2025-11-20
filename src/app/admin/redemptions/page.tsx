@@ -16,7 +16,7 @@ import {
   getUserDisplayName,
   getRedemptionStatusLabel
 } from '@/lib/utils'
-import axios from 'axios'
+import { axiosAdmin } from '@/lib/axios-admin'
 import { toast } from 'sonner'
 
 interface Redemption {
@@ -95,10 +95,8 @@ export default function AdminRedemptionsPage() {
   const fetchRedemptions = async (page: number, status: string, search: string) => {
     try {
       setIsLoading(true)
-      const headers = await getAuthHeaders()
-      const response = await axios.get('/api/admin/redemptions', {
+      const response = await axiosAdmin.get('/api/admin/redemptions', {
         params: { page, limit: 10, status, search },
-        headers,
       })
 
       setRedemptions(response.data.redemptions)
@@ -111,20 +109,6 @@ export default function AdminRedemptionsPage() {
     }
   }
 
-  const getAuthHeaders = async () => {
-    const { supabaseAdmin } = await import('@/lib/supabase-admin')
-    const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-    if (!session?.access_token) {
-      toast.error('ไม่พบ session กรุณา login ใหม่')
-      throw new Error('Missing session')
-    }
-
-    return {
-      Authorization: `Bearer ${session.access_token}`,
-    }
-  }
-
   useEffect(() => {
     fetchRedemptions(currentPage, statusFilter, searchQuery)
   }, [currentPage, statusFilter, searchQuery])
@@ -132,14 +116,12 @@ export default function AdminRedemptionsPage() {
   const handleApprove = async (redemptionId: string) => {
     try {
       setProcessingId(redemptionId)
-      const headers = await getAuthHeaders()
-      await axios.post(
+      await axiosAdmin.post(
         `/api/admin/redemptions/${redemptionId}/complete`,
         {
           adminId: null,
           adminNotes: null,
-        },
-        { headers }
+        }
       )
 
       fetchRedemptions(currentPage, statusFilter, searchQuery)
@@ -162,14 +144,12 @@ export default function AdminRedemptionsPage() {
 
     try {
       setProcessingId(selectedRedemption.id)
-      const headers = await getAuthHeaders()
-      await axios.post(
+      await axiosAdmin.post(
         `/api/admin/redemptions/${selectedRedemption.id}/cancel`,
         {
           adminId: null,
           adminNotes,
-        },
-        { headers }
+        }
       )
 
       setShowNotesModal(false)
@@ -264,11 +244,10 @@ export default function AdminRedemptionsPage() {
                   setStatusFilter(tab.value)
                   setCurrentPage(1)
                 }}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  statusFilter === tab.value
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${statusFilter === tab.value
                     ? 'bg-slate-900 text-white'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
+                  }`}
               >
                 {tab.label}
               </button>

@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { createClient } from '@/lib/supabase-browser'
+import { axiosAdmin } from '@/lib/axios-admin'
 import { toast } from 'sonner'
 
 export default function AdminLogin() {
@@ -19,7 +20,8 @@ export default function AdminLogin() {
     setError(null)
 
     try {
-      const { data, error } = await supabaseAdmin.auth.signInWithPassword({
+      const supabase = createClient()
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
@@ -29,49 +31,32 @@ export default function AdminLogin() {
         toast.error(`เข้าสู่ระบบไม่สำเร็จ: ${error.message}`)
       } else if (data.user) {
         // ใช้ /api/admin/me เพื่อตรวจสอบ admin_users record
-        // (API จะใช้ service role key bypass RLS)
         try {
-          const session = data.session
-          const response = await fetch('/api/admin/me', {
-            headers: {
-              'Authorization': `Bearer ${session?.access_token}`
-            }
-          })
-
-          if (!response.ok) {
-            // ไม่มี admin_users record หรือ inactive
-            const errorData = await response.json().catch(() => ({}))
-            const errorMessage = errorData.error || 'คุณไม่มีสิทธิ์เข้าถึงระบบ Admin'
-
-            setError(errorMessage)
-            toast.error(errorMessage)
-
-            // Logout ทันที
-            await supabaseAdmin.auth.signOut()
-            return
-          }
-
-          const adminData = await response.json()
+          // axiosAdmin will automatically attach the token from the new session
+          const response = await axiosAdmin.get('/api/admin/me')
+          const adminData = response.data
 
           if (!adminData.adminUser?.is_active) {
             setError('บัญชี Admin ของคุณถูกปิดการใช้งาน')
             toast.error('บัญชี Admin ของคุณถูกปิดการใช้งาน')
 
-            await supabaseAdmin.auth.signOut()
+            await supabase.auth.signOut()
             return
           }
 
           // ทุกอย่างผ่าน - redirect ไปหน้า admin
           toast.success('เข้าสู่ระบบสำเร็จ')
-          setTimeout(() => {
-            router.push('/admin')
-          }, 500)
-        } catch (err) {
+          router.push('/admin')
+        } catch (err: any) {
           console.error('Error verifying admin:', err)
-          setError('เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์')
-          toast.error('เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์')
 
-          await supabaseAdmin.auth.signOut()
+          // Check if it's a 403 (Forbidden) or 401 (Unauthorized)
+          const errorMessage = err.response?.data?.error || 'คุณไม่มีสิทธิ์เข้าถึงระบบ Admin'
+
+          setError(errorMessage)
+          toast.error(errorMessage)
+
+          await supabase.auth.signOut()
         }
       }
     } catch (err) {

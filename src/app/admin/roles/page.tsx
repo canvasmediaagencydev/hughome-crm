@@ -29,6 +29,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Edit, Trash2, ShieldCheck, Users, Key } from 'lucide-react'
 import { toast } from 'sonner'
+import { axiosAdmin } from '@/lib/axios-admin'
 
 export default function RolesPage() {
   const { hasPermission, isSuperAdmin, loading: authLoading } = useAdminAuth()
@@ -84,37 +85,14 @@ export default function RolesPage() {
   const loadData = async () => {
     setLoading(true)
     try {
-      // Get session token
-      const { supabaseAdmin } = await import('@/lib/supabase-admin')
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-      if (!session?.access_token) {
-        toast.error('ไม่พบ session กรุณา login ใหม่')
-        return
-      }
-
-      const authHeaders = {
-        Authorization: `Bearer ${session.access_token}`,
-      }
-
       // โหลด roles
-      const rolesRes = await fetch('/api/admin/roles', {
-        headers: authHeaders,
-      })
-      if (rolesRes.ok) {
-        const rolesData = await rolesRes.json()
-        setRoles(rolesData.roles || [])
-      }
+      const rolesRes = await axiosAdmin.get('/api/admin/roles')
+      setRoles(rolesRes.data.roles || [])
 
       // โหลด permissions
-      const permsRes = await fetch('/api/admin/permissions', {
-        headers: authHeaders,
-      })
-      if (permsRes.ok) {
-        const permsData = await permsRes.json()
-        setPermissions(permsData.permissions || [])
-        setPermissionsByCategory(permsData.grouped || {})
-      }
+      const permsRes = await axiosAdmin.get('/api/admin/permissions')
+      setPermissions(permsRes.data.permissions || [])
+      setPermissionsByCategory(permsRes.data.grouped || {})
     } catch (error) {
       console.error('Error loading data:', error)
       toast.error('เกิดข้อผิดพลาดในการโหลดข้อมูล')
@@ -125,167 +103,82 @@ export default function RolesPage() {
 
   const handleCreateRole = async () => {
     try {
-      const { supabaseAdmin } = await import('@/lib/supabase-admin')
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-      if (!session?.access_token) {
-        toast.error('ไม่พบ session กรุณา login ใหม่')
-        return
-      }
-
-      const res = await fetch('/api/admin/roles', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify(formData),
-      })
-
-      if (res.ok) {
-        toast.success('สร้าง Role สำเร็จ')
-        setCreateDialogOpen(false)
-        resetForm()
-        loadData()
-      } else {
-        const error = await res.json()
-        toast.error(error.error || 'เกิดข้อผิดพลาด')
-      }
-    } catch (error) {
+      await axiosAdmin.post('/api/admin/roles', formData)
+      toast.success('สร้าง Role สำเร็จ')
+      setCreateDialogOpen(false)
+      resetForm()
+      loadData()
+    } catch (error: any) {
       console.error('Error creating role:', error)
-      toast.error('เกิดข้อผิดพลาดในการสร้าง Role')
+      toast.error(error.response?.data?.error || 'เกิดข้อผิดพลาดในการสร้าง Role')
     }
   }
+
 
   const handleUpdateRole = async () => {
     if (!selectedRole) return
 
     try {
-      const { supabaseAdmin } = await import('@/lib/supabase-admin')
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-      if (!session?.access_token) {
-        toast.error('ไม่พบ session กรุณา login ใหม่')
-        return
-      }
-
-      const authHeaders = {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      }
-
       // อัพเดท role info
-      const res = await fetch(`/api/admin/roles/${selectedRole.id}`, {
-        method: 'PUT',
-        headers: authHeaders,
-        body: JSON.stringify({
-          display_name: formData.display_name,
-          description: formData.description,
-        }),
+      await axiosAdmin.put(`/api/admin/roles/${selectedRole.id}`, {
+        display_name: formData.display_name,
+        description: formData.description,
       })
 
-      if (!res.ok) {
-        const error = await res.json()
-        toast.error(error.error || 'เกิดข้อผิดพลาด')
-        return
-      }
-
       // อัพเดท permissions
-      const permsRes = await fetch(
-        `/api/admin/roles/${selectedRole.id}/permissions`,
-        {
-          method: 'PUT',
-          headers: authHeaders,
-          body: JSON.stringify({
-            permission_ids: formData.permission_ids,
-          }),
-        }
-      )
+      await axiosAdmin.put(`/api/admin/roles/${selectedRole.id}/permissions`, {
+        permission_ids: formData.permission_ids,
+      })
 
-      if (permsRes.ok) {
-        toast.success('แก้ไข Role สำเร็จ')
-        setEditDialogOpen(false)
-        resetForm()
-        loadData()
-      } else {
-        const error = await permsRes.json()
-        toast.error(error.error || 'เกิดข้อผิดพลาด')
-      }
-    } catch (error) {
+      toast.success('แก้ไข Role สำเร็จ')
+      setEditDialogOpen(false)
+      resetForm()
+      loadData()
+    } catch (error: any) {
       console.error('Error updating role:', error)
-      toast.error('เกิดข้อผิดพลาดในการแก้ไข Role')
+      toast.error(error.response?.data?.error || 'เกิดข้อผิดพลาดในการแก้ไข Role')
     }
   }
+
 
   const handleDeleteRole = async () => {
     if (!selectedRole) return
 
     try {
-      const { supabaseAdmin } = await import('@/lib/supabase-admin')
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-      if (!session?.access_token) {
-        toast.error('ไม่พบ session กรุณา login ใหม่')
-        return
-      }
-
-      const res = await fetch(`/api/admin/roles/${selectedRole.id}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      })
-
-      if (res.ok) {
-        toast.success('ลบ Role สำเร็จ')
-        setDeleteDialogOpen(false)
-        setSelectedRole(null)
-        loadData()
-      } else {
-        const error = await res.json()
-        toast.error(error.error || 'เกิดข้อผิดพลาด')
-      }
-    } catch (error) {
+      await axiosAdmin.delete(`/api/admin/roles/${selectedRole.id}`)
+      toast.success('ลบ Role สำเร็จ')
+      setDeleteDialogOpen(false)
+      setSelectedRole(null)
+      loadData()
+    } catch (error: any) {
       console.error('Error deleting role:', error)
-      toast.error('เกิดข้อผิดพลาดในการลบ Role')
+      toast.error(error.response?.data?.error || 'เกิดข้อผิดพลาดในการลบ Role')
     }
   }
+
 
   const openEditDialog = async (role: AdminRoleWithStats) => {
     setSelectedRole(role)
 
     // โหลด permissions ของ role นี้
     try {
-      const { supabaseAdmin } = await import('@/lib/supabase-admin')
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
+      const res = await axiosAdmin.get(`/api/admin/roles/${role.id}`)
+      const data = res.data
+      const rolePerms = data.role.permissions || []
 
-      if (!session?.access_token) {
-        toast.error('ไม่พบ session กรุณา login ใหม่')
-        return
-      }
-
-      const res = await fetch(`/api/admin/roles/${role.id}`, {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
+      setFormData({
+        name: role.name,
+        display_name: role.display_name,
+        description: role.description || '',
+        permission_ids: rolePerms.map((p: AdminPermission) => p.id),
       })
-      if (res.ok) {
-        const data = await res.json()
-        const rolePerms = data.role.permissions || []
-
-        setFormData({
-          name: role.name,
-          display_name: role.display_name,
-          description: role.description || '',
-          permission_ids: rolePerms.map((p: AdminPermission) => p.id),
-        })
-        setEditDialogOpen(true)
-      }
+      setEditDialogOpen(true)
     } catch (error) {
       console.error('Error loading role permissions:', error)
       toast.error('เกิดข้อผิดพลาดในการโหลดข้อมูล')
     }
   }
+
 
   const resetForm = () => {
     setFormData({

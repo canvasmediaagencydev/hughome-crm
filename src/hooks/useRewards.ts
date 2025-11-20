@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { axiosAdmin } from '@/lib/axios-admin'
 import { Tables } from '../../database.types'
 
 export type Reward = Tables<'rewards'> & {
@@ -19,33 +20,10 @@ interface RewardsResponse {
   }
 }
 
-async function getAuthHeaders() {
-  const { supabaseAdmin } = await import('@/lib/supabase-admin')
-  const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-  if (!session?.access_token) {
-    throw new Error('No session found')
-  }
-
-  return {
-    Authorization: `Bearer ${session.access_token}`,
-    'Content-Type': 'application/json'
-  }
-}
-
 async function fetchRewards(page: number): Promise<RewardsResponse> {
-  const headers = await getAuthHeaders()
-  const response = await fetch(`/api/admin/rewards?page=${page}&limit=12`, {
-    headers,
-  })
-
-  if (!response.ok) {
-    if (response.status === 401) throw new Error('Unauthorized')
-    if (response.status === 403) throw new Error('Forbidden')
-    throw new Error('Failed to fetch rewards')
-  }
-
-  const data = await response.json()
+  const response = await axiosAdmin.get(`/api/admin/rewards?page=${page}&limit=12`)
+  const data = response.data
+  
   // Filter out archived rewards
   return {
     ...data,
@@ -58,22 +36,9 @@ interface CreateRewardParams {
 }
 
 async function createReward(params: CreateRewardParams) {
-  const headers = await getAuthHeaders()
-  // Remove Content-Type for FormData (browser sets it with boundary)
-  delete (headers as any)['Content-Type']
-
-  const response = await fetch('/api/admin/rewards', {
-    method: 'POST',
-    headers,
-    body: params.formData
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to create reward')
-  }
-
-  return response.json()
+  // axios will automatically set Content-Type to multipart/form-data when body is FormData
+  const response = await axiosAdmin.post('/api/admin/rewards', params.formData)
+  return response.data
 }
 
 interface UpdateRewardParams {
@@ -82,21 +47,8 @@ interface UpdateRewardParams {
 }
 
 async function updateReward(params: UpdateRewardParams) {
-  const headers = await getAuthHeaders()
-  delete (headers as any)['Content-Type']
-
-  const response = await fetch(`/api/admin/rewards/${params.id}`, {
-    method: 'PUT',
-    headers,
-    body: params.formData
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to update reward')
-  }
-
-  return response.json()
+  const response = await axiosAdmin.put(`/api/admin/rewards/${params.id}`, params.formData)
+  return response.data
 }
 
 interface DeleteRewardParams {
@@ -104,19 +56,8 @@ interface DeleteRewardParams {
 }
 
 async function deleteReward(params: DeleteRewardParams) {
-  const headers = await getAuthHeaders()
-
-  const response = await fetch(`/api/admin/rewards/${params.id}`, {
-    method: 'DELETE',
-    headers
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to delete reward')
-  }
-
-  return response.json()
+  const response = await axiosAdmin.delete(`/api/admin/rewards/${params.id}`)
+  return response.data
 }
 
 export function useRewards(initialPage: number = 1) {

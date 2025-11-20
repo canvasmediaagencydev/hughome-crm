@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Plus, Edit, Ban, Shield, Users } from 'lucide-react'
 import { toast } from 'sonner'
+import { axiosAdmin } from '@/lib/axios-admin'
 import CreateAdminDialog from '@/components/admin/CreateAdminDialog'
 import EditAdminRolesDialog from '@/components/admin/EditAdminRolesDialog'
 
@@ -56,27 +57,8 @@ export default function AdminsPage() {
     try {
       setLoading(true)
 
-      // Get session token
-      const { supabaseAdmin } = await import('@/lib/supabase-admin')
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-      if (!session?.access_token) {
-        toast.error('ไม่พบ session กรุณา login ใหม่')
-        return
-      }
-
-      const response = await fetch('/api/admin/admins', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch admins')
-      }
-
-      const data = await response.json()
-      setAdmins(data.admins || [])
+      const response = await axiosAdmin.get('/api/admin/admins')
+      setAdmins(response.data.admins || [])
     } catch (error) {
       console.error('Error fetching admins:', error)
       toast.error('ไม่สามารถโหลดข้อมูลผู้ดูแลระบบได้')
@@ -91,25 +73,7 @@ export default function AdminsPage() {
     }
 
     try {
-      const { supabaseAdmin } = await import('@/lib/supabase-admin')
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-      if (!session?.access_token) {
-        toast.error('ไม่พบ session กรุณา login ใหม่')
-        return
-      }
-
-      const response = await fetch(`/api/admin/admins/${adminId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to deactivate admin')
-      }
-
+      await axiosAdmin.delete(`/api/admin/admins/${adminId}`)
       toast.success('ปิดการใช้งานผู้ดูแลระบบสำเร็จ')
       fetchAdmins()
     } catch (error) {
@@ -120,27 +84,7 @@ export default function AdminsPage() {
 
   const handleActivate = async (adminId: string) => {
     try {
-      const { supabaseAdmin } = await import('@/lib/supabase-admin')
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-      if (!session?.access_token) {
-        toast.error('ไม่พบ session กรุณา login ใหม่')
-        return
-      }
-
-      const response = await fetch(`/api/admin/admins/${adminId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({ is_active: true }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to activate admin')
-      }
-
+      await axiosAdmin.put(`/api/admin/admins/${adminId}`, { is_active: true })
       toast.success('เปิดการใช้งานผู้ดูแลระบบสำเร็จ')
       fetchAdmins()
     } catch (error) {
@@ -257,11 +201,10 @@ export default function AdminsPage() {
                             admin.roles.map((role) => (
                               <span
                                 key={role.id}
-                                className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${
-                                  role.name === 'super_admin'
+                                className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${role.name === 'super_admin'
                                     ? 'bg-purple-100 text-purple-800'
                                     : 'bg-blue-100 text-blue-800'
-                                }`}
+                                  }`}
                               >
                                 {role.display_name}
                               </span>
@@ -271,11 +214,10 @@ export default function AdminsPage() {
                       </TableCell>
                       <TableCell>
                         <span
-                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            admin.is_active
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${admin.is_active
                               ? 'bg-green-100 text-green-800'
                               : 'bg-red-100 text-red-800'
-                          }`}
+                            }`}
                         >
                           {admin.is_active ? 'ใช้งานอยู่' : 'ปิดการใช้งาน'}
                         </span>

@@ -1,20 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { axiosAdmin } from '@/lib/axios-admin'
 import { ReceiptWithRelations } from '@/types'
 
-async function getAuthHeaders() {
-  const { supabaseAdmin } = await import('@/lib/supabase-admin')
-  const { data: { session } } = await supabaseAdmin.auth.getSession()
 
-  if (!session?.access_token) {
-    throw new Error('No session found')
-  }
-
-  return {
-    Authorization: `Bearer ${session.access_token}`,
-    'Content-Type': 'application/json'
-  }
-}
 
 interface ApproveReceiptParams {
   receipt: ReceiptWithRelations
@@ -22,22 +11,11 @@ interface ApproveReceiptParams {
 }
 
 async function approveReceiptFn(params: ApproveReceiptParams) {
-  const headers = await getAuthHeaders()
-  const response = await fetch(`/api/admin/receipts/${params.receipt.id}/approve`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify({
-      points_awarded: params.pointsAwarded,
-      admin_notes: 'อนุมัติโดยระบบ'
-    })
+  const response = await axiosAdmin.put(`/api/admin/receipts/${params.receipt.id}/approve`, {
+    points_awarded: params.pointsAwarded,
+    admin_notes: 'อนุมัติโดยระบบ'
   })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to approve receipt')
-  }
-
-  return response.json()
+  return response.data
 }
 
 interface RejectReceiptParams {
@@ -46,51 +24,20 @@ interface RejectReceiptParams {
 }
 
 async function rejectReceiptFn(params: RejectReceiptParams) {
-  const headers = await getAuthHeaders()
-  const response = await fetch(`/api/admin/receipts/${params.receiptId}/reject`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify({
-      admin_notes: params.reason
-    })
+  const response = await axiosAdmin.put(`/api/admin/receipts/${params.receiptId}/reject`, {
+    admin_notes: params.reason
   })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to reject receipt')
-  }
-
-  return response.json()
+  return response.data
 }
 
 async function autoApproveReceiptsFn() {
-  const headers = await getAuthHeaders()
-  const response = await fetch('/api/admin/receipts/auto-approve', {
-    method: 'POST',
-    headers
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to auto approve receipts')
-  }
-
-  return response.json()
+  const response = await axiosAdmin.post('/api/admin/receipts/auto-approve')
+  return response.data
 }
 
 async function autoRejectReceiptsFn() {
-  const headers = await getAuthHeaders()
-  const response = await fetch('/api/admin/receipts/auto-reject', {
-    method: 'POST',
-    headers
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to auto reject receipts')
-  }
-
-  return response.json()
+  const response = await axiosAdmin.post('/api/admin/receipts/auto-reject')
+  return response.data
 }
 
 export function useReceiptActions(onSuccess?: () => void) {

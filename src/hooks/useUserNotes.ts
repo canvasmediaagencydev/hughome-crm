@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { axiosAdmin } from '@/lib/axios-admin'
 
 export interface UserNote {
   id: string
@@ -43,30 +44,12 @@ export function useUserNotes() {
   const fetchNotes = async (userId: string, page: number = 1) => {
     setLoadingNotes(true)
     try {
-      const { supabaseAdmin } = await import('@/lib/supabase-admin')
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-      if (!session?.access_token) {
-        alert('ไม่พบ session กรุณา login ใหม่')
-        return
-      }
-
-      const response = await fetch(
-        `/api/admin/users/${userId}/notes?page=${page}&limit=${pagination.limit}`,
-        {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`
-          }
-        }
+      const response = await axiosAdmin.get(
+        `/api/admin/users/${userId}/notes?page=${page}&limit=${pagination.limit}`
       )
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch notes')
-      }
-
-      const data = await response.json()
-      setNotes(data.notes || [])
-      setPagination(data.pagination)
+      setNotes(response.data.notes || [])
+      setPagination(response.data.pagination)
     } catch (error) {
       console.error('Error fetching notes:', error)
       alert('ไม่สามารถโหลดบันทึกได้')
@@ -82,29 +65,13 @@ export function useUserNotes() {
     }
 
     setSubmittingNote(true)
+    setSubmittingNote(true)
     try {
-      const { supabaseAdmin } = await import('@/lib/supabase-admin')
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-      if (!session?.access_token) {
-        alert('ไม่พบ session กรุณา login ใหม่')
-        return
-      }
-
-      const response = await fetch(`/api/admin/users/${userId}/notes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({ note_content: newNoteContent }),
+      const response = await axiosAdmin.post(`/api/admin/users/${userId}/notes`, {
+        note_content: newNoteContent
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to add note')
-      }
-
-      const data = await response.json()
+      const data = response.data
 
       // Add new note to the beginning of the list
       setNotes([data.note, ...notes])
@@ -128,29 +95,13 @@ export function useUserNotes() {
     }
 
     setSubmittingNote(true)
+    setSubmittingNote(true)
     try {
-      const { supabaseAdmin } = await import('@/lib/supabase-admin')
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-      if (!session?.access_token) {
-        alert('ไม่พบ session กรุณา login ใหม่')
-        return
-      }
-
-      const response = await fetch(`/api/admin/users/${userId}/notes/${noteId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({ note_content: editNoteContent }),
+      const response = await axiosAdmin.patch(`/api/admin/users/${userId}/notes/${noteId}`, {
+        note_content: editNoteContent
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to update note')
-      }
-
-      const data = await response.json()
+      const data = response.data
 
       // Update note in the list
       setNotes(notes.map(note =>
@@ -177,24 +128,7 @@ export function useUserNotes() {
     }
 
     try {
-      const { supabaseAdmin } = await import('@/lib/supabase-admin')
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-      if (!session?.access_token) {
-        alert('ไม่พบ session กรุณา login ใหม่')
-        return
-      }
-
-      const response = await fetch(`/api/admin/users/${userId}/notes/${noteId}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to delete note')
-      }
+      await axiosAdmin.delete(`/api/admin/users/${userId}/notes/${noteId}`)
 
       // Remove note from the list
       setNotes(notes.filter(note => note.id !== noteId))

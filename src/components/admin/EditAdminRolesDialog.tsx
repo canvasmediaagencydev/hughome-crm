@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Loader2, Shield, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { axiosAdmin } from '@/lib/axios-admin'
 import type { AdminRole, AdminUser } from '@/types/admin'
 
 interface AdminWithRoles extends AdminUser {
@@ -46,26 +47,8 @@ export default function EditAdminRolesDialog({
     try {
       setLoadingRoles(true)
 
-      const { supabaseAdmin } = await import('@/lib/supabase-admin')
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-      if (!session?.access_token) {
-        toast.error('ไม่พบ session กรุณา login ใหม่')
-        return
-      }
-
-      const response = await fetch('/api/admin/roles', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch roles')
-      }
-
-      const data = await response.json()
-      setRoles(data.roles || [])
+      const response = await axiosAdmin.get('/api/admin/roles')
+      setRoles(response.data.roles || [])
     } catch (error) {
       console.error('Error fetching roles:', error)
       toast.error('ไม่สามารถโหลดรายการบทบาทได้')
@@ -90,27 +73,9 @@ export default function EditAdminRolesDialog({
     try {
       setLoading(true)
 
-      const { supabaseAdmin } = await import('@/lib/supabase-admin')
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-      if (!session?.access_token) {
-        toast.error('ไม่พบ session กรุณา login ใหม่')
-        return
-      }
-
-      const response = await fetch(`/api/admin/admins/${admin.id}/roles`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ role_ids: selectedRoles }),
+      await axiosAdmin.put(`/api/admin/admins/${admin.id}/roles`, {
+        role_ids: selectedRoles,
       })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to update roles')
-      }
 
       toast.success('อัปเดตบทบาทผู้ดูแลระบบสำเร็จ')
       onSuccess()

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { axiosAdmin } from '@/lib/axios-admin'
 import debounce from 'lodash.debounce'
 
 export interface Redemption {
@@ -38,26 +39,11 @@ interface RedemptionsResponse {
   }
 }
 
-async function getAuthHeaders() {
-  const { supabaseAdmin } = await import('@/lib/supabase-admin')
-  const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-  if (!session?.access_token) {
-    throw new Error('No session found')
-  }
-
-  return {
-    Authorization: `Bearer ${session.access_token}`,
-    'Content-Type': 'application/json'
-  }
-}
-
 async function fetchRedemptions(
   page: number,
   status: string,
   search: string
 ): Promise<RedemptionsResponse> {
-  const headers = await getAuthHeaders()
   const params = new URLSearchParams({
     page: page.toString(),
     limit: '10',
@@ -68,17 +54,8 @@ async function fetchRedemptions(
     params.append('search', search.trim())
   }
 
-  const response = await fetch(`/api/admin/redemptions?${params}`, {
-    headers,
-  })
-
-  if (!response.ok) {
-    if (response.status === 401) throw new Error('Unauthorized')
-    if (response.status === 403) throw new Error('Forbidden')
-    throw new Error('Failed to fetch redemptions')
-  }
-
-  return response.json()
+  const response = await axiosAdmin.get(`/api/admin/redemptions?${params}`)
+  return response.data
 }
 
 interface CompleteRedemptionParams {
@@ -87,21 +64,10 @@ interface CompleteRedemptionParams {
 }
 
 async function completeRedemption(params: CompleteRedemptionParams) {
-  const headers = await getAuthHeaders()
-  const response = await fetch(`/api/admin/redemptions/${params.id}/complete`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify({
-      admin_notes: params.notes || ''
-    })
+  const response = await axiosAdmin.put(`/api/admin/redemptions/${params.id}/complete`, {
+    admin_notes: params.notes || ''
   })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to complete redemption')
-  }
-
-  return response.json()
+  return response.data
 }
 
 interface CancelRedemptionParams {
@@ -110,21 +76,10 @@ interface CancelRedemptionParams {
 }
 
 async function cancelRedemption(params: CancelRedemptionParams) {
-  const headers = await getAuthHeaders()
-  const response = await fetch(`/api/admin/redemptions/${params.id}/cancel`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify({
-      admin_notes: params.notes || ''
-    })
+  const response = await axiosAdmin.put(`/api/admin/redemptions/${params.id}/cancel`, {
+    admin_notes: params.notes || ''
   })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to cancel redemption')
-  }
-
-  return response.json()
+  return response.data
 }
 
 interface UseRedemptionsParams {

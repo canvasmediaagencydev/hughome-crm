@@ -12,7 +12,7 @@ import { useReceiptActions } from '@/hooks/useReceiptActions'
 import { usePointCalculation } from '@/hooks/usePointCalculation'
 import { useAdminAuth } from '@/hooks/useAdminAuth'
 import { PERMISSIONS } from '@/types/admin'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { axiosAdmin } from '@/lib/axios-admin'
 import { ReceiptCard } from '@/components/admin/receipts/ReceiptCard'
 import { FilterSection } from '@/components/admin/receipts/FilterSection'
 import { AutoActionCards } from '@/components/admin/receipts/AutoActionCards'
@@ -180,29 +180,11 @@ export default function AdminReceipts() {
 
     setIsEditing(true)
     try {
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
-      if (!session?.access_token) {
-        throw new Error('No active session')
-      }
 
-      const response = await fetch(`/api/admin/receipts/${receiptToEdit.id}/edit-amount`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          total_amount: editedAmount,
-          is_valid_store: isValidStore
-        })
+      await axiosAdmin.put(`/api/admin/receipts/${receiptToEdit.id}/edit-amount`, {
+        total_amount: editedAmount,
+        is_valid_store: isValidStore
       })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update amount')
-      }
 
       alert('แก้ไขเรียบร้อยแล้ว')
       setShowEditModal(false)
@@ -224,9 +206,9 @@ export default function AdminReceipts() {
           ocr_data: updatedOcrData
         })
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Edit amount error:', error)
-      alert(error instanceof Error ? error.message : 'ไม่สามารถแก้ไขยอดเงินได้')
+      alert(error.response?.data?.error || 'ไม่สามารถแก้ไขยอดเงินได้')
     } finally {
       setIsEditing(false)
     }
@@ -277,69 +259,69 @@ export default function AdminReceipts() {
             </div>
           </div>
           <div className="p-6">
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 border-t-2 border-t-slate-200 mx-auto mb-2"></div>
-              <p className="text-slate-500">กำลังโหลด...</p>
-            </div>
-          ) : receipts.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-slate-500">ไม่พบใบเสร็จ</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {receipts.map((receipt) => {
-                const points = receipt.total_amount ? calculatePoints(receipt.total_amount) : 0
-
-                return (
-                  <ReceiptCard
-                    key={receipt.id}
-                    receipt={receipt}
-                    points={points}
-                    onViewDetail={openDetailModal}
-                    onApprove={canApprove ? handleApprove : undefined}
-                    onReject={canReject ? handleReject : undefined}
-                    processing={processing === receipt.id}
-                  />
-                )
-              })}
-            </div>
-          )}
-
-          {/* Pagination */}
-          {pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6">
-              <p className="text-sm text-slate-600">
-                แสดง {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} จาก {pagination.total} รายการ
-              </p>
-
-              <div className="flex space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(page - 1)}
-                  disabled={page <= 1}
-                  className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-
-                <span className="px-3 py-1 text-sm text-slate-700">
-                  หน้า {pagination.page} / {pagination.totalPages}
-                </span>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(page + 1)}
-                  disabled={page >= pagination.totalPages}
-                  className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 border-t-2 border-t-slate-200 mx-auto mb-2"></div>
+                <p className="text-slate-500">กำลังโหลด...</p>
               </div>
-            </div>
-          )}
+            ) : receipts.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-slate-500">ไม่พบใบเสร็จ</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {receipts.map((receipt) => {
+                  const points = receipt.total_amount ? calculatePoints(receipt.total_amount) : 0
+
+                  return (
+                    <ReceiptCard
+                      key={receipt.id}
+                      receipt={receipt}
+                      points={points}
+                      onViewDetail={openDetailModal}
+                      onApprove={canApprove ? handleApprove : undefined}
+                      onReject={canReject ? handleReject : undefined}
+                      processing={processing === receipt.id}
+                    />
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Pagination */}
+            {pagination.totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6">
+                <p className="text-sm text-slate-600">
+                  แสดง {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} จาก {pagination.total} รายการ
+                </p>
+
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(page - 1)}
+                    disabled={page <= 1}
+                    className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+
+                  <span className="px-3 py-1 text-sm text-slate-700">
+                    หน้า {pagination.page} / {pagination.totalPages}
+                  </span>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(page + 1)}
+                    disabled={page >= pagination.totalPages}
+                    className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

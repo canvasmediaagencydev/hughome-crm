@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { X, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { axiosAdmin } from '@/lib/axios-admin'
 import type { AdminRole } from '@/types/admin'
 
 interface CreateAdminDialogProps {
@@ -48,26 +49,8 @@ export default function CreateAdminDialog({
   const fetchRoles = async () => {
     try {
       setLoadingRoles(true)
-      const { supabaseAdmin } = await import('@/lib/supabase-admin')
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-      if (!session?.access_token) {
-        toast.error('ไม่พบ session กรุณา login ใหม่')
-        return
-      }
-
-      const response = await fetch('/api/admin/roles', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch roles')
-      }
-
-      const data = await response.json()
-      setRoles(data.roles || [])
+      const response = await axiosAdmin.get('/api/admin/roles')
+      setRoles(response.data.roles || [])
     } catch (error) {
       console.error('Error fetching roles:', error)
       toast.error('ไม่สามารถโหลดรายการบทบาทได้')
@@ -119,32 +102,12 @@ export default function CreateAdminDialog({
     try {
       setLoading(true)
 
-      const { supabaseAdmin } = await import('@/lib/supabase-admin')
-      const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-      if (!session?.access_token) {
-        toast.error('ไม่พบ session กรุณา login ใหม่')
-        return
-      }
-
-      const response = await fetch('/api/admin/admins', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          full_name: fullName || null,
-          role_ids: selectedRoles,
-        }),
+      await axiosAdmin.post('/api/admin/admins', {
+        email,
+        password,
+        full_name: fullName || null,
+        role_ids: selectedRoles,
       })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create admin')
-      }
 
       toast.success('สร้างผู้ดูแลระบบสำเร็จ')
       onSuccess()
@@ -202,9 +165,8 @@ export default function CreateAdminDialog({
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                  errors.email ? 'border-red-500' : 'border-slate-300'
-                }`}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${errors.email ? 'border-red-500' : 'border-slate-300'
+                  }`}
                 placeholder="admin@example.com"
                 disabled={loading}
               />
@@ -237,9 +199,8 @@ export default function CreateAdminDialog({
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                  errors.password ? 'border-red-500' : 'border-slate-300'
-                }`}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${errors.password ? 'border-red-500' : 'border-slate-300'
+                  }`}
                 placeholder="••••••••"
                 disabled={loading}
               />
@@ -260,9 +221,8 @@ export default function CreateAdminDialog({
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                  errors.confirmPassword ? 'border-red-500' : 'border-slate-300'
-                }`}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${errors.confirmPassword ? 'border-red-500' : 'border-slate-300'
+                  }`}
                 placeholder="••••••••"
                 disabled={loading}
               />

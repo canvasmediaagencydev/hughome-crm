@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { axiosAdmin } from '@/lib/axios-admin'
 import { User, Pagination } from '@/types'
 import debounce from 'lodash.debounce'
 
@@ -10,21 +11,7 @@ interface UseUsersParams {
   initialSearch?: string
 }
 
-async function getAuthHeaders() {
-  const { supabaseAdmin } = await import('@/lib/supabase-admin')
-  const { data: { session } } = await supabaseAdmin.auth.getSession()
-
-  if (!session?.access_token) {
-    throw new Error('No session found')
-  }
-
-  return {
-    Authorization: `Bearer ${session.access_token}`,
-  }
-}
-
 async function fetchUsers(page: number, role: string, search: string) {
-  const headers = await getAuthHeaders()
   const params = new URLSearchParams({
     page: page.toString(),
     limit: '9',
@@ -35,17 +22,8 @@ async function fetchUsers(page: number, role: string, search: string) {
     params.append('search', search.trim())
   }
 
-  const response = await fetch(`/api/admin/users?${params}`, {
-    headers,
-  })
-
-  if (!response.ok) {
-    if (response.status === 401) throw new Error('Unauthorized')
-    if (response.status === 403) throw new Error('Forbidden')
-    throw new Error('Failed to fetch users')
-  }
-
-  return response.json()
+  const response = await axiosAdmin.get(`/api/admin/users?${params}`)
+  return response.data
 }
 
 export function useUsers(params: UseUsersParams = {}) {
