@@ -28,7 +28,7 @@ async function processReceiptInternal(base64: string, mimeType: string): Promise
       },
     }
 
-    const model = 'gemini-2.5-pro'
+    const model = 'gemini-flash-latest'
 
     // Prepare the content
     const contents = [
