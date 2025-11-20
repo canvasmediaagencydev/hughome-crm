@@ -1,6 +1,14 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react'
 import { createClient } from '@/lib/supabase-browser'
 import { axiosAdmin } from '@/lib/axios-admin'
 import type { User } from '@supabase/supabase-js'
@@ -23,6 +31,7 @@ interface AdminAuthContextType {
   loading: boolean
   error: string | null
   isAuthenticated: boolean
+  adminDataError: boolean
 
   // Permission Helpers
   hasPermission: (permission: PermissionKey | string) => boolean
@@ -42,30 +51,69 @@ const AdminAuthContext = createContext<AdminAuthContextType | null>(null)
 
 export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null)
   const [roles, setRoles] = useState<AdminRole[]>([])
   const [permissions, setPermissions] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [adminDataError, setAdminDataError] = useState(false)
+  const focusRefreshInProgress = useRef(false)
 
   // Check if we're on login/signup page
   const isLoginPage = typeof window !== 'undefined' &&
     (window.location.pathname === '/admin/login' || window.location.pathname === '/admin/signup')
 
+  const getSessionWithTimeout = useCallback(
+    async (timeoutMs = 20000) => {
+      let timer: ReturnType<typeof setTimeout> | null = null
+      let didTimeout = false
+
+      try {
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timer = setTimeout(() => {
+            didTimeout = true
+            reject(new Error('Session retrieval timeout'))
+          }, timeoutMs)
+        })
+
+        const sessionResult = (await Promise.race([
+          supabase.auth.getSession(),
+          timeoutPromise,
+        ])) as Awaited<ReturnType<typeof supabase.auth.getSession>>
+
+        return sessionResult
+      } catch (err) {
+        if (didTimeout) {
+          console.warn('[useAdminAuth] Session retrieval timeout, retrying without guard')
+          // Retry once without timeout so slow resume doesn't force logout
+          return await supabase.auth.getSession()
+        }
+        throw err
+      } finally {
+        if (timer) {
+          clearTimeout(timer)
+        }
+      }
+    },
+    [supabase]
+  )
+
   // ฟังก์ชันโหลดข้อมูล admin, roles, และ permissions
-  const loadAdminData = async (authUserId: string, retryCount = 0) => {
+  const loadAdminData = useCallback(async (authUserId: string, retryCount = 0) => {
     const maxRetries = 2
     const timeout = 10000 // 10 seconds timeout
 
     try {
+      setAdminDataError(false)
       // Get current session token
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await getSessionWithTimeout()
       if (!session?.access_token) {
         console.log('[loadAdminData] No session token found')
         setAdminUser(null)
         setRoles([])
         setPermissions([])
+        setAdminDataError(true)
         return
       }
 
@@ -91,6 +139,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         setAdminUser(adminUser)
         setRoles(roles)
         setPermissions(permissions)
+        setAdminDataError(false)
       } catch (fetchErr: any) {
         clearTimeout(timeoutId)
 
@@ -120,6 +169,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
             return loadAdminData(authUserId, retryCount + 1)
         }
 
+        setAdminDataError(true)
         throw fetchErr
       }
     } catch (err) {
@@ -127,8 +177,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       setAdminUser(null)
       setRoles([])
       setPermissions([])
+      setAdminDataError(true)
     }
-  }
+  }, [getSessionWithTimeout, supabase])
 
   useEffect(() => {
     // Skip auth init on login/signup pages
@@ -141,7 +192,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     const initAuth = async () => {
       try {
         console.log('[useAdminAuth] Starting init auth...')
-        const { data: { session }, error } = await supabase.auth.getSession()
+        const { data: { session }, error } = await getSessionWithTimeout()
 
         if (error) {
           console.error('[useAdminAuth] Auth session error:', error)
@@ -202,7 +253,61 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(safetyTimeout)
       subscription.unsubscribe()
     }
-  }, [isLoginPage])
+  }, [getSessionWithTimeout, isLoginPage, loadAdminData, supabase])
+
+  const refreshOnFocus = useCallback(async () => {
+    if (focusRefreshInProgress.current || loading || isLoginPage) {
+      return
+    }
+
+    focusRefreshInProgress.current = true
+    try {
+      const { data: { session }, error } = await getSessionWithTimeout(6000)
+
+      if (error) {
+        console.error('[useAdminAuth] Focus refresh session error:', error.message)
+      }
+
+      const authUser = session?.user ?? null
+      setUser(authUser)
+
+      if (authUser) {
+        await loadAdminData(authUser.id)
+      } else {
+        setAdminUser(null)
+        setRoles([])
+        setPermissions([])
+      }
+    } catch (err) {
+      console.warn('[useAdminAuth] Focus refresh failed:', err)
+    } finally {
+      focusRefreshInProgress.current = false
+    }
+  }, [getSessionWithTimeout, isLoginPage, loadAdminData, loading])
+
+  useEffect(() => {
+    if (isLoginPage || typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refreshOnFocus()
+      }
+    }
+
+    const handleFocus = () => {
+      refreshOnFocus()
+    }
+
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [isLoginPage, refreshOnFocus])
 
   const signIn = async (email: string, password: string) => {
     setLoading(true)
@@ -259,11 +364,11 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   const clearError = () => setError(null)
 
-  const refetch = async () => {
+  const refetch = useCallback(async () => {
     if (user) {
       await loadAdminData(user.id)
     }
-  }
+  }, [loadAdminData, user])
 
   // Permission Helpers
   const hasPermission = (permission: PermissionKey | string): boolean => {
@@ -288,6 +393,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     isSuperAdmin,
     loading,
     error,
+    adminDataError,
     isAuthenticated: !!user && !!adminUser && !loading,
     hasPermission,
     hasAnyPermission,
@@ -298,7 +404,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     clearError,
     refetch,
     getToken: async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await getSessionWithTimeout()
       return session?.access_token ?? null
     }
   }

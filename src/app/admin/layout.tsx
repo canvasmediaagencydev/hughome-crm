@@ -34,6 +34,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     isAuthenticated,
     hasPermission,
     refetch,
+    adminDataError,
   } = useAdminAuth()
   const router = useRouter()
   const pathname = usePathname()
@@ -44,14 +45,13 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     // Only redirect if we're done loading AND not authenticated
     // This prevents redirect loops during initial auth check
     if (!loading && !isAuthenticated && pathname !== '/admin/login') {
-      // Check if we have a session but no admin data (indicates load error)
-      if (user && !adminUser) {
-        setLoadError(true)
-      } else {
-        router.push('/admin/login')
-      }
+      router.push('/admin/login')
     }
-  }, [isAuthenticated, loading, router, pathname, user, adminUser])
+  }, [isAuthenticated, loading, router, pathname])
+
+  useEffect(() => {
+    setLoadError(adminDataError)
+  }, [adminDataError])
 
   const handleLogout = async () => {
     await signOut()
