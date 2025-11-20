@@ -52,6 +52,7 @@ const AdminAuthContext = createContext<AdminAuthContextType | null>(null)
 
 export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const userIdRef = React.useRef<string | null>(null)
   const supabase = useMemo(() => createClient(), [])
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null)
   const [roles, setRoles] = useState<AdminRole[]>([])
@@ -223,6 +224,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         const authUser = session?.user ?? null
         console.log('[useAdminAuth] Auth user:', authUser?.email)
         setUser(authUser)
+        userIdRef.current = authUser?.id || null; // Initialize userIdRef
 
         if (authUser) {
           await loadAdminData(authUser.id)
@@ -258,6 +260,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         console.log('Auth state change:', event, session?.user?.email)
         const authUser = session?.user ?? null
         setUser(authUser)
+        userIdRef.current = authUser?.id || null; // Update userIdRef on state change
         setError(null)
 
         // Reset safety timeout on every auth state change
@@ -270,15 +273,27 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           setLoading(false)
           toast.success('ออกจากระบบเรียบร้อยแล้ว')
         } else if (event === 'SIGNED_IN' && authUser) {
-          // Only load data on sign in, not on token refresh
-          try {
-            setLoading(true)
-            await loadAdminData(authUser.id)
-            invalidateQueries()
-          } catch (err) {
-            console.error('Error loading admin data on sign in:', err)
-          } finally {
-            setLoading(false)
+          // Check if it's the same user to avoid blocking UI
+          if (userIdRef.current === authUser.id) {
+            console.log('[useAdminAuth] Same user SIGNED_IN event, refreshing in background')
+            try {
+              // Don't set loading=true, just refresh data
+              await loadAdminData(authUser.id)
+              invalidateQueries()
+            } catch (err) {
+              console.error('Error refreshing admin data:', err)
+            }
+          } else {
+            console.log('[useAdminAuth] New user SIGNED_IN event, full reload')
+            try {
+              setLoading(true)
+              await loadAdminData(authUser.id)
+              invalidateQueries()
+            } catch (err) {
+              console.error('Error loading admin data on sign in:', err)
+            } finally {
+              setLoading(false)
+            }
           }
         } else if (event === 'TOKEN_REFRESHED') {
           // Token was refreshed (happens when tab regains focus)
