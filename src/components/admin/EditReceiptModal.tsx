@@ -47,9 +47,9 @@ export function EditReceiptModal({
   }, [receiptData, open])
 
   const handleConfirm = () => {
-    const amount = parseFloat(editedAmount) || 0
-    if (amount <= 0) {
-      alert('กรุณาระบุยอดเงินให้ถูกต้อง')
+    const amount = parseFloat(editedAmount)
+    if (isNaN(amount) || amount <= 0) {
+      alert('กรุณาระบุยอดเงินให้ถูกต้อง (ต้องมากกว่า 0)')
       return
     }
     onConfirm(amount, isValidStore)

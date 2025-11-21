@@ -68,11 +68,31 @@ export async function GET(request: NextRequest) {
       query = query.range(offset, offset + limit - 1);
     }
 
-    const { data: receipts, error, count: totalCount } = await query;
+    // Retry mechanism for database query
+    let receipts = null;
+    let totalCount = 0;
+    let lastError = null;
 
-    if (error) {
-      console.error("Error fetching receipts:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const { data, error, count } = await query;
+        if (error) throw error;
+        
+        receipts = data;
+        totalCount = count || 0;
+        lastError = null;
+        break; // Success, exit loop
+      } catch (err) {
+        console.warn(`Attempt ${attempt + 1} failed:`, err);
+        lastError = err;
+        // Wait briefly before retrying (exponential backoff: 500ms, 1000ms)
+        if (attempt < 2) await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+      }
+    }
+
+    if (lastError) {
+      console.error("Error fetching receipts after 3 attempts:", lastError);
+      return NextResponse.json({ error: (lastError as any).message || "Database connection failed" }, { status: 500 });
     }
 
     // Server-side filtering for search queries

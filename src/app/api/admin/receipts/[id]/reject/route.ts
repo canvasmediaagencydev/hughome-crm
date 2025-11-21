@@ -27,17 +27,38 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check if receipt exists and is pending
+    // Check if receipt exists
     const { data: receipt, error: receiptError } = await supabase
       .from("receipts")
       .select("id, status, user_id")
       .eq("id", id)
-      .eq("status", "pending")
       .single();
 
     if (receiptError || !receipt) {
       return NextResponse.json(
-        { error: "Receipt not found or already processed" },
+        { error: "Receipt not found" },
         { status: 404 }
+      );
+    }
+
+    // Check if receipt is already processed
+    if (receipt.status !== "pending") {
+      if (receipt.status === "rejected") {
+        return NextResponse.json({
+          success: true,
+          message: "Receipt is already rejected",
+          receipt: {
+            id,
+            status: "rejected",
+            admin_notes: admin_notes || "Already rejected",
+            rejected_at: new Date().toISOString()
+          }
+        });
+      }
+      
+      return NextResponse.json(
+        { error: `Receipt is already ${receipt.status}` },
+        { status: 409 } // Conflict
       );
     }
 

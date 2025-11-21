@@ -19,9 +19,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const body = await request.json();
     const { points_awarded, admin_notes } = body;
 
-    if (!points_awarded || points_awarded < 0) {
+    if (points_awarded === undefined || points_awarded === null || points_awarded < 0) {
       return NextResponse.json(
-        { error: "Valid points_awarded is required" },
+        { error: "Valid points_awarded is required (must be >= 0)" },
         { status: 400 }
       );
     }
@@ -37,13 +37,39 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         )
       `)
       .eq("id", id)
-      .eq("status", "pending")
       .single();
 
     if (receiptError || !receipt) {
       return NextResponse.json(
-        { error: "Receipt not found or already processed" },
+        { error: "Receipt not found" },
         { status: 404 }
+      );
+    }
+
+    // Check if receipt is already processed
+    if (receipt.status !== "pending") {
+      if (receipt.status === "approved") {
+        return NextResponse.json({
+          success: true,
+          message: "Receipt is already approved",
+          receipt: {
+            id,
+            status: "approved",
+            points_awarded: receipt.points_awarded,
+            approved_at: receipt.approved_at
+          },
+          user_points: {
+             // We don't have the new balance here easily without refetching, 
+             // but for idempotency this is acceptable
+             new_balance: receipt.user_profiles?.points_balance,
+             points_earned: 0
+          }
+        });
+      }
+
+      return NextResponse.json(
+        { error: `Receipt is already ${receipt.status}` },
+        { status: 409 } // Conflict
       );
     }
 

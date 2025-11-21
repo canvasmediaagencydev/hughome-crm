@@ -1,0 +1,58 @@
+Total Logs: 355
+--------------------
+Status Code Distribution:
+  200: 339
+  404: 7
+  400: 5
+  500: 3
+  -1: 1
+--------------------
+Total Errors (5xx or level='error'): 4
+Total Warnings (4xx or level='warning'): 12
+--------------------
+Issues by Path:
+
+PUT hughomecrm.vercel.app/api/admin/receipts/5699ff91-c68e-41e7-bec7-9ed97793af29/approve (400) - 4 occurrences
+  2025-11-21 04:16:32:  [No explicit message]
+  2025-11-21 04:15:57:  [No explicit message]
+  2025-11-21 04:15:53:  [No explicit message]
+
+PUT hughomecrm.vercel.app/api/admin/receipts/350b6ba8-9eef-4b8d-b2a5-0b21d6e03abb/reject (404) - 3 occurrences
+  2025-11-21 04:44:18:  [No explicit message]
+  2025-11-21 04:44:14:  [No explicit message]
+  2025-11-21 04:44:10:  [No explicit message]
+
+GET hughomecrm.vercel.app/api/admin/receipts (500) - 3 occurrences
+  2025-11-21 04:43:27:  [No explicit message]
+  2025-11-21 04:43:24:  [No explicit message]
+  2025-11-21 04:22:11:  [No explicit message]
+
+PUT hughomecrm.vercel.app/api/admin/receipts/ce532848-8571-4cce-bdd5-82d2be64ac04/reject (404) - 2 occurrences
+  2025-11-21 04:40:31:  [No explicit message]
+  2025-11-21 04:40:26:  [No explicit message]
+
+PUT hughomecrm.vercel.app/api/admin/receipts/b4b65fd8-be5e-49d0-b3d4-4aa65d3bf7d9/reject (404) - 1 occurrences
+  2025-11-21 04:45:57:  [No explicit message]
+
+PUT hughomecrm.vercel.app/api/admin/receipts/d8df9240-23f8-4f4a-8931-50da8c50d123/reject (404) - 1 occurrences
+  2025-11-21 04:39:59:  [No explicit message]
+
+PUT hughomecrm.vercel.app/api/admin/receipts/e7fc5441-bf12-43f4-aa4f-3aa650aa6dc6/approve (400) - 1 occurrences
+  2025-11-21 04:36:20:  [No explicit message]
+
+GET hughomecrm.vercel.app/api/admin/receipts (-1) - 1 occurrences
+  2025-11-21 04:22:11: [TypeError: fetch failed] {
+  [cause]: [Error [SocketError]: other side closed] {
+    code: 'UND_ERR_SOCKET',
+    socket: {
+      localAddress: '169.254.100.6',
+      localPort: 54660,
+      remoteAddress: '172.64.149.246',
+      remotePort: 443,
+      remoteFamily: 'IPv4',
+      timeout: undefined,
+      bytesWritten: 1412,
+      bytesRead: 0
+    }
+  }
+}
