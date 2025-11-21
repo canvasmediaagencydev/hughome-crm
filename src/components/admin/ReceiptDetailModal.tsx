@@ -41,23 +41,6 @@ export function ReceiptDetailModal({
 }: ReceiptDetailModalProps) {
   if (!receipt) return null
 
-  // Format OCR timestamp
-  const formatOcrTimestamp = (timestamp: string | null) => {
-    if (!timestamp) return 'ไม่มีข้อมูล'
-    try {
-      const date = new Date(timestamp)
-      return date.toLocaleString('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    } catch {
-      return 'ไม่ถูกต้อง'
-    }
-  }
-
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
@@ -127,23 +110,6 @@ export function ReceiptDetailModal({
               )}
             </div>
           </div>
-
-          {/* OCR Data */}
-          {receipt.ocr_data && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <strong className="text-slate-900">ข้อมูล OCR:</strong>
-                  <p className="text-xs text-slate-500 mt-1">
-                    ประมวลผลเมื่อ: {formatOcrTimestamp(receipt.ocr_processed_at)}
-                  </p>
-                </div>
-              </div>
-              <pre className="bg-slate-50 border border-slate-200 p-3 rounded text-xs overflow-auto max-h-32 text-slate-700">
-                {JSON.stringify(receipt.ocr_data, null, 2)}
-              </pre>
-            </div>
-          )}
 
           <div className="flex justify-end">
             <Button onClick={onClose} variant="outline" className="bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-300">

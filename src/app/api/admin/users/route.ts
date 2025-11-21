@@ -35,23 +35,37 @@ export async function GET(request: NextRequest) {
       query = query.gte('created_at', cutoffDate.toISOString());
     }
 
-    // Search by name or phone
-    if (search && search.trim()) {
-      const searchTerm = `%${search.trim()}%`;
-      query = query.or(
-        `first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},phone.ilike.${searchTerm}`
-      );
-    }
+    // Store original search term for full name matching later
+    const originalSearch = search?.trim();
+    const hasFullNameSearch = originalSearch && originalSearch.includes(' ');
 
-    // Filter by role
+    // Filter by role first
     if (role && role !== "all") {
       query = query.eq("role", role);
     }
 
-    // Pagination
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
-    query = query.range(from, to);
+    // Handle search differently based on whether it's a full name search or not
+    if (originalSearch && !hasFullNameSearch) {
+      // Simple search (no space) - use database query
+      const searchPattern = `%${originalSearch}%`;
+      query = query.or(
+        `first_name.ilike.${searchPattern},last_name.ilike.${searchPattern},phone.ilike.${searchPattern}`
+      );
+
+      // Normal pagination
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      query = query.range(from, to);
+    } else if (hasFullNameSearch) {
+      // Full name search - fetch all matching results (up to reasonable limit)
+      // We'll filter client-side, so fetch more results
+      query = query.range(0, 999); // Fetch up to 1000 results
+    } else {
+      // No search - normal pagination
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      query = query.range(from, to);
+    }
 
     const { data: users, error, count } = await query;
 
@@ -59,8 +73,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Fetch latest note for each user
-    const userIds = users?.map(u => u.id) || [];
+    // Additional client-side filtering for full name search
+    let filteredUsers = users || [];
+    let finalCount = count || 0;
+
+    if (hasFullNameSearch && originalSearch) {
+      const searchLower = originalSearch.toLowerCase();
+
+      // Filter users where "first_name last_name" matches the search term
+      filteredUsers = (users || []).filter(user => {
+        const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim().toLowerCase();
+        const reverseName = `${user.last_name || ''} ${user.first_name || ''}`.trim().toLowerCase();
+        const phone = (user.phone || '').toLowerCase();
+
+        return fullName.includes(searchLower) ||
+               reverseName.includes(searchLower) ||
+               phone.includes(searchLower);
+      });
+
+      // Update count and apply pagination to filtered results
+      finalCount = filteredUsers.length;
+      const from = (page - 1) * limit;
+      const to = from + limit;
+      filteredUsers = filteredUsers.slice(from, to);
+    }
+
+    // Fetch latest note for each user (use filteredUsers instead of users)
+    const userIds = filteredUsers?.map(u => u.id) || [];
     let latestNotes: any[] = [];
 
     if (userIds.length > 0) {
@@ -82,7 +121,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Add latest_note to each user
-    const usersWithNotes = users?.map(user => ({
+    const usersWithNotes = filteredUsers?.map(user => ({
       ...user,
       latest_note: latestNotes.find(n => n.user_id === user.id) || null
     }));
@@ -92,8 +131,8 @@ export async function GET(request: NextRequest) {
       pagination: {
         page,
         limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit),
+        total: finalCount,
+        totalPages: Math.ceil(finalCount / limit),
       },
     });
   } catch (error) {

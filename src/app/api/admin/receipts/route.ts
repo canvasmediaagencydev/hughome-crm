@@ -22,6 +22,10 @@ export async function GET(request: NextRequest) {
 
     const offset = (page - 1) * limit;
 
+    // Store original search term for full name matching later
+    const originalSearch = search?.trim();
+    const hasFullNameSearch = originalSearch && originalSearch.includes(' ');
+
     let query = supabase
       .from("receipts")
       .select(`
@@ -54,22 +58,15 @@ export async function GET(request: NextRequest) {
       query = query.gte('created_at', cutoffDate.toISOString());
     }
 
-    // Search filtering at database level (much faster than JavaScript filtering)
-    if (search && search.trim()) {
-      const searchTrim = search.trim();
-      const searchNum = parseFloat(searchTrim);
-
-      // If search is a number, also search by total_amount
-      if (!isNaN(searchNum)) {
-        query = query.or(`user_profiles.display_name.ilike.%${searchTrim}%,user_profiles.first_name.ilike.%${searchTrim}%,user_profiles.last_name.ilike.%${searchTrim}%,total_amount.eq.${searchNum}`);
-      } else {
-        // Text search only in user profile fields
-        query = query.or(`user_profiles.display_name.ilike.%${searchTrim}%,user_profiles.first_name.ilike.%${searchTrim}%,user_profiles.last_name.ilike.%${searchTrim}%`);
-      }
+    // For search queries, we need to fetch more data and filter server-side
+    // because Supabase doesn't support OR queries on related tables well
+    if (originalSearch) {
+      // Fetch up to 1000 results for filtering
+      query = query.range(0, 999);
+    } else {
+      // No search - normal pagination
+      query = query.range(offset, offset + limit - 1);
     }
-
-    // Apply pagination at database level
-    query = query.range(offset, offset + limit - 1);
 
     const { data: receipts, error, count: totalCount } = await query;
 
@@ -78,13 +75,58 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Server-side filtering for search queries
+    let filteredReceipts = receipts || [];
+    let finalCount = totalCount || 0;
+
+    if (originalSearch) {
+      const searchLower = originalSearch.toLowerCase();
+      const searchNum = parseFloat(originalSearch);
+      const isNumericSearch = !isNaN(searchNum);
+
+      // Filter receipts based on search term
+      filteredReceipts = (receipts || []).filter(receipt => {
+        const user = receipt.user_profiles;
+
+        // Search in user fields
+        if (user) {
+          const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim().toLowerCase();
+          const reverseName = `${user.last_name || ''} ${user.first_name || ''}`.trim().toLowerCase();
+          const displayName = (user.display_name || '').toLowerCase();
+          const firstName = (user.first_name || '').toLowerCase();
+          const lastName = (user.last_name || '').toLowerCase();
+
+          if (fullName.includes(searchLower) ||
+              reverseName.includes(searchLower) ||
+              displayName.includes(searchLower) ||
+              firstName.includes(searchLower) ||
+              lastName.includes(searchLower)) {
+            return true;
+          }
+        }
+
+        // Search in total_amount if search term is numeric
+        if (isNumericSearch && receipt.total_amount === searchNum) {
+          return true;
+        }
+
+        return false;
+      });
+
+      // Update count and apply pagination to filtered results
+      finalCount = filteredReceipts.length;
+      const from = (page - 1) * limit;
+      const to = from + limit;
+      filteredReceipts = filteredReceipts.slice(from, to);
+    }
+
     return NextResponse.json({
-      receipts: receipts || [],
+      receipts: filteredReceipts,
       pagination: {
         page,
         limit,
-        total: totalCount || 0,
-        totalPages: Math.ceil((totalCount || 0) / limit)
+        total: finalCount,
+        totalPages: Math.ceil(finalCount / limit)
       }
     });
 
