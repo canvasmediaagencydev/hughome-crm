@@ -115,7 +115,17 @@ function DashboardPage() {
       <QuickActions />
 
       {/* Upload Section */}
-      <UploadSection onCameraOpen={handleCameraOpen} />
+      {/* <UploadSection onCameraOpen={handleCameraOpen} /> */}
+      <div className='flex justify-center items-center py-8 px-4'>
+        <div className='text-center space-y-2'>
+          <p className='text-gray-600 text-sm font-medium'>
+            สะสมคะแนนอัตโนมัติ
+          </p>
+          <p className='text-gray-400 text-xs'>
+            ทุกครั้งที่ซื้อสินค้า คะแนนจะเข้าสู่บัญชีของคุณโดยอัตโนมัติ
+          </p>
+        </div>
+      </div>
 
       {/* Bottom Navigation */}
       <BottomNavigation currentPage="home" />
