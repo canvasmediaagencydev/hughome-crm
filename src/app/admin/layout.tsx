@@ -19,6 +19,7 @@ import {
   Settings,
   ShieldCheck,
   Package,
+  FileText,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -167,6 +168,13 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       icon: Settings,
       current: pathname.startsWith('/admin/roles'),
       show: hasPermission(PERMISSIONS.ADMINS_MANAGE),
+    },
+    {
+      name: 'รายงาน',
+      href: '/admin/reports',
+      icon: FileText,
+      current: pathname.startsWith('/admin/reports'),
+      show: hasPermission(PERMISSIONS.USERS_VIEW),
     },
   ]
 
