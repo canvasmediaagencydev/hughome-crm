@@ -19,6 +19,11 @@ interface Receipt {
   total_amount: number
   points_awarded: number | null
   status: 'pending' | 'approved' | 'rejected'
+  uploaded_by_admin_id: string | null
+  uploaded_by_admin?: {
+    full_name: string | null
+    email: string | null
+  } | null
 }
 
 interface Pagination {
@@ -39,6 +44,13 @@ const ReceiptCard = memo(({ receipt }: { receipt: Receipt }) => {
         </div>
         <StatusBadge status={receipt.status} />
       </div>
+
+      {receipt.uploaded_by_admin_id && (
+        <div className="mb-3 inline-flex items-center px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold">
+          <FaHistory className="w-3 h-3 mr-1" />
+          อัปโหลดโดย {receipt.uploaded_by_admin?.full_name || 'ทีมแอดมิน'}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
         <div>

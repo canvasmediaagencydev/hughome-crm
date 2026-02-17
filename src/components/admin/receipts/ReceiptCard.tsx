@@ -70,6 +70,14 @@ export function ReceiptCard({
             {getStatusBadge(receipt.status || 'pending')}
           </div>
 
+          {receipt.uploaded_by_admin_id && (
+            <div className="mb-3">
+              <Badge className="bg-blue-50 text-blue-700 border border-blue-200">
+                อัปโดย {receipt.uploaded_by_admin?.full_name || receipt.uploaded_by_admin?.email || 'Admin'}
+              </Badge>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2 text-sm text-slate-600">
             <div>
               <span className="font-medium">ยอดเงิน:</span> ฿{receipt.total_amount?.toLocaleString() || 'N/A'}

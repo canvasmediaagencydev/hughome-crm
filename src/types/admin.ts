@@ -118,6 +118,7 @@ export const PERMISSIONS = {
   RECEIPTS_APPROVE: 'receipts.approve',
   RECEIPTS_REJECT: 'receipts.reject',
   RECEIPTS_AUTO_PROCESS: 'receipts.auto_process',
+  RECEIPTS_UPLOAD: 'receipts.upload',
 
   // Users
   USERS_VIEW: 'users.view',

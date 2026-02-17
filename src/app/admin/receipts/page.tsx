@@ -22,6 +22,7 @@ import { ReceiptDetailModal } from '@/components/admin/ReceiptDetailModal'
 import { ReceiptImageModal } from '@/components/admin/ReceiptImageModal'
 import { RejectReceiptModal } from '@/components/admin/RejectReceiptModal'
 import { EditReceiptModal } from '@/components/admin/EditReceiptModal'
+import Link from 'next/link'
 
 export default function AdminReceipts() {
   // Permission check
@@ -56,6 +57,7 @@ export default function AdminReceipts() {
   const canApprove = hasPermission(PERMISSIONS.RECEIPTS_APPROVE)
   const canReject = hasPermission(PERMISSIONS.RECEIPTS_REJECT)
   const canAutoProcess = hasPermission(PERMISSIONS.RECEIPTS_AUTO_PROCESS)
+  const canUploadReceipts = hasPermission(PERMISSIONS.RECEIPTS_UPLOAD)
   // Modal states
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptWithRelations | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
@@ -223,6 +225,14 @@ export default function AdminReceipts() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-7xl mx-auto">
+        {canUploadReceipts && (
+          <div className="flex justify-end mb-4">
+            <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Link href="/admin/receipts/upload">อัปโหลดใบเสร็จให้ลูกค้า</Link>
+            </Button>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="bg-white rounded-lg border border-slate-200 p-4 mb-4 shadow-sm">
           <FilterSection

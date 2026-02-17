@@ -37,6 +37,11 @@ export async function GET(request: NextRequest) {
           last_name,
           line_user_id
         ),
+        uploaded_by_admin:admin_users!receipts_uploaded_by_admin_id_fkey (
+          id,
+          full_name,
+          email
+        ),
         receipt_images (
           id,
           file_name,

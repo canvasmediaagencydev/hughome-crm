@@ -20,6 +20,11 @@ type ReceiptWithRelations = Tables<'receipts'> & {
     file_size: number | null
     mime_type: string | null
   }[]
+  uploaded_by_admin?: {
+    id: string
+    full_name: string | null
+    email: string
+  } | null
 }
 
 interface ReceiptDetailModalProps {
@@ -49,6 +54,14 @@ export function ReceiptDetailModal({
         </DialogHeader>
 
         <div className="space-y-4">
+          {receipt.uploaded_by_admin_id && (
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm text-slate-600">
+              <p className="font-medium text-slate-800">รายละเอียดการอัปโหลด</p>
+              <p>อัปโหลดโดย: {receipt.uploaded_by_admin?.full_name || receipt.uploaded_by_admin?.email || 'Admin'}</p>
+              <p>เวลาที่อัปโหลด: {receipt.created_at ? new Date(receipt.created_at).toLocaleString('th-TH') : '-'}</p>
+            </div>
+          )}
+
           {/* Receipt Image */}
           {receipt.receipt_images?.[0] && (
             <div className="space-y-2">

@@ -33,7 +33,18 @@ export async function POST(request: NextRequest) {
     // Fetch user's receipt history with pagination
     const { data: receipts, error } = await supabase
       .from('receipts')
-      .select('id, created_at, total_amount, points_awarded, status')
+      .select(`
+        id,
+        created_at,
+        total_amount,
+        points_awarded,
+        status,
+        uploaded_by_admin_id,
+        uploaded_by_admin:admin_users!receipts_uploaded_by_admin_id_fkey (
+          full_name,
+          email
+        )
+      `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .range(from, to)

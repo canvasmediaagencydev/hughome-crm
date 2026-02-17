@@ -16,6 +16,11 @@ export type ReceiptWithRelations = Tables<'receipts'> & {
     file_size: number | null
     mime_type: string | null
   }[]
+  uploaded_by_admin?: {
+    id: string
+    full_name: string | null
+    email: string
+  } | null
 }
 
 export interface ReceiptListResponse {

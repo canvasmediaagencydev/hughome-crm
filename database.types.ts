@@ -352,6 +352,7 @@ export type Database = {
           status: Database["public"]["Enums"]["receipt_status"] | null
           total_amount: number | null
           updated_at: string | null
+          uploaded_by_admin_id: string | null
           user_id: string
           vendor_name: string | null
         }
@@ -369,6 +370,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["receipt_status"] | null
           total_amount?: number | null
           updated_at?: string | null
+          uploaded_by_admin_id?: string | null
           user_id: string
           vendor_name?: string | null
         }
@@ -386,10 +388,18 @@ export type Database = {
           status?: Database["public"]["Enums"]["receipt_status"] | null
           total_amount?: number | null
           updated_at?: string | null
+          uploaded_by_admin_id?: string | null
           user_id?: string
           vendor_name?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "receipts_uploaded_by_admin_id_fkey"
+            columns: ["uploaded_by_admin_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "receipts_approved_by_fkey"
             columns: ["approved_by"]
