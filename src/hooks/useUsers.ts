@@ -11,7 +11,7 @@ interface UseUsersParams {
   initialSearch?: string
 }
 
-async function fetchUsers(page: number, role: string, search: string) {
+async function fetchUsers(page: number, role: string, search: string, tagFilter: string) {
   const params = new URLSearchParams({
     page: page.toString(),
     limit: '9',
@@ -20,6 +20,10 @@ async function fetchUsers(page: number, role: string, search: string) {
 
   if (search.trim()) {
     params.append('search', search.trim())
+  }
+
+  if (tagFilter) {
+    params.append('tag', tagFilter)
   }
 
   const response = await axiosAdmin.get(`/api/admin/users?${params}`)
@@ -36,6 +40,7 @@ export function useUsers(params: UseUsersParams = {}) {
   const queryClient = useQueryClient()
   const [currentPage, setCurrentPage] = useState(initialPage)
   const [roleFilter, setRoleFilter] = useState(initialRole)
+  const [tagFilter, setTagFilter] = useState('')
   const [searchInput, setSearchInput] = useState(initialSearch)
   const [debouncedSearch, setDebouncedSearch] = useState(initialSearch)
 
@@ -60,8 +65,8 @@ export function useUsers(params: UseUsersParams = {}) {
     error,
     refetch
   } = useQuery({
-    queryKey: ['users', currentPage, roleFilter, debouncedSearch],
-    queryFn: () => fetchUsers(currentPage, roleFilter, debouncedSearch),
+    queryKey: ['users', currentPage, roleFilter, debouncedSearch, tagFilter],
+    queryFn: () => fetchUsers(currentPage, roleFilter, debouncedSearch, tagFilter),
     staleTime: 2 * 60 * 1000, // 2 minutes - user data relatively stable
     gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
     refetchOnWindowFocus: true,
@@ -86,8 +91,8 @@ export function useUsers(params: UseUsersParams = {}) {
   // Prefetch next page for better UX
   if (pagination && currentPage < pagination.totalPages) {
     queryClient.prefetchQuery({
-      queryKey: ['users', currentPage + 1, roleFilter, debouncedSearch],
-      queryFn: () => fetchUsers(currentPage + 1, roleFilter, debouncedSearch),
+      queryKey: ['users', currentPage + 1, roleFilter, debouncedSearch, tagFilter],
+      queryFn: () => fetchUsers(currentPage + 1, roleFilter, debouncedSearch, tagFilter),
       staleTime: 2 * 60 * 1000,
     })
   }
@@ -113,6 +118,11 @@ export function useUsers(params: UseUsersParams = {}) {
     setCurrentPage(1)
   }, [])
 
+  const handleTagFilterChange = useCallback((newTag: string) => {
+    setTagFilter(newTag)
+    setCurrentPage(1)
+  }, [])
+
   const refreshUsers = useCallback(() => {
     refetch()
   }, [refetch])
@@ -128,8 +138,10 @@ export function useUsers(params: UseUsersParams = {}) {
     setSearchInput,
     handleSearch,
     handleClearSearch,
+    tagFilter,
     handlePageChange,
     handleRoleFilterChange,
+    handleTagFilterChange,
     refreshUsers
   }
 }

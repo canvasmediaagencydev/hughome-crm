@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   Package,
   FileText,
+  Tag,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -154,6 +155,13 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       icon: Package,
       current: pathname.startsWith('/admin/redemptions'),
       show: hasPermission(PERMISSIONS.REDEMPTIONS_VIEW),
+    },
+    {
+      name: 'Tags',
+      href: '/admin/tags',
+      icon: Tag,
+      current: pathname.startsWith('/admin/tags'),
+      show: hasPermission(PERMISSIONS.TAGS_VIEW),
     },
     {
       name: 'จัดการ Admin',

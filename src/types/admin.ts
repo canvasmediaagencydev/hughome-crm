@@ -70,6 +70,7 @@ export type PermissionCategory =
   | 'redemptions'
   | 'settings'
   | 'admins'
+  | 'tags'
 
 export interface PermissionsByCategory {
   category: PermissionCategory
@@ -123,6 +124,11 @@ export const PERMISSIONS = {
   USERS_EDIT: 'users.edit',
   USERS_MANAGE_POINTS: 'users.manage_points',
   USERS_MANAGE_NOTES: 'users.manage_notes',
+  USERS_MANAGE_TAGS: 'users.manage_tags',
+
+  // Tags
+  TAGS_VIEW: 'tags.view',
+  TAGS_MANAGE: 'tags.manage',
 
   // Rewards
   REWARDS_VIEW: 'rewards.view',

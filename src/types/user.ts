@@ -1,5 +1,14 @@
 // User-related type definitions
 
+export interface Tag {
+  id: string
+  name: string
+  color: string
+  created_at: string
+  created_by: string | null
+  user_count?: number
+}
+
 export interface User {
   id: string
   line_user_id: string
@@ -14,6 +23,8 @@ export interface User {
   last_login_at: string | null
   total_receipts: number | null
   created_at: string
+  customer_code: string | null
+  tags?: Tag[]
 }
 
 export interface UserData {

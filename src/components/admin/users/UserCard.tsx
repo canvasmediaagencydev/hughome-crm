@@ -2,6 +2,7 @@ import { User } from '@/types'
 import { HiEye, HiPencil } from 'react-icons/hi'
 import { FaUser, FaPhone, FaCoins, FaStickyNote } from 'react-icons/fa'
 import { RoleBadge } from '@/components/StatusBadge'
+import { TagBadge } from '@/components/TagBadge'
 import { formatDate, formatPoints, getUserDisplayName, getAvatarUrl } from '@/lib/utils'
 
 interface UserCardProps {
@@ -23,6 +24,9 @@ export function UserCard({ user, onViewDetails, onEditPoints, onEditRole }: User
         />
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-slate-900 truncate text-sm">{getUserDisplayName(user)}</h3>
+          {user.customer_code && (
+            <p className="text-xs text-slate-500 font-mono">{user.customer_code}</p>
+          )}
           <div className="mt-1.5">
             <RoleBadge role={user.role as 'contractor' | 'homeowner' | null} />
           </div>
@@ -56,6 +60,15 @@ export function UserCard({ user, onViewDetails, onEditPoints, onEditRole }: User
           </div>
         )}
       </div>
+
+      {/* Tags */}
+      {user.tags && user.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-4">
+          {user.tags.map((tag) => (
+            <TagBadge key={tag.id} tag={tag} size="sm" />
+          ))}
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex gap-2">

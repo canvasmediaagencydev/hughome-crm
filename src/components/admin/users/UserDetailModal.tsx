@@ -1,6 +1,7 @@
 import { User, UserDetails } from '@/types'
 import { Pagination } from '@/components/Pagination'
 import { RoleBadge } from '@/components/StatusBadge'
+import { TagBadge } from '@/components/TagBadge'
 import {
   formatDate,
   formatPoints,
@@ -12,7 +13,9 @@ import {
   getRedemptionStatusColor
 } from '@/lib/utils'
 import { useUserNotes } from '@/hooks/useUserNotes'
-import { useEffect } from 'react'
+import { useUserTags, useAddUserTag, useRemoveUserTag } from '@/hooks/useUserTags'
+import { useTags } from '@/hooks/useTags'
+import { useEffect, useState } from 'react'
 import { useAdminAuth } from '@/hooks/useAdminAuth'
 import { PERMISSIONS } from '@/types/admin'
 
@@ -57,6 +60,18 @@ export function UserDetailModal({
   const { hasPermission } = useAdminAuth()
   const canManageNotes = hasPermission(PERMISSIONS.USERS_MANAGE_NOTES)
   const canViewNotes = canManageNotes || hasPermission(PERMISSIONS.USERS_VIEW)
+  const canManageTags = hasPermission(PERMISSIONS.USERS_MANAGE_TAGS)
+
+  // Tags management
+  const { data: userTags, isLoading: loadingUserTags } = useUserTags(user?.id || null)
+  const { data: allTags } = useTags()
+  const addUserTag = useAddUserTag()
+  const removeUserTag = useRemoveUserTag()
+  const [showTagPicker, setShowTagPicker] = useState(false)
+
+  const availableTags = allTags?.filter(
+    (t) => !userTags?.some((ut) => ut.id === t.id)
+  ) || []
 
   useEffect(() => {
     if (isOpen && user && canViewNotes) {
@@ -79,6 +94,9 @@ export function UserDetailModal({
             />
             <div>
               <h2 className="text-xl font-bold text-slate-900">{getUserDisplayName(user)}</h2>
+              {user.customer_code && (
+                <p className="text-sm text-slate-500 font-mono">{user.customer_code}</p>
+              )}
               <div className="mt-1">
                 <RoleBadge role={user.role as 'contractor' | 'homeowner' | null} />
               </div>
@@ -129,6 +147,55 @@ export function UserDetailModal({
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Tags */}
+              <div className="bg-slate-50 border border-slate-200 p-5 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-slate-900">Tags</h3>
+                  {canManageTags && (
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowTagPicker(!showTagPicker)}
+                        className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        + เพิ่ม Tag
+                      </button>
+                      {showTagPicker && availableTags.length > 0 && (
+                        <div className="absolute right-0 top-8 z-10 bg-white border border-slate-200 rounded-lg shadow-lg p-2 min-w-[200px] max-h-[200px] overflow-y-auto">
+                          {availableTags.map((tag) => (
+                            <button
+                              key={tag.id}
+                              onClick={() => {
+                                addUserTag.mutate({ userId: user.id, tagId: tag.id })
+                                setShowTagPicker(false)
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-slate-50 rounded-md transition-colors"
+                            >
+                              <TagBadge tag={tag} size="sm" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {loadingUserTags ? (
+                  <p className="text-sm text-slate-500">กำลังโหลด...</p>
+                ) : !userTags || userTags.length === 0 ? (
+                  <p className="text-sm text-slate-500">ยังไม่มี Tag</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {userTags.map((tag) => (
+                      <TagBadge
+                        key={tag.id}
+                        tag={tag}
+                        size="md"
+                        onRemove={canManageTags ? () => removeUserTag.mutate({ userId: user.id, tagId: tag.id }) : undefined}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Transaction History */}

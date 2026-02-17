@@ -24,7 +24,7 @@ export function SearchBar({
           <HiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
           <input
             type="text"
-            placeholder="ค้นหาด้วยชื่อหรือเบอร์โทร..."
+            placeholder="ค้นหาด้วยชื่อ เบอร์โทร หรือรหัสลูกค้า..."
             value={searchInput}
             onChange={(e) => onSearchInputChange(e.target.value)}
             onKeyPress={onKeyPress}

@@ -7,6 +7,8 @@ import { Pagination } from '@/components/Pagination'
 import { EmptyState } from '@/components/EmptyState'
 import { User } from '@/types'
 import { useUsers } from '@/hooks/useUsers'
+import { useTags } from '@/hooks/useTags'
+import { TagBadge } from '@/components/TagBadge'
 import { useUserDetails } from '@/hooks/useUserDetails'
 import { useUserPoints } from '@/hooks/useUserPoints'
 import { useUserRole } from '@/hooks/useUserRole'
@@ -62,6 +64,7 @@ export default function AdminUsersPage() {
     pagination,
     currentPage,
     roleFilter,
+    tagFilter,
     searchQuery,
     searchInput,
     setSearchInput,
@@ -69,8 +72,11 @@ export default function AdminUsersPage() {
     handleClearSearch,
     handlePageChange,
     handleRoleFilterChange,
+    handleTagFilterChange,
     refreshUsers
   } = useUsers()
+
+  const { data: allTags } = useTags()
 
   const {
     userDetails,
@@ -175,6 +181,34 @@ export default function AdminUsersPage() {
           onClear={handleClearSearch}
           onKeyPress={handleKeyPress}
         />
+
+        {/* Tag Filter */}
+        {allTags && allTags.length > 0 && (
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            <span className="text-sm text-slate-500 font-medium">Tag:</span>
+            <button
+              onClick={() => handleTagFilterChange('')}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                !tagFilter
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              ทั้งหมด
+            </button>
+            {allTags.map((tag) => (
+              <button
+                key={tag.id}
+                onClick={() => handleTagFilterChange(tagFilter === tag.id ? '' : tag.id)}
+                className={`rounded-full transition-all ${
+                  tagFilter === tag.id ? 'ring-2 ring-offset-1 ring-slate-900' : ''
+                }`}
+              >
+                <TagBadge tag={tag} size="sm" />
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Role Filter Tabs */}
         <RoleTabs

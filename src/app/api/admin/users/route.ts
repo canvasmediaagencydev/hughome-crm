@@ -13,17 +13,39 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search");
     const role = searchParams.get("role");
+    const tagId = searchParams.get("tag");
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
     const startDate = searchParams.get("start_date");
     const endDate = searchParams.get("end_date");
     const days = searchParams.get("days");
 
+    // If filtering by tag, get user IDs first
+    let tagUserIds: string[] | null = null;
+    if (tagId) {
+      const { data: tagUsers } = await supabase
+        .from("user_tags")
+        .select("user_id")
+        .eq("tag_id", tagId);
+      tagUserIds = tagUsers?.map((t) => t.user_id) || [];
+    }
+
     let query = supabase
       .from("user_profiles")
       .select("*", { count: "exact" })
       .not("role", "is", null) // Filter only users with role (not null)
       .order("points_balance", { ascending: false, nullsFirst: false });
+
+    // Filter by tag
+    if (tagUserIds !== null) {
+      if (tagUserIds.length === 0) {
+        return NextResponse.json({
+          users: [],
+          pagination: { page, limit, total: 0, totalPages: 0 },
+        });
+      }
+      query = query.in("id", tagUserIds);
+    }
 
     // Date filtering (only if explicitly provided)
     if (startDate && endDate) {
@@ -49,7 +71,7 @@ export async function GET(request: NextRequest) {
       // Simple search (no space) - use database query
       const searchPattern = `%${originalSearch}%`;
       query = query.or(
-        `first_name.ilike.${searchPattern},last_name.ilike.${searchPattern},phone.ilike.${searchPattern}`
+        `first_name.ilike.${searchPattern},last_name.ilike.${searchPattern},phone.ilike.${searchPattern},customer_code.ilike.${searchPattern}`
       );
 
       // Normal pagination
@@ -98,19 +120,26 @@ export async function GET(request: NextRequest) {
       filteredUsers = filteredUsers.slice(from, to);
     }
 
-    // Fetch latest note for each user (use filteredUsers instead of users)
+    // Fetch latest note and tags for each user
     const userIds = filteredUsers?.map(u => u.id) || [];
     let latestNotes: any[] = [];
+    let userTagsMap: Record<string, any[]> = {};
 
     if (userIds.length > 0) {
       // Get latest note for each user
-      const { data: notes } = await supabase
-        .from('user_notes')
-        .select('id, user_id, note_content, created_at')
-        .in('user_id', userIds)
-        .order('created_at', { ascending: false });
+      const [{ data: notes }, { data: userTagsData }] = await Promise.all([
+        supabase
+          .from('user_notes')
+          .select('id, user_id, note_content, created_at')
+          .in('user_id', userIds)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('user_tags')
+          .select('user_id, tags(id, name, color)')
+          .in('user_id', userIds),
+      ]);
 
-      // Group by user_id and take first (latest) note
+      // Group notes by user_id and take first (latest) note
       const notesMap = new Map();
       notes?.forEach(note => {
         if (!notesMap.has(note.user_id)) {
@@ -118,12 +147,23 @@ export async function GET(request: NextRequest) {
         }
       });
       latestNotes = Array.from(notesMap.values());
+
+      // Group tags by user_id
+      userTagsData?.forEach((ut: any) => {
+        if (!userTagsMap[ut.user_id]) {
+          userTagsMap[ut.user_id] = [];
+        }
+        if (ut.tags) {
+          userTagsMap[ut.user_id].push(ut.tags);
+        }
+      });
     }
 
-    // Add latest_note to each user
+    // Add latest_note and tags to each user
     const usersWithNotes = filteredUsers?.map(user => ({
       ...user,
-      latest_note: latestNotes.find(n => n.user_id === user.id) || null
+      latest_note: latestNotes.find(n => n.user_id === user.id) || null,
+      tags: userTagsMap[user.id] || [],
     }));
 
     return NextResponse.json({
