@@ -61,6 +61,48 @@ export function UserDetailModal({
   const canManageNotes = hasPermission(PERMISSIONS.USERS_MANAGE_NOTES)
   const canViewNotes = canManageNotes || hasPermission(PERMISSIONS.USERS_VIEW)
   const canManageTags = hasPermission(PERMISSIONS.USERS_MANAGE_TAGS)
+  const canEditUsers = hasPermission(PERMISSIONS.USERS_EDIT)
+
+  // Customer code editing state
+  const [localCustomerCode, setLocalCustomerCode] = useState<string | null>(user?.customer_code ?? null)
+  const [isEditingCode, setIsEditingCode] = useState(false)
+  const [editingCodeValue, setEditingCodeValue] = useState('')
+  const [savingCode, setSavingCode] = useState(false)
+  const [codeError, setCodeError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setLocalCustomerCode(user?.customer_code ?? null)
+  }, [user?.id, user?.customer_code])
+
+  const handleEditCode = () => {
+    setEditingCodeValue(localCustomerCode || 'HH-')
+    setCodeError(null)
+    setIsEditingCode(true)
+  }
+
+  const handleSaveCode = async () => {
+    if (!user) return
+    setSavingCode(true)
+    setCodeError(null)
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customer_code: editingCodeValue.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setCodeError(data.error || 'เกิดข้อผิดพลาด')
+      } else {
+        setLocalCustomerCode(data.user.customer_code)
+        setIsEditingCode(false)
+      }
+    } catch {
+      setCodeError('เกิดข้อผิดพลาด กรุณาลองใหม่')
+    } finally {
+      setSavingCode(false)
+    }
+  }
 
   // Tags management
   const { data: userTags, isLoading: loadingUserTags } = useUserTags(user?.id || null)
@@ -94,8 +136,54 @@ export function UserDetailModal({
             />
             <div>
               <h2 className="text-xl font-bold text-slate-900">{getUserDisplayName(user)}</h2>
-              {user.customer_code && (
-                <p className="text-sm text-slate-500 font-mono">{user.customer_code}</p>
+              {isEditingCode ? (
+                <div className="mt-1">
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      value={editingCodeValue}
+                      onChange={(e) => setEditingCodeValue(e.target.value.toUpperCase())}
+                      placeholder="HH-XXXXXX"
+                      className="text-sm font-mono px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 w-36"
+                      disabled={savingCode}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCode(); if (e.key === 'Escape') setIsEditingCode(false) }}
+                    />
+                    <button
+                      onClick={handleSaveCode}
+                      disabled={savingCode}
+                      className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {savingCode ? '...' : 'บันทึก'}
+                    </button>
+                    <button
+                      onClick={() => setIsEditingCode(false)}
+                      disabled={savingCode}
+                      className="px-2 py-1 text-xs text-slate-600 hover:text-slate-900"
+                    >
+                      ยกเลิก
+                    </button>
+                  </div>
+                  {codeError && <p className="text-xs text-red-600 mt-1">{codeError}</p>}
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 mt-0.5">
+                  {localCustomerCode ? (
+                    <p className="text-sm text-slate-500 font-mono">{localCustomerCode}</p>
+                  ) : (
+                    <p className="text-sm text-slate-400 italic">ยังไม่มีรหัส</p>
+                  )}
+                  {canEditUsers && (
+                    <button
+                      onClick={handleEditCode}
+                      className="p-0.5 text-slate-300 hover:text-blue-500 transition-colors"
+                      title="แก้ไขรหัสลูกค้า"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               )}
               <div className="mt-1">
                 <RoleBadge role={user.role as 'contractor' | 'homeowner' | null} />

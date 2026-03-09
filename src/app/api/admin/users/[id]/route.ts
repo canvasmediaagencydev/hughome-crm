@@ -89,3 +89,56 @@ export async function GET(
     );
   }
 }
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await requirePermission(PERMISSIONS.USERS_EDIT);
+
+    const { id } = await params;
+    const body = await request.json();
+    const { customer_code } = body;
+
+    // Validate format: HH- followed by 1-20 alphanumeric chars, or null/empty
+    const normalized = customer_code === "" ? null : customer_code;
+    if (normalized !== null) {
+      if (!/^HH-[A-Za-z0-9]{1,20}$/.test(normalized)) {
+        return NextResponse.json(
+          { error: "รูปแบบรหัสไม่ถูกต้อง ต้องขึ้นต้นด้วย HH- ตามด้วยตัวอักษรหรือตัวเลข 1-20 ตัว" },
+          { status: 400 }
+        );
+      }
+    }
+
+    const supabase = createServerSupabaseClient();
+
+    const { data, error } = await supabase
+      .from("user_profiles")
+      .update({ customer_code: normalized })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === "23505") {
+        return NextResponse.json(
+          { error: "รหัสลูกค้านี้ถูกใช้แล้ว กรุณาใช้รหัสอื่น" },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json(
+        { error: "Failed to update customer code" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ user: data });
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to update customer code" },
+      { status: 500 }
+    );
+  }
+}
