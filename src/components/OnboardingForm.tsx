@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { IoHome } from "react-icons/io5";
@@ -15,6 +15,8 @@ interface OnboardingFormData {
   phone: string
 }
 
+const OTP_RESEND_SECONDS = 60
+
 export default function OnboardingForm() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
@@ -28,6 +30,35 @@ export default function OnboardingForm() {
   })
 
   const [validationErrors, setValidationErrors] = useState<Partial<OnboardingFormData>>({})
+
+  // OTP states
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpCode, setOtpCode] = useState('')
+  const [phoneVerified, setPhoneVerified] = useState(false)
+  const [otpError, setOtpError] = useState('')
+  const [isSendingOtp, setIsSendingOtp] = useState(false)
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false)
+  const [countdown, setCountdown] = useState(0)
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current)
+    }
+  }, [])
+
+  const startCountdown = () => {
+    setCountdown(OTP_RESEND_SECONDS)
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(countdownRef.current!)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+  }
 
   const validateForm = (): boolean => {
     const errors: Partial<OnboardingFormData> = {}
@@ -48,6 +79,72 @@ export default function OnboardingForm() {
     return Object.keys(errors).length === 0
   }
 
+  const handleSendOtp = async () => {
+    setOtpError('')
+    if (!formData.phone.trim()) {
+      setValidationErrors(prev => ({ ...prev, phone: 'กรุณาใส่เบอร์โทรศัพท์' }))
+      return
+    }
+
+    setIsSendingOtp(true)
+    try {
+      const res = await axios.post('/api/phone/send-otp', { phone: formData.phone })
+      if (res.data.success) {
+        setOtpSent(true)
+        setOtpCode('')
+        setPhoneVerified(false)
+        startCountdown()
+      }
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        setOtpError(err.response?.data?.error || 'ไม่สามารถส่ง OTP ได้ กรุณาลองใหม่')
+      } else {
+        setOtpError('ไม่สามารถส่ง OTP ได้ กรุณาลองใหม่')
+      }
+    } finally {
+      setIsSendingOtp(false)
+    }
+  }
+
+  const handleVerifyOtp = async () => {
+    setOtpError('')
+    if (!otpCode.trim() || otpCode.length < 4) {
+      setOtpError('กรุณาใส่รหัส OTP ให้ครบ')
+      return
+    }
+
+    setIsVerifyingOtp(true)
+    try {
+      const res = await axios.post('/api/phone/verify-otp', { phone: formData.phone, token: otpCode })
+      if (res.data.success) {
+        setPhoneVerified(true)
+        setOtpSent(false)
+        if (countdownRef.current) clearInterval(countdownRef.current)
+      }
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        setOtpError(err.response?.data?.error || 'รหัส OTP ไม่ถูกต้อง กรุณาลองใหม่')
+      } else {
+        setOtpError('รหัส OTP ไม่ถูกต้อง กรุณาลองใหม่')
+      }
+    } finally {
+      setIsVerifyingOtp(false)
+    }
+  }
+
+  const handlePhoneChange = (value: string) => {
+    setFormData(prev => ({ ...prev, phone: value }))
+    setPhoneVerified(false)
+    setOtpSent(false)
+    setOtpCode('')
+    setOtpError('')
+    if (countdownRef.current) clearInterval(countdownRef.current)
+    setCountdown(0)
+    if (validationErrors.phone) {
+      setValidationErrors(prev => ({ ...prev, phone: undefined }))
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -56,9 +153,13 @@ export default function OnboardingForm() {
       return
     }
 
+    if (!phoneVerified) {
+      setValidationErrors(prev => ({ ...prev, phone: 'กรุณายืนยันเบอร์โทรศัพท์ด้วย OTP ก่อน' }))
+      return
+    }
+
     setIsLoading(true)
     try {
-      // Get user data from localStorage to get LINE user ID
       const storedUser = localStorage.getItem('user')
       if (!storedUser) {
         setError('ไม่พบข้อมูลผู้ใช้ กรุณาลองเข้าสู่ระบบใหม่')
@@ -66,8 +167,7 @@ export default function OnboardingForm() {
       }
 
       const userData = JSON.parse(storedUser)
-      
-      // Send onboarding data to API
+
       const response = await axios.post('/api/onboarding', {
         line_user_id: userData.line_user_id || userData.userId,
         ...formData
@@ -76,19 +176,13 @@ export default function OnboardingForm() {
       const data = response.data
 
       if (data.success && data.user) {
-        // Update localStorage with complete user data
-        // is_onboarded is already calculated by backend using shared utility
         const updatedUserData = {
           ...userData,
           ...data.user
         }
 
         localStorage.setItem('user', JSON.stringify(updatedUserData))
-
-        // Also update UserSessionManager
         UserSessionManager.saveSession(updatedUserData)
-
-        // Redirect to dashboard
         router.push('/dashboard')
       } else {
         setError(data.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง')
@@ -218,30 +312,107 @@ export default function OnboardingForm() {
               )}
             </div>
 
+            {/* Phone + OTP */}
             <div>
               <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
                 เบอร์โทรศัพท์ <span className="text-red-500">*</span>
               </label>
-              <input
-                type="tel"
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => handleChange('phone', e.target.value)}
-                className={`w-full px-3 py-3 border rounded-lg text-base focus:outline-none transition-colors ${validationErrors.phone
-                    ? 'border-red-300 bg-red-50'
-                    : 'border-gray-300 bg-white'
+
+              <div className="flex gap-2">
+                <input
+                  type="tel"
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(e) => handlePhoneChange(e.target.value)}
+                  disabled={phoneVerified}
+                  className={`flex-1 px-3 py-3 border rounded-lg text-base focus:outline-none transition-colors ${
+                    phoneVerified
+                      ? 'border-green-400 bg-green-50 text-green-800'
+                      : validationErrors.phone
+                        ? 'border-red-300 bg-red-50'
+                        : 'border-gray-300 bg-white'
                   }`}
-                placeholder="0xx-xxx-xxxx"
-                maxLength={20}
-              />
+                  placeholder="0xx-xxx-xxxx"
+                  maxLength={20}
+                />
+                {!phoneVerified && (
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={isSendingOtp || countdown > 0 || !formData.phone.trim()}
+                    className="shrink-0 px-3 py-3 bg-red-700 text-white text-sm font-medium rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                  >
+                    {isSendingOtp
+                      ? 'กำลังส่ง...'
+                      : countdown > 0
+                        ? `ส่งใหม่ (${countdown}s)`
+                        : otpSent
+                          ? 'ส่งใหม่'
+                          : 'ส่ง OTP'}
+                  </button>
+                )}
+              </div>
+
+              {phoneVerified && (
+                <div className="mt-2 flex items-center gap-1.5 text-green-700 text-sm">
+                  <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  ยืนยันเบอร์โทรศัพท์สำเร็จ
+                </div>
+              )}
+
               {validationErrors.phone && (
                 <p className="mt-1 text-xs text-red-600">{validationErrors.phone}</p>
+              )}
+
+              {/* OTP input */}
+              {otpSent && !phoneVerified && (
+                <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-3">
+                  <p className="text-sm text-gray-600">
+                    ส่งรหัส OTP ไปยัง <span className="font-medium text-gray-800">{formData.phone}</span> แล้ว
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={otpCode}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/\D/g, '').slice(0, 6)
+                        setOtpCode(v)
+                        setOtpError('')
+                      }}
+                      className={`flex-1 px-3 py-3 border rounded-lg text-base text-center tracking-widest font-mono focus:outline-none transition-colors ${
+                        otpError ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
+                      }`}
+                      placeholder="รหัส OTP"
+                      maxLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleVerifyOtp}
+                      disabled={isVerifyingOtp || otpCode.length < 4}
+                      className="shrink-0 px-4 py-3 bg-red-700 text-white text-sm font-medium rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isVerifyingOtp ? 'กำลังตรวจสอบ...' : 'ยืนยัน'}
+                    </button>
+                  </div>
+                  {otpError && (
+                    <p className="text-xs text-red-600">{otpError}</p>
+                  )}
+                </div>
+              )}
+
+              {/* OTP send error (before OTP sent) */}
+              {!otpSent && otpError && (
+                <p className="mt-1 text-xs text-red-600">{otpError}</p>
               )}
             </div>
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !phoneVerified}
               className="w-full bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-3 text-base"
             >
               {isLoading ? (

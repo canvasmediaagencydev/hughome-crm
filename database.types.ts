@@ -394,13 +394,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "receipts_uploaded_by_admin_id_fkey"
-            columns: ["uploaded_by_admin_id"]
-            isOneToOne: false
-            referencedRelation: "admin_users"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "receipts_approved_by_fkey"
             columns: ["approved_by"]
             isOneToOne: false
@@ -412,6 +405,13 @@ export type Database = {
             columns: ["approved_by"]
             isOneToOne: false
             referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_uploaded_by_admin_id_fkey"
+            columns: ["uploaded_by_admin_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
             referencedColumns: ["id"]
           },
           {
@@ -559,6 +559,41 @@ export type Database = {
         }
         Relationships: []
       }
+      tags: {
+        Row: {
+          color: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          line_audience_id: number | null
+          name: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          line_audience_id?: number | null
+          name: string
+        }
+        Update: {
+          color?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          line_audience_id?: number | null
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tags_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_notes: {
         Row: {
           created_at: string | null
@@ -628,6 +663,7 @@ export type Database = {
       user_profiles: {
         Row: {
           created_at: string
+          customer_code: string | null
           display_name: string | null
           first_name: string | null
           id: string
@@ -644,6 +680,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          customer_code?: string | null
           display_name?: string | null
           first_name?: string | null
           id?: string
@@ -660,6 +697,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          customer_code?: string | null
           display_name?: string | null
           first_name?: string | null
           id?: string
@@ -675,6 +713,56 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      user_tags: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          tag_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          tag_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          tag_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_tags_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_tags_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_dashboard"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_tags_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

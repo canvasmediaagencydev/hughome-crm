@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { requirePermission } from "@/lib/admin-auth";
 import { PERMISSIONS } from "@/types/admin";
+import { createLineAudience } from "@/lib/line-messaging";
 
 export async function GET() {
   try {
@@ -88,6 +89,21 @@ export async function POST(request: NextRequest) {
         );
       }
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Sync to LINE Audience Group (best-effort)
+    console.log(`[LINE] Creating audience for tag "${tag.name}"...`);
+    console.log(`[LINE] Token set: ${!!process.env.LINE_CHANNEL_ACCESS_TOKEN}`);
+    try {
+      const audienceGroupId = await createLineAudience(tag.name);
+      console.log(`[LINE] Audience created: ${audienceGroupId}`);
+      await supabase
+        .from("tags")
+        .update({ line_audience_id: audienceGroupId })
+        .eq("id", tag.id);
+      tag.line_audience_id = audienceGroupId;
+    } catch (lineError) {
+      console.error("[LINE] Failed to create audience group for tag:", lineError);
     }
 
     return NextResponse.json({ tag }, { status: 201 });

@@ -7,6 +7,7 @@ export interface Tag {
   created_at: string
   created_by: string | null
   user_count?: number
+  line_audience_id?: number | null
 }
 
 export interface User {

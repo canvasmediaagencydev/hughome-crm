@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Shield, Plus, Pencil, Trash2, Tag as TagIcon } from 'lucide-react'
+import { Shield, Plus, Pencil, Trash2, Tag as TagIcon, RefreshCw } from 'lucide-react'
 import { useAdminAuth } from '@/hooks/useAdminAuth'
 import { PERMISSIONS } from '@/types/admin'
 import { useTags, useCreateTag, useUpdateTag, useDeleteTag } from '@/hooks/useTags'
+import { axiosAdmin } from '@/lib/axios-admin'
 import { Tag } from '@/types'
 import { TagBadge } from '@/components/TagBadge'
 
@@ -25,6 +26,8 @@ export default function TagsPage() {
   const [editingTag, setEditingTag] = useState<Tag | null>(null)
   const [name, setName] = useState('')
   const [color, setColor] = useState('#6366f1')
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<{ synced: number; tags: { name: string; action: string }[] } | null>(null)
 
   if (authLoading) {
     return (
@@ -76,6 +79,19 @@ export default function TagsPage() {
     setShowModal(false)
   }
 
+  const handleSyncFromLine = async () => {
+    setSyncing(true)
+    setSyncResult(null)
+    try {
+      const { data } = await axiosAdmin.post('/api/admin/tags/sync-from-line')
+      setSyncResult(data)
+    } catch (err: any) {
+      alert(err?.response?.data?.error || err?.message || 'เกิดข้อผิดพลาด')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   const handleDelete = async (tag: Tag) => {
     if (!confirm(`ต้องการลบ Tag "${tag.name}" หรือไม่? จะลบออกจากลูกค้าทุกคนด้วย`)) return
     await deleteTag.mutateAsync(tag.id)
@@ -91,15 +107,53 @@ export default function TagsPage() {
             <p className="text-sm text-slate-500 mt-1">แบ่งกลุ่มลูกค้าด้วย Tags</p>
           </div>
           {canManage && (
-            <button
-              onClick={openCreateModal}
-              className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors font-medium text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              สร้าง Tag
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSyncFromLine}
+                disabled={syncing}
+                className="flex items-center gap-2 px-4 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors font-medium text-sm disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'กำลัง Sync...' : 'Sync จาก LINE'}
+              </button>
+              <button
+                onClick={openCreateModal}
+                className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors font-medium text-sm"
+              >
+                <Plus className="w-4 h-4" />
+                สร้าง Tag
+              </button>
+            </div>
           )}
         </div>
+
+        {/* Sync Result */}
+        {syncResult && (
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-sm font-medium text-green-800 mb-1">
+              Sync สำเร็จ — {syncResult.synced} audiences จาก LINE OA
+            </p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {syncResult.tags.map((t) => (
+                <span
+                  key={t.name}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-white border border-green-200 text-green-700"
+                >
+                  {t.name}
+                  <span className="text-green-500">
+                    {t.action === 'imported' ? '+ นำเข้า' : t.action === 'linked' ? '✓ เชื่อม' : '+ สร้าง Audience'}
+                  </span>
+                </span>
+              ))}
+            </div>
+            <button
+              onClick={() => setSyncResult(null)}
+              className="mt-2 text-xs text-green-600 hover:text-green-800"
+            >
+              ปิด
+            </button>
+          </div>
+        )}
 
         {/* Tags Table */}
         <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">

@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { requirePermission } from "@/lib/admin-auth";
 import { PERMISSIONS } from "@/types/admin";
+import {
+  addUsersToAudience,
+  deleteLineAudience,
+  resyncAudience,
+} from "@/lib/line-messaging";
 
 export async function GET(
   _request: NextRequest,
@@ -75,6 +80,31 @@ export async function POST(
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Sync to LINE Audience Group (best-effort)
+    try {
+      const [userResult, tagResult] = await Promise.all([
+        supabase
+          .from("user_profiles")
+          .select("line_user_id")
+          .eq("id", id)
+          .single(),
+        supabase
+          .from("tags")
+          .select("line_audience_id")
+          .eq("id", tag_id)
+          .single(),
+      ]);
+
+      const lineUserId = userResult.data?.line_user_id;
+      const audienceGroupId = tagResult.data?.line_audience_id;
+
+      if (lineUserId && audienceGroupId) {
+        await addUsersToAudience(audienceGroupId, [lineUserId]);
+      }
+    } catch (lineError) {
+      console.error("[LINE] Failed to add user to audience:", lineError);
+    }
+
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
@@ -118,6 +148,49 @@ export async function DELETE(
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Resync LINE Audience Group (best-effort)
+    try {
+      const tagResult = await supabase
+        .from("tags")
+        .select("name, line_audience_id")
+        .eq("id", tag_id)
+        .single();
+
+      const tag = tagResult.data;
+      if (tag?.line_audience_id) {
+        // Get remaining users with this tag that have a LINE user ID
+        const remainingResult = await supabase
+          .from("user_tags")
+          .select("user_profiles!inner(line_user_id)")
+          .eq("tag_id", tag_id);
+
+        const remainingLineUserIds = (remainingResult.data || [])
+          .map((row: Record<string, unknown>) => {
+            const profile = row.user_profiles as { line_user_id: string | null } | null;
+            return profile?.line_user_id;
+          })
+          .filter((id): id is string => Boolean(id));
+
+        // Delete existing audience first
+        await deleteLineAudience(tag.line_audience_id);
+
+        if (remainingLineUserIds.length > 0) {
+          const newAudienceId = await resyncAudience(tag.name, remainingLineUserIds);
+          await supabase
+            .from("tags")
+            .update({ line_audience_id: newAudienceId })
+            .eq("id", tag_id);
+        } else {
+          await supabase
+            .from("tags")
+            .update({ line_audience_id: null })
+            .eq("id", tag_id);
+        }
+      }
+    } catch (lineError) {
+      console.error("[LINE] Failed to resync audience after tag removal:", lineError);
     }
 
     return NextResponse.json({ success: true });
