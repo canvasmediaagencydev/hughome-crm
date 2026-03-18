@@ -7,6 +7,9 @@ import { Tables } from '../../database.types'
 
 type PointSetting = Tables<'point_settings'>
 
+export type DateRange = '7d' | '30d' | '90d'
+export type RoleFilter = 'all' | 'contractor' | 'homeowner'
+
 export interface DashboardMetrics {
   totalUsers: number
   contractorCount: number
@@ -43,8 +46,18 @@ interface DashboardData {
   analytics: TimeSeriesData[]
 }
 
-async function fetchDashboardData(): Promise<DashboardData> {
-  const response = await axiosAdmin.get('/api/admin/dashboard/all')
+const DATE_RANGE_DAYS: Record<DateRange, number> = {
+  '7d': 7,
+  '30d': 30,
+  '90d': 90,
+}
+
+async function fetchDashboardData(dateRange: DateRange, roleFilter: RoleFilter): Promise<DashboardData> {
+  const params = new URLSearchParams({
+    days: DATE_RANGE_DAYS[dateRange].toString(),
+    role: roleFilter,
+  })
+  const response = await axiosAdmin.get(`/api/admin/dashboard/all?${params}`)
   return response.data
 }
 
@@ -53,8 +66,9 @@ export function useDashboard() {
   const [bahtPerPoint, setBahtPerPoint] = useState('')
   const [pointSetting, setPointSetting] = useState<PointSetting | null>(null)
   const [hasSession, setHasSession] = useState(false)
+  const [dateRange, setDateRange] = useState<DateRange>('7d')
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
 
-  // Check session availability
   useEffect(() => {
     const checkSession = async () => {
       const supabase = createClient()
@@ -64,23 +78,21 @@ export function useDashboard() {
     checkSession()
   }, [])
 
-  // Main dashboard data query with React Query
   const {
     data,
     isLoading,
     error,
     refetch
   } = useQuery({
-    queryKey: ['dashboard', 'all'],
-    queryFn: fetchDashboardData,
-    enabled: hasSession, // Only fetch when session is available
-    staleTime: 2 * 60 * 1000, // Data is fresh for 2 minutes
-    gcTime: 5 * 60 * 1000, // Cache for 5 minutes
+    queryKey: ['dashboard', 'all', dateRange, roleFilter],
+    queryFn: () => fetchDashboardData(dateRange, roleFilter),
+    enabled: hasSession,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
     retry: 1,
   })
 
-  // Process data when available
   const dashboardMetrics: DashboardMetrics = data?.metrics || {
     totalUsers: 0,
     contractorCount: 0,
@@ -101,7 +113,6 @@ export function useDashboard() {
   const recentReceipts = data?.recentReceipts || []
   const timeSeriesData = data?.analytics || []
 
-  // Point settings
   if (data?.metrics?.pointSettings && !pointSetting) {
     const bahtSetting = data.metrics.pointSettings.find(
       (s: PointSetting) => s.setting_key === 'baht_per_point'
@@ -112,7 +123,6 @@ export function useDashboard() {
     }
   }
 
-  // Chart data
   const userDistribution: ChartData[] = [
     { name: 'ช่าง', value: dashboardMetrics.contractorCount },
     { name: 'เจ้าของบ้าน', value: dashboardMetrics.homeownerCount }
@@ -124,10 +134,8 @@ export function useDashboard() {
     { name: 'ปฏิเสธแล้ว', value: dashboardMetrics.rejectedReceipts }
   ]
 
-  // Handle errors
   if (error) {
     const errorMessage = error instanceof Error ? error.message : 'ไม่สามารถโหลดข้อมูล dashboard ได้'
-
     if (errorMessage.includes('Forbidden')) {
       toast.error('คุณไม่มีสิทธิ์ดูข้อมูล Dashboard')
     } else if (errorMessage.includes('Unauthorized')) {
@@ -142,7 +150,6 @@ export function useDashboard() {
   }
 
   return {
-    // State
     loading: isLoading,
     metricsLoading: isLoading,
     receiptsLoading: isLoading,
@@ -153,12 +160,12 @@ export function useDashboard() {
     receiptStatusDistribution,
     pointSetting,
     bahtPerPoint,
-
-    // Setters
+    dateRange,
+    setDateRange,
+    roleFilter,
+    setRoleFilter,
     setBahtPerPoint,
     setPointSetting,
-
-    // Actions
     fetchAllDashboardData
   }
 }

@@ -1,28 +1,41 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { startOfMonth, endOfMonth, subDays, startOfDay, endOfDay, eachDayOfInterval, format } from "date-fns";
+import { subDays, startOfDay, endOfDay, eachDayOfInterval, format } from "date-fns";
 import { requirePermission } from '@/lib/admin-auth'
 import { PERMISSIONS } from '@/types/admin'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     await requirePermission(PERMISSIONS.DASHBOARD_VIEW)
 
+    const { searchParams } = new URL(request.url)
+    const days = Math.min(Math.max(parseInt(searchParams.get('days') || '7'), 7), 90)
+    const role = searchParams.get('role') || 'all'
+
     const supabase = createServerSupabaseClient();
 
-    // Get current month boundaries
     const now = new Date();
-    const currentMonthStart = startOfMonth(now);
-    const currentMonthEnd = endOfMonth(now);
-
-    // Analytics date range (last 7 days)
-    const endRange = new Date();
-    const startRange = subDays(endRange, 6); // 7 days total
+    const endRange = now;
+    const startRange = subDays(endRange, days - 1);
     const dateInterval = eachDayOfInterval({ start: startRange, end: endRange });
     const startRangeISO = startOfDay(startRange).toISOString();
     const endRangeISO = endOfDay(endRange).toISOString();
 
-    // Fetch ALL data in parallel (single consolidated query set)
+    // If role filter, fetch matching user IDs first (fast query)
+    let roleUserIds: string[] | null = null
+    if (role !== 'all') {
+      const { data: roleUsers } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('role', role)
+      roleUserIds = roleUsers?.map((u: { id: string }) => u.id) || []
+    }
+
+    // Build receipt query helper
+    const applyRoleFilter = (query: any) =>
+      roleUserIds ? query.in('user_id', roleUserIds) : query
+
+    // Fetch all data in parallel
     const [
       allUsers,
       allReceipts,
@@ -34,73 +47,54 @@ export async function GET() {
       analyticsReceipts,
       analyticsApprovedReceipts
     ] = await Promise.all([
-      // Dashboard: All users
-      supabase
-        .from("user_profiles")
-        .select("role, created_at"),
+      // All users (with role filter)
+      (() => {
+        let q = supabase.from("user_profiles").select("role, created_at")
+        if (role !== 'all') q = q.eq('role', role)
+        return q
+      })(),
 
-      // Dashboard: All receipts
-      supabase
-        .from("receipts")
-        .select("status, total_amount, created_at"),
+      // All receipts (with role filter)
+      applyRoleFilter(
+        supabase.from("receipts").select("status, total_amount, created_at")
+      ),
 
-      // Dashboard: Active rewards
-      supabase
-        .from("rewards")
-        .select("*", { count: "exact", head: true })
-        .eq("is_active", true),
+      // Active rewards (no role filter)
+      supabase.from("rewards").select("*", { count: "exact", head: true }).eq("is_active", true),
 
-      // Dashboard: Pending redemptions
-      supabase
-        .from("redemptions")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "requested"),
+      // Pending redemptions (no role filter)
+      supabase.from("redemptions").select("*", { count: "exact", head: true }).eq("status", "requested"),
 
-      // Dashboard: Point settings
-      supabase
-        .from("point_settings")
-        .select("*")
-        .order("created_at", { ascending: false }),
+      // Point settings
+      supabase.from("point_settings").select("*").order("created_at", { ascending: false }),
 
-      // Recent receipts
-      supabase
-        .from("receipts")
-        .select(`
-          *,
-          user_profiles!receipts_user_id_fkey (
-            id,
-            display_name,
-            first_name,
-            last_name
-          )
-        `)
-        .order("created_at", { ascending: false })
-        .limit(10),
+      // Recent receipts (with role filter)
+      applyRoleFilter(
+        supabase
+          .from("receipts")
+          .select(`*, user_profiles!receipts_user_id_fkey (id, display_name, first_name, last_name)`)
+          .order("created_at", { ascending: false })
+          .limit(10)
+      ),
 
-      // Analytics: Users in date range
-      supabase
-        .from('user_profiles')
-        .select('created_at')
-        .gte('created_at', startRangeISO)
-        .lte('created_at', endRangeISO),
+      // Analytics: new users in date range (with role filter)
+      (() => {
+        let q = supabase.from('user_profiles').select('created_at').gte('created_at', startRangeISO).lte('created_at', endRangeISO)
+        if (role !== 'all') q = q.eq('role', role)
+        return q
+      })(),
 
-      // Analytics: All receipts in date range
-      supabase
-        .from('receipts')
-        .select('created_at')
-        .gte('created_at', startRangeISO)
-        .lte('created_at', endRangeISO),
+      // Analytics: all receipts in date range (with role filter)
+      applyRoleFilter(
+        supabase.from('receipts').select('created_at').gte('created_at', startRangeISO).lte('created_at', endRangeISO)
+      ),
 
-      // Analytics: Approved receipts with amounts
-      supabase
-        .from('receipts')
-        .select('created_at, total_amount')
-        .eq('status', 'approved')
-        .gte('created_at', startRangeISO)
-        .lte('created_at', endRangeISO)
+      // Analytics: approved receipts in date range (with role filter)
+      applyRoleFilter(
+        supabase.from('receipts').select('created_at, total_amount').eq('status', 'approved').gte('created_at', startRangeISO).lte('created_at', endRangeISO)
+      ),
     ]);
 
-    // Check for errors
     if (allUsers.error) throw allUsers.error;
     if (allReceipts.error) throw allReceipts.error;
     if (activeRewardsCount.error) throw activeRewardsCount.error;
@@ -111,33 +105,27 @@ export async function GET() {
     if (analyticsReceipts.error) throw analyticsReceipts.error;
     if (analyticsApprovedReceipts.error) throw analyticsApprovedReceipts.error;
 
-    // === DASHBOARD METRICS ===
     const users = allUsers.data || [];
     const receipts = allReceipts.data || [];
 
     const totalUsers = users.length;
-    const contractorCount = users.filter(u => u.role === "contractor").length;
-    const homeownerCount = users.filter(u => u.role === "homeowner").length;
-    const monthlyActiveUsers = users.filter(u => {
-      const createdAt = new Date(u.created_at);
-      return createdAt >= currentMonthStart && createdAt <= currentMonthEnd;
-    }).length;
+    const contractorCount = role === 'all' ? users.filter(u => u.role === "contractor").length : (role === 'contractor' ? totalUsers : 0);
+    const homeownerCount = role === 'all' ? users.filter(u => u.role === "homeowner").length : (role === 'homeowner' ? totalUsers : 0);
+    const newUsersInRange = (analyticsUsers.data || []).length;
 
     const totalReceipts = receipts.length;
-    const pendingReceipts = receipts.filter(r => r.status === "pending").length;
-    const approvedReceipts = receipts.filter(r => r.status === "approved");
+    const pendingReceipts = receipts.filter((r: any) => r.status === "pending").length;
+    const approvedReceipts = receipts.filter((r: any) => r.status === "approved");
     const approvedCount = approvedReceipts.length;
-    const rejectedReceipts = receipts.filter(r => r.status === "rejected").length;
-    const totalValue = approvedReceipts.reduce((sum, r) => sum + (r.total_amount || 0), 0);
+    const rejectedReceipts = receipts.filter((r: any) => r.status === "rejected").length;
+    const totalValue = approvedReceipts.reduce((sum: number, r: any) => sum + (r.total_amount || 0), 0);
 
-    // === ANALYTICS DATA ===
-    const bahtPerPoint = pointSettings.data?.find(s => s.setting_key === 'baht_per_point')?.setting_value || 100;
+    const bahtPerPoint = pointSettings.data?.find((s: any) => s.setting_key === 'baht_per_point')?.setting_value || 100;
 
     const usersByDate = new Map<string, number>();
     const receiptsByDate = new Map<string, number>();
     const pointsByDate = new Map<string, number>();
 
-    // Initialize all dates with 0
     dateInterval.forEach(date => {
       const key = format(date, 'yyyy-MM-dd');
       usersByDate.set(key, 0);
@@ -145,24 +133,21 @@ export async function GET() {
       pointsByDate.set(key, 0);
     });
 
-    // Count users per date
-    analyticsUsers.data?.forEach(user => {
+    analyticsUsers.data?.forEach((user: any) => {
       if (user.created_at) {
         const dateKey = format(new Date(user.created_at), 'yyyy-MM-dd');
         usersByDate.set(dateKey, (usersByDate.get(dateKey) || 0) + 1);
       }
     });
 
-    // Count receipts per date
-    analyticsReceipts.data?.forEach(receipt => {
+    analyticsReceipts.data?.forEach((receipt: any) => {
       if (receipt.created_at) {
         const dateKey = format(new Date(receipt.created_at), 'yyyy-MM-dd');
         receiptsByDate.set(dateKey, (receiptsByDate.get(dateKey) || 0) + 1);
       }
     });
 
-    // Calculate points per date
-    analyticsApprovedReceipts.data?.forEach(receipt => {
+    analyticsApprovedReceipts.data?.forEach((receipt: any) => {
       if (receipt.created_at) {
         const dateKey = format(new Date(receipt.created_at), 'yyyy-MM-dd');
         const points = Math.floor((receipt.total_amount || 0) / bahtPerPoint);
@@ -170,27 +155,23 @@ export async function GET() {
       }
     });
 
-    // Build analytics array
     const analyticsData = dateInterval.map(date => {
       const dateKey = format(date, 'yyyy-MM-dd');
-      const displayDate = format(date, 'dd/MM');
-
       return {
-        date: displayDate,
+        date: format(date, 'dd/MM'),
         users: usersByDate.get(dateKey) || 0,
         receipts: receiptsByDate.get(dateKey) || 0,
         points: pointsByDate.get(dateKey) || 0
       };
     });
 
-    // Return consolidated response
     return NextResponse.json(
       {
         metrics: {
           totalUsers,
           contractorCount,
           homeownerCount,
-          monthlyActiveUsers,
+          monthlyActiveUsers: newUsersInRange,
           totalReceipts,
           pendingReceipts,
           approvedReceipts: approvedCount,
@@ -222,15 +203,11 @@ export async function GET() {
       if (error.message.startsWith('Unauthorized')) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       }
-
       if (error.message.includes('Forbidden')) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
     }
 
-    return NextResponse.json(
-      { error: "Failed to fetch dashboard data" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch dashboard data" }, { status: 500 });
   }
 }

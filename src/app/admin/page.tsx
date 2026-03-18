@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useDashboard } from '@/hooks/useDashboard'
+import type { DateRange, RoleFilter } from '@/hooks/useDashboard'
 import { usePointSettings } from '@/hooks/usePointSettings'
 import { DashboardMetrics } from '@/components/admin/dashboard/DashboardMetrics'
 import { UserStatistics } from '@/components/admin/dashboard/UserStatistics'
@@ -21,6 +22,18 @@ import { PERMISSIONS } from '@/types/admin'
 // Force dynamic rendering - no caching
 export const dynamic = 'force-dynamic'
 
+const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
+  { value: '7d', label: '7 วัน' },
+  { value: '30d', label: '30 วัน' },
+  { value: '90d', label: '90 วัน' },
+]
+
+const ROLE_OPTIONS: { value: RoleFilter; label: string }[] = [
+  { value: 'all', label: 'ทั้งหมด' },
+  { value: 'contractor', label: 'Contractor' },
+  { value: 'homeowner', label: 'Homeowner' },
+]
+
 export default function AdminDashboard() {
   const {
     loading,
@@ -34,7 +47,11 @@ export default function AdminDashboard() {
     pointSetting,
     bahtPerPoint,
     setBahtPerPoint,
-    fetchAllDashboardData
+    fetchAllDashboardData,
+    dateRange,
+    setDateRange,
+    roleFilter,
+    setRoleFilter,
   } = useDashboard()
 
   const { saving, savePointSetting } = usePointSettings()
@@ -104,6 +121,44 @@ export default function AdminDashboard() {
           ))}
         </TabsList>
 
+        {activeTab === 'overview' && (
+          <div className="flex items-center gap-4 flex-wrap bg-white border border-slate-200 rounded-lg p-3">
+            <div className="flex items-center gap-1">
+              {DATE_RANGE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setDateRange(option.value)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    dateRange === option.value
+                      ? 'bg-slate-900 text-white'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="h-5 w-px bg-slate-200" />
+
+            <div className="flex items-center gap-1">
+              {ROLE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setRoleFilter(option.value)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    roleFilter === option.value
+                      ? 'bg-slate-900 text-white'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <TabsContent value="overview" className="space-y-6">
           {/* Key Metrics Cards */}
           {metricsLoading ? (
@@ -131,7 +186,7 @@ export default function AdminDashboard() {
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <TimeSeriesChart data={timeSeriesData} />
+              <TimeSeriesChart data={timeSeriesData} dateRange={dateRange} />
               <ReceiptStatusChart data={receiptStatusDistribution} />
             </div>
           )}

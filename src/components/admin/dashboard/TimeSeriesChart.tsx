@@ -9,10 +9,17 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts'
-import { TimeSeriesData } from '@/hooks/useDashboard'
+import { TimeSeriesData, DateRange } from '@/hooks/useDashboard'
 
 interface TimeSeriesChartProps {
   data: TimeSeriesData[]
+  dateRange?: DateRange
+}
+
+const DATE_RANGE_LABELS: Record<DateRange, string> = {
+  '7d': '7 วันล่าสุด',
+  '30d': '30 วันล่าสุด',
+  '90d': '90 วันล่าสุด',
 }
 
 const COLORS = {
@@ -20,13 +27,15 @@ const COLORS = {
   receipts: '#10B981'
 }
 
-export function TimeSeriesChart({ data }: TimeSeriesChartProps) {
+export function TimeSeriesChart({ data, dateRange = '7d' }: TimeSeriesChartProps) {
+  const title = `แนวโน้ม ${DATE_RANGE_LABELS[dateRange]}`
+
   return (
     <Card className="bg-gradient-to-br from-white to-slate-50 rounded-xl border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
       <CardHeader className="pb-3">
         <CardTitle className="text-slate-900 flex items-center">
           <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-          แนวโน้ม 30 วันล่าสุด
+          {title}
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
