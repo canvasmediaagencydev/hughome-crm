@@ -19,6 +19,8 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("start_date");
     const endDate = searchParams.get("end_date");
     const days = searchParams.get("days");
+    const pointsMin = searchParams.get("points_min");
+    const pointsMax = searchParams.get("points_max");
 
     // If filtering by tag, get user IDs first
     let tagUserIds: string[] | null = null;
@@ -55,6 +57,14 @@ export async function GET(request: NextRequest) {
     } else if (days) {
       const cutoffDate = subDays(new Date(), parseInt(days));
       query = query.gte('created_at', cutoffDate.toISOString());
+    }
+
+    // Filter by points range
+    if (pointsMin) {
+      query = query.gte('points_balance', parseInt(pointsMin));
+    }
+    if (pointsMax) {
+      query = query.lte('points_balance', parseInt(pointsMax));
     }
 
     // Store original search term for full name matching later

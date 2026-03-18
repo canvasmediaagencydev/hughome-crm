@@ -9,9 +9,19 @@ interface UseUsersParams {
   initialPage?: number
   initialRole?: string
   initialSearch?: string
+  initialTagFilter?: string
 }
 
-async function fetchUsers(page: number, role: string, search: string, tagFilter: string) {
+async function fetchUsers(
+  page: number,
+  role: string,
+  search: string,
+  tagFilter: string,
+  pointsMin: string,
+  pointsMax: string,
+  startDate: string,
+  endDate: string,
+) {
   const params = new URLSearchParams({
     page: page.toString(),
     limit: '9',
@@ -26,6 +36,22 @@ async function fetchUsers(page: number, role: string, search: string, tagFilter:
     params.append('tag', tagFilter)
   }
 
+  if (pointsMin.trim()) {
+    params.append('points_min', pointsMin.trim())
+  }
+
+  if (pointsMax.trim()) {
+    params.append('points_max', pointsMax.trim())
+  }
+
+  if (startDate.trim()) {
+    params.append('start_date', startDate.trim())
+  }
+
+  if (endDate.trim()) {
+    params.append('end_date', endDate.trim())
+  }
+
   const response = await axiosAdmin.get(`/api/admin/users?${params}`)
   return response.data
 }
@@ -34,15 +60,20 @@ export function useUsers(params: UseUsersParams = {}) {
   const {
     initialPage = 1,
     initialRole = 'all',
-    initialSearch = ''
+    initialSearch = '',
+    initialTagFilter = '',
   } = params
 
   const queryClient = useQueryClient()
   const [currentPage, setCurrentPage] = useState(initialPage)
   const [roleFilter, setRoleFilter] = useState(initialRole)
-  const [tagFilter, setTagFilter] = useState('')
+  const [tagFilter, setTagFilter] = useState(initialTagFilter)
   const [searchInput, setSearchInput] = useState(initialSearch)
   const [debouncedSearch, setDebouncedSearch] = useState(initialSearch)
+  const [pointsMin, setPointsMin] = useState('')
+  const [pointsMax, setPointsMax] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   // Debounce search (300ms)
   const debouncedSetSearch = useMemo(
@@ -65,10 +96,10 @@ export function useUsers(params: UseUsersParams = {}) {
     error,
     refetch
   } = useQuery({
-    queryKey: ['users', currentPage, roleFilter, debouncedSearch, tagFilter],
-    queryFn: () => fetchUsers(currentPage, roleFilter, debouncedSearch, tagFilter),
-    staleTime: 2 * 60 * 1000, // 2 minutes - user data relatively stable
-    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    queryKey: ['users', currentPage, roleFilter, debouncedSearch, tagFilter, pointsMin, pointsMax, startDate, endDate],
+    queryFn: () => fetchUsers(currentPage, roleFilter, debouncedSearch, tagFilter, pointsMin, pointsMax, startDate, endDate),
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
     retry: 1,
   })
@@ -91,8 +122,8 @@ export function useUsers(params: UseUsersParams = {}) {
   // Prefetch next page for better UX
   if (pagination && currentPage < pagination.totalPages) {
     queryClient.prefetchQuery({
-      queryKey: ['users', currentPage + 1, roleFilter, debouncedSearch, tagFilter],
-      queryFn: () => fetchUsers(currentPage + 1, roleFilter, debouncedSearch, tagFilter),
+      queryKey: ['users', currentPage + 1, roleFilter, debouncedSearch, tagFilter, pointsMin, pointsMax, startDate, endDate],
+      queryFn: () => fetchUsers(currentPage + 1, roleFilter, debouncedSearch, tagFilter, pointsMin, pointsMax, startDate, endDate),
       staleTime: 2 * 60 * 1000,
     })
   }
@@ -105,6 +136,14 @@ export function useUsers(params: UseUsersParams = {}) {
   const handleClearSearch = useCallback(() => {
     setSearchInput('')
     setDebouncedSearch('')
+    setCurrentPage(1)
+  }, [])
+
+  const handleClearFilters = useCallback(() => {
+    setPointsMin('')
+    setPointsMax('')
+    setStartDate('')
+    setEndDate('')
     setCurrentPage(1)
   }, [])
 
@@ -127,13 +166,15 @@ export function useUsers(params: UseUsersParams = {}) {
     refetch()
   }, [refetch])
 
+  const hasActiveFilters = pointsMin !== '' || pointsMax !== '' || startDate !== '' || endDate !== ''
+
   return {
     users,
     isLoading,
     pagination,
     currentPage,
     roleFilter,
-    searchQuery: debouncedSearch, // For backward compatibility
+    searchQuery: debouncedSearch,
     searchInput,
     setSearchInput,
     handleSearch,
@@ -142,6 +183,17 @@ export function useUsers(params: UseUsersParams = {}) {
     handlePageChange,
     handleRoleFilterChange,
     handleTagFilterChange,
-    refreshUsers
+    refreshUsers,
+    // Advanced filters
+    pointsMin,
+    setPointsMin,
+    pointsMax,
+    setPointsMax,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    hasActiveFilters,
+    handleClearFilters,
   }
 }

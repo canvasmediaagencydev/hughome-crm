@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { FaUser } from 'react-icons/fa'
-import { Shield } from 'lucide-react'
+import { Shield, ChevronDown, ChevronUp, CheckSquare, Square, X, Tag as TagIcon } from 'lucide-react'
 import { Pagination } from '@/components/Pagination'
 import { EmptyState } from '@/components/EmptyState'
 import { User } from '@/types'
 import { useUsers } from '@/hooks/useUsers'
 import { useTags } from '@/hooks/useTags'
+import { useBulkTagAssignment } from '@/hooks/useBulkTagAssignment'
 import { TagBadge } from '@/components/TagBadge'
 import { useUserDetails } from '@/hooks/useUserDetails'
 import { useUserPoints } from '@/hooks/useUserPoints'
@@ -21,9 +23,11 @@ import { UserDetailModal } from '@/components/admin/users/UserDetailModal'
 import { EditPointsModal } from '@/components/admin/users/EditPointsModal'
 import { EditRoleModal } from '@/components/admin/users/EditRoleModal'
 
-export default function AdminUsersPage() {
+function AdminUsersContent() {
   // Permission check
   const { hasPermission, loading: authLoading } = useAdminAuth()
+  const searchParams = useSearchParams()
+  const tagFromUrl = searchParams.get('tag') || ''
 
   // Show loading while checking authentication
   if (authLoading) {
@@ -51,11 +55,19 @@ export default function AdminUsersPage() {
 
   const canEdit = hasPermission(PERMISSIONS.USERS_EDIT)
   const canManagePoints = hasPermission(PERMISSIONS.USERS_MANAGE_POINTS)
+  const canManageTags = hasPermission(PERMISSIONS.USERS_MANAGE_TAGS)
+
   // Modal states
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showPointsModal, setShowPointsModal] = useState(false)
   const [showRoleModal, setShowRoleModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
+
+  // Advanced filters UI state
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
+
+  // Bulk tag dropdown state
+  const [bulkTagId, setBulkTagId] = useState('')
 
   // Custom hooks
   const {
@@ -73,10 +85,32 @@ export default function AdminUsersPage() {
     handlePageChange,
     handleRoleFilterChange,
     handleTagFilterChange,
-    refreshUsers
-  } = useUsers()
+    refreshUsers,
+    pointsMin,
+    setPointsMin,
+    pointsMax,
+    setPointsMax,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    hasActiveFilters,
+    handleClearFilters,
+  } = useUsers({ initialTagFilter: tagFromUrl })
 
   const { data: allTags } = useTags()
+
+  const {
+    selectedUserIds,
+    toggleUser,
+    selectAll,
+    clearSelection,
+    isSelectionMode,
+    enterSelectionMode,
+    exitSelectionMode,
+    assignTag,
+    isAssigning,
+  } = useBulkTagAssignment()
 
   const {
     userDetails,
@@ -127,8 +161,7 @@ export default function AdminUsersPage() {
 
   const confirmAdjustPoints = async () => {
     if (!selectedUser) return
-
-    const success = await adjustPoints(selectedUser.id, () => {
+    await adjustPoints(selectedUser.id, () => {
       setShowPointsModal(false)
       refreshUsers()
     })
@@ -136,8 +169,7 @@ export default function AdminUsersPage() {
 
   const confirmChangeRole = async () => {
     if (!selectedUser) return
-
-    const success = await changeRole(selectedUser.id, () => {
+    await changeRole(selectedUser.id, () => {
       setShowRoleModal(false)
       refreshUsers()
     })
@@ -169,18 +201,102 @@ export default function AdminUsersPage() {
     }
   }
 
+  const handleBulkAssign = async (action: 'add' | 'remove') => {
+    if (!bulkTagId || selectedUserIds.size === 0) return
+    await assignTag(bulkTagId, action)
+    setBulkTagId('')
+  }
+
+  const currentUserIds = users.map((u: User) => u.id)
+  const allCurrentSelected = currentUserIds.length > 0 && currentUserIds.every((id: string) => selectedUserIds.has(id))
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-7xl mx-auto">
-        {/* Search Bar */}
-        <SearchBar
-          searchInput={searchInput}
-          searchQuery={searchQuery}
-          onSearchInputChange={setSearchInput}
-          onSearch={handleSearch}
-          onClear={handleClearSearch}
-          onKeyPress={handleKeyPress}
-        />
+        {/* Header */}
+        <div className="mb-2">
+          <SearchBar
+            searchInput={searchInput}
+            searchQuery={searchQuery}
+            onSearchInputChange={setSearchInput}
+            onSearch={handleSearch}
+            onClear={handleClearSearch}
+            onKeyPress={handleKeyPress}
+          />
+        </div>
+
+        {/* Advanced Filters */}
+        <div className="mb-4">
+          <button
+            onClick={() => setShowAdvancedFilters((v) => !v)}
+            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+          >
+            {showAdvancedFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            ตัวกรองขั้นสูง
+            {hasActiveFilters && (
+              <span className="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                กำลังใช้งาน
+              </span>
+            )}
+          </button>
+
+          {showAdvancedFilters && (
+            <div className="mt-3 p-4 bg-white rounded-lg border border-slate-200 shadow-sm space-y-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">คะแนน (ขั้นต่ำ)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={pointsMin}
+                    onChange={(e) => { setPointsMin(e.target.value); }}
+                    placeholder="เช่น 100"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">คะแนน (สูงสุด)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={pointsMax}
+                    onChange={(e) => { setPointsMax(e.target.value); }}
+                    placeholder="เช่น 500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">วันสมัคร (ตั้งแต่)</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => { setStartDate(e.target.value); }}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">วันสมัคร (ถึง)</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => { setEndDate(e.target.value); }}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                  />
+                </div>
+              </div>
+              {hasActiveFilters && (
+                <button
+                  onClick={handleClearFilters}
+                  className="text-sm text-red-600 hover:text-red-800 font-medium transition-colors"
+                >
+                  ล้างตัวกรองทั้งหมด
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Tag Filter */}
         {allTags && allTags.length > 0 && (
@@ -214,7 +330,32 @@ export default function AdminUsersPage() {
         <RoleTabs
           activeRole={roleFilter}
           onRoleChange={handleRoleFilterChange}
+          isSelectionMode={isSelectionMode}
+          onEnterSelection={canManageTags ? enterSelectionMode : undefined}
+          onExitSelection={canManageTags ? exitSelectionMode : undefined}
         />
+
+        {/* Select All (in selection mode) */}
+        {isSelectionMode && users.length > 0 && (
+          <div className="flex items-center gap-3 mb-3 px-1">
+            <button
+              onClick={() => allCurrentSelected ? clearSelection() : selectAll(currentUserIds)}
+              className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
+            >
+              {allCurrentSelected ? (
+                <CheckSquare className="w-4 h-4 text-slate-900" />
+              ) : (
+                <Square className="w-4 h-4" />
+              )}
+              เลือกทั้งหมดในหน้านี้ ({currentUserIds.length} คน)
+            </button>
+            {selectedUserIds.size > 0 && (
+              <span className="text-sm text-blue-600 font-medium">
+                เลือกแล้ว {selectedUserIds.size} คน
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Users List */}
         {isLoading ? (
@@ -239,15 +380,31 @@ export default function AdminUsersPage() {
               {users.map((user: User, index: number) => (
                 <div
                   key={user.id}
-                  className="animate-fade-in"
+                  className={`animate-fade-in relative ${isSelectionMode ? 'cursor-pointer' : ''}`}
                   style={{ animationDelay: `${index * 50}ms` }}
+                  onClick={isSelectionMode ? () => toggleUser(user.id) : undefined}
                 >
-                  <UserCard
-                    user={user}
-                    onViewDetails={handleViewDetails}
-                    onEditPoints={canManagePoints ? handleEditPoints : undefined}
-                    onEditRole={canEdit ? handleEditRole : undefined}
-                  />
+                  {isSelectionMode && (
+                    <div className="absolute top-3 right-3 z-10 pointer-events-none">
+                      {selectedUserIds.has(user.id) ? (
+                        <div className="w-5 h-5 rounded bg-slate-900 flex items-center justify-center shadow-sm">
+                          <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
+                            <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                      ) : (
+                        <div className="w-5 h-5 rounded bg-white border-2 border-slate-300 shadow-sm" />
+                      )}
+                    </div>
+                  )}
+                  <div className={isSelectionMode ? `${selectedUserIds.has(user.id) ? 'ring-2 ring-slate-900 ring-offset-1' : 'ring-1 ring-slate-200'} rounded-lg` : ''}>
+                    <UserCard
+                      user={user}
+                      onViewDetails={isSelectionMode ? () => {} : handleViewDetails}
+                      onEditPoints={!isSelectionMode && canManagePoints ? handleEditPoints : undefined}
+                      onEditRole={!isSelectionMode && canEdit ? handleEditRole : undefined}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
@@ -263,6 +420,53 @@ export default function AdminUsersPage() {
           </>
         )}
       </div>
+
+      {/* Bulk Action Bar */}
+      {isSelectionMode && selectedUserIds.size > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg z-40 p-4">
+          <div className="max-w-7xl mx-auto flex items-center gap-3 flex-wrap">
+            <span className="text-sm font-semibold text-slate-700">
+              เลือกแล้ว {selectedUserIds.size} คน
+            </span>
+            <div className="flex items-center gap-2 flex-1">
+              <TagIcon className="w-4 h-4 text-slate-400 flex-shrink-0" />
+              <select
+                value={bulkTagId}
+                onChange={(e) => setBulkTagId(e.target.value)}
+                className="flex-1 max-w-xs px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+              >
+                <option value="">เลือก Tag...</option>
+                {allTags?.map((tag) => (
+                  <option key={tag.id} value={tag.id}>
+                    {tag.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => handleBulkAssign('add')}
+                disabled={!bulkTagId || isAssigning}
+                className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isAssigning ? 'กำลังดำเนินการ...' : 'เพิ่ม Tag'}
+              </button>
+              <button
+                onClick={() => handleBulkAssign('remove')}
+                disabled={!bulkTagId || isAssigning}
+                className="px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ลบ Tag
+              </button>
+            </div>
+            <button
+              onClick={clearSelection}
+              className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
+              title="ล้างการเลือก"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       <UserDetailModal
@@ -302,5 +506,17 @@ export default function AdminUsersPage() {
         onConfirm={confirmChangeRole}
       />
     </div>
+  )
+}
+
+export default function AdminUsersPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 border-t-2 border-t-slate-200"></div>
+      </div>
+    }>
+      <AdminUsersContent />
+    </Suspense>
   )
 }

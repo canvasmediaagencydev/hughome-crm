@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Shield, Plus, Pencil, Trash2, Tag as TagIcon, RefreshCw } from 'lucide-react'
 import { useAdminAuth } from '@/hooks/useAdminAuth'
 import { PERMISSIONS } from '@/types/admin'
@@ -16,6 +17,7 @@ const PRESET_COLORS = [
 ]
 
 export default function TagsPage() {
+  const router = useRouter()
   const { hasPermission, loading: authLoading } = useAdminAuth()
   const { data: tags, isLoading } = useTags()
   const createTag = useCreateTag()
@@ -108,14 +110,14 @@ export default function TagsPage() {
           </div>
           {canManage && (
             <div className="flex items-center gap-2">
-              <button
+              {/* <button
                 onClick={handleSyncFromLine}
                 disabled={syncing}
                 className="flex items-center gap-2 px-4 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors font-medium text-sm disabled:opacity-50"
               >
                 <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
                 {syncing ? 'กำลัง Sync...' : 'Sync จาก LINE'}
-              </button>
+              </button> */}
               <button
                 onClick={openCreateModal}
                 className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors font-medium text-sm"
@@ -185,8 +187,13 @@ export default function TagsPage() {
                     <td className="px-6 py-4">
                       <TagBadge tag={tag} size="md" />
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-600">
-                      {tag.user_count || 0} คน
+                    <td className="px-6 py-4 text-sm">
+                      <button
+                        onClick={() => router.push(`/admin/users?tag=${tag.id}`)}
+                        className="text-blue-600 hover:text-blue-800 hover:underline font-medium transition-colors"
+                      >
+                        {tag.user_count || 0} คน
+                      </button>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-500">
                       {new Date(tag.created_at).toLocaleDateString('th-TH')}
