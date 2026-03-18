@@ -23,9 +23,11 @@ import { PERMISSIONS } from '@/types/admin'
 export const dynamic = 'force-dynamic'
 
 const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
+  { value: 'all', label: 'ทั้งหมด' },
   { value: '7d', label: '7 วัน' },
   { value: '30d', label: '30 วัน' },
   { value: '90d', label: '90 วัน' },
+  { value: 'custom', label: 'กำหนดเอง' },
 ]
 
 const ROLE_OPTIONS: { value: RoleFilter; label: string }[] = [
@@ -52,6 +54,10 @@ export default function AdminDashboard() {
     setDateRange,
     roleFilter,
     setRoleFilter,
+    customStart,
+    setCustomStart,
+    customEnd,
+    setCustomEnd,
   } = useDashboard()
 
   const { saving, savePointSetting } = usePointSettings()
@@ -122,40 +128,70 @@ export default function AdminDashboard() {
         </TabsList>
 
         {activeTab === 'overview' && (
-          <div className="flex items-center gap-4 flex-wrap bg-white border border-slate-200 rounded-lg p-3">
-            <div className="flex items-center gap-1">
-              {DATE_RANGE_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => setDateRange(option.value)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    dateRange === option.value
-                      ? 'bg-slate-900 text-white'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
+          <div className="bg-white border border-slate-200 rounded-lg p-3 space-y-2.5">
+            <div className="flex items-center gap-4 flex-wrap">
+              {/* Date range buttons */}
+              <div className="flex items-center gap-1 flex-wrap">
+                {DATE_RANGE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setDateRange(option.value)}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      dateRange === option.value
+                        ? 'bg-slate-900 text-white'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="h-5 w-px bg-slate-200" />
+
+              {/* Role filter */}
+              <div className="flex items-center gap-1">
+                {ROLE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setRoleFilter(option.value)}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      roleFilter === option.value
+                        ? 'bg-slate-900 text-white'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="h-5 w-px bg-slate-200" />
-
-            <div className="flex items-center gap-1">
-              {ROLE_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => setRoleFilter(option.value)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    roleFilter === option.value
-                      ? 'bg-slate-900 text-white'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+            {/* Custom date picker — show only when 'custom' is selected */}
+            {dateRange === 'custom' && (
+              <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                <span className="text-xs text-slate-500 font-medium">จาก</span>
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                  max={customEnd || undefined}
+                  className="px-2.5 py-1.5 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
+                />
+                <span className="text-xs text-slate-500 font-medium">ถึง</span>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                  min={customStart || undefined}
+                  max={new Date().toISOString().split('T')[0]}
+                  className="px-2.5 py-1.5 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-slate-400 focus:border-slate-400"
+                />
+                {(!customStart || !customEnd) && (
+                  <span className="text-xs text-amber-600">เลือกวันที่เริ่มต้นและสิ้นสุด</span>
+                )}
+              </div>
+            )}
           </div>
         )}
 

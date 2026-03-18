@@ -17,6 +17,8 @@ interface TimeSeriesChartProps {
 }
 
 const DATE_RANGE_LABELS: Record<DateRange, string> = {
+  'all': 'ทั้งหมด (12 เดือนล่าสุด)',
+  'custom': 'ช่วงที่กำหนด',
   '7d': '7 วันล่าสุด',
   '30d': '30 วันล่าสุด',
   '90d': '90 วันล่าสุด',

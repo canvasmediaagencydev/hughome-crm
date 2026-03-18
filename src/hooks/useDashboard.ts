@@ -7,7 +7,7 @@ import { Tables } from '../../database.types'
 
 type PointSetting = Tables<'point_settings'>
 
-export type DateRange = '7d' | '30d' | '90d'
+export type DateRange = '7d' | '30d' | '90d' | 'all' | 'custom'
 export type RoleFilter = 'all' | 'contractor' | 'homeowner'
 
 export interface DashboardMetrics {
@@ -46,17 +46,27 @@ interface DashboardData {
   analytics: TimeSeriesData[]
 }
 
-const DATE_RANGE_DAYS: Record<DateRange, number> = {
+const PRESET_DAYS: Partial<Record<DateRange, number>> = {
   '7d': 7,
   '30d': 30,
   '90d': 90,
 }
 
-async function fetchDashboardData(dateRange: DateRange, roleFilter: RoleFilter): Promise<DashboardData> {
-  const params = new URLSearchParams({
-    days: DATE_RANGE_DAYS[dateRange].toString(),
-    role: roleFilter,
-  })
+async function fetchDashboardData(
+  dateRange: DateRange,
+  roleFilter: RoleFilter,
+  customStart: string,
+  customEnd: string,
+): Promise<DashboardData> {
+  const params = new URLSearchParams({ role: roleFilter })
+  if (dateRange === 'all') {
+    // no date params → all-time
+  } else if (dateRange === 'custom' && customStart && customEnd) {
+    params.set('startDate', customStart)
+    params.set('endDate', customEnd)
+  } else if (PRESET_DAYS[dateRange]) {
+    params.set('days', PRESET_DAYS[dateRange]!.toString())
+  }
   const response = await axiosAdmin.get(`/api/admin/dashboard/all?${params}`)
   return response.data
 }
@@ -68,6 +78,8 @@ export function useDashboard() {
   const [hasSession, setHasSession] = useState(false)
   const [dateRange, setDateRange] = useState<DateRange>('7d')
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
+  const [customStart, setCustomStart] = useState<string>('')
+  const [customEnd, setCustomEnd] = useState<string>('')
 
   useEffect(() => {
     const checkSession = async () => {
@@ -84,8 +96,8 @@ export function useDashboard() {
     error,
     refetch
   } = useQuery({
-    queryKey: ['dashboard', 'all', dateRange, roleFilter],
-    queryFn: () => fetchDashboardData(dateRange, roleFilter),
+    queryKey: ['dashboard', 'all', dateRange, roleFilter, customStart, customEnd],
+    queryFn: () => fetchDashboardData(dateRange, roleFilter, customStart, customEnd),
     enabled: hasSession,
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
@@ -164,6 +176,10 @@ export function useDashboard() {
     setDateRange,
     roleFilter,
     setRoleFilter,
+    customStart,
+    setCustomStart,
+    customEnd,
+    setCustomEnd,
     setBahtPerPoint,
     setPointSetting,
     fetchAllDashboardData

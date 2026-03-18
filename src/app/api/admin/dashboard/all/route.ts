@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { subDays, startOfDay, endOfDay, eachDayOfInterval, format } from "date-fns";
+import {
+  subDays, startOfDay, endOfDay,
+  eachDayOfInterval, eachMonthOfInterval,
+  format, parseISO, differenceInDays
+} from "date-fns";
 import { requirePermission } from '@/lib/admin-auth'
 import { PERMISSIONS } from '@/types/admin'
 
@@ -9,19 +13,40 @@ export async function GET(request: Request) {
     await requirePermission(PERMISSIONS.DASHBOARD_VIEW)
 
     const { searchParams } = new URL(request.url)
-    const days = Math.min(Math.max(parseInt(searchParams.get('days') || '7'), 7), 90)
     const role = searchParams.get('role') || 'all'
+    const startDateParam = searchParams.get('startDate')
+    const endDateParam = searchParams.get('endDate')
+    const daysParam = searchParams.get('days')
 
     const supabase = createServerSupabaseClient();
-
     const now = new Date();
-    const endRange = now;
-    const startRange = subDays(endRange, days - 1);
-    const dateInterval = eachDayOfInterval({ start: startRange, end: endRange });
-    const startRangeISO = startOfDay(startRange).toISOString();
-    const endRangeISO = endOfDay(endRange).toISOString();
 
-    // If role filter, fetch matching user IDs first (fast query)
+    // Resolve date range
+    let startRangeISO: string
+    let endRangeISO: string
+    let isAllTime = false
+    let useMonthlyGrouping = false
+
+    if (startDateParam && endDateParam) {
+      // Custom range
+      startRangeISO = startOfDay(parseISO(startDateParam)).toISOString()
+      endRangeISO = endOfDay(parseISO(endDateParam)).toISOString()
+      const diffDays = differenceInDays(parseISO(endDateParam), parseISO(startDateParam))
+      useMonthlyGrouping = diffDays > 60
+    } else if (daysParam) {
+      // Preset range
+      const days = Math.min(Math.max(parseInt(daysParam), 1), 90)
+      startRangeISO = startOfDay(subDays(now, days - 1)).toISOString()
+      endRangeISO = endOfDay(now).toISOString()
+    } else {
+      // All time — chart shows last 12 months
+      isAllTime = true
+      useMonthlyGrouping = true
+      startRangeISO = startOfDay(subDays(now, 364)).toISOString()
+      endRangeISO = endOfDay(now).toISOString()
+    }
+
+    // Role filter: pre-fetch matching user IDs
     let roleUserIds: string[] | null = null
     if (role !== 'all') {
       const { data: roleUsers } = await supabase
@@ -31,11 +56,13 @@ export async function GET(request: Request) {
       roleUserIds = roleUsers?.map((u: { id: string }) => u.id) || []
     }
 
-    // Build receipt query helper
     const applyRoleFilter = (query: any) =>
       roleUserIds ? query.in('user_id', roleUserIds) : query
 
-    // Fetch all data in parallel
+    // Apply optional date filter to a query (for metrics cards)
+    const applyDateFilter = (query: any) =>
+      isAllTime ? query : query.gte('created_at', startRangeISO).lte('created_at', endRangeISO)
+
     const [
       allUsers,
       allReceipts,
@@ -47,55 +74,53 @@ export async function GET(request: Request) {
       analyticsReceipts,
       analyticsApprovedReceipts
     ] = await Promise.all([
-      // All users (with role filter)
+      // Users — date-filtered unless all-time
       (() => {
         let q = supabase.from("user_profiles").select("role, created_at")
         if (role !== 'all') q = q.eq('role', role)
+        if (!isAllTime) q = q.gte('created_at', startRangeISO).lte('created_at', endRangeISO)
         return q
       })(),
 
-      // All receipts in date range (with role filter)
+      // Receipts — date-filtered
       applyRoleFilter(
-        supabase.from("receipts").select("status, total_amount, created_at")
-          .gte('created_at', startRangeISO)
-          .lte('created_at', endRangeISO)
+        applyDateFilter(supabase.from("receipts").select("status, total_amount, created_at"))
       ),
 
-      // Active rewards (no role filter)
       supabase.from("rewards").select("*", { count: "exact", head: true }).eq("is_active", true),
-
-      // Pending redemptions (no role filter)
       supabase.from("redemptions").select("*", { count: "exact", head: true }).eq("status", "requested"),
-
-      // Point settings
       supabase.from("point_settings").select("*").order("created_at", { ascending: false }),
 
-      // Recent receipts in date range (with role filter)
+      // Recent receipts — date-filtered
       applyRoleFilter(
-        supabase
-          .from("receipts")
-          .select(`*, user_profiles!receipts_user_id_fkey (id, display_name, first_name, last_name)`)
-          .gte('created_at', startRangeISO)
-          .lte('created_at', endRangeISO)
-          .order("created_at", { ascending: false })
-          .limit(10)
+        applyDateFilter(
+          supabase
+            .from("receipts")
+            .select(`*, user_profiles!receipts_user_id_fkey (id, display_name, first_name, last_name)`)
+            .order("created_at", { ascending: false })
+            .limit(10)
+        )
       ),
 
-      // Analytics: new users in date range (with role filter)
+      // Analytics: new users
       (() => {
-        let q = supabase.from('user_profiles').select('created_at').gte('created_at', startRangeISO).lte('created_at', endRangeISO)
+        let q = supabase.from('user_profiles').select('created_at')
+          .gte('created_at', startRangeISO).lte('created_at', endRangeISO)
         if (role !== 'all') q = q.eq('role', role)
         return q
       })(),
 
-      // Analytics: all receipts in date range (with role filter)
+      // Analytics: receipts
       applyRoleFilter(
-        supabase.from('receipts').select('created_at').gte('created_at', startRangeISO).lte('created_at', endRangeISO)
+        supabase.from('receipts').select('created_at')
+          .gte('created_at', startRangeISO).lte('created_at', endRangeISO)
       ),
 
-      // Analytics: approved receipts in date range (with role filter)
+      // Analytics: approved receipts + amounts
       applyRoleFilter(
-        supabase.from('receipts').select('created_at, total_amount').eq('status', 'approved').gte('created_at', startRangeISO).lte('created_at', endRangeISO)
+        supabase.from('receipts').select('created_at, total_amount')
+          .eq('status', 'approved')
+          .gte('created_at', startRangeISO).lte('created_at', endRangeISO)
       ),
     ]);
 
@@ -126,92 +151,129 @@ export async function GET(request: Request) {
 
     const bahtPerPoint = pointSettings.data?.find((s: any) => s.setting_key === 'baht_per_point')?.setting_value || 100;
 
-    const usersByDate = new Map<string, number>();
-    const receiptsByDate = new Map<string, number>();
-    const pointsByDate = new Map<string, number>();
+    // Build chart intervals
+    const startForChart = parseISO(startRangeISO)
+    const endForChart = parseISO(endRangeISO)
 
-    dateInterval.forEach(date => {
-      const key = format(date, 'yyyy-MM-dd');
-      usersByDate.set(key, 0);
-      receiptsByDate.set(key, 0);
-      pointsByDate.set(key, 0);
-    });
+    const usersByKey = new Map<string, number>();
+    const receiptsByKey = new Map<string, number>();
+    const pointsByKey = new Map<string, number>();
 
-    analyticsUsers.data?.forEach((user: any) => {
-      if (user.created_at) {
-        const dateKey = format(new Date(user.created_at), 'yyyy-MM-dd');
-        usersByDate.set(dateKey, (usersByDate.get(dateKey) || 0) + 1);
-      }
-    });
+    if (useMonthlyGrouping) {
+      const months = eachMonthOfInterval({ start: startForChart, end: endForChart })
+      months.forEach(m => {
+        const key = format(m, 'yyyy-MM')
+        usersByKey.set(key, 0)
+        receiptsByKey.set(key, 0)
+        pointsByKey.set(key, 0)
+      })
 
-    analyticsReceipts.data?.forEach((receipt: any) => {
-      if (receipt.created_at) {
-        const dateKey = format(new Date(receipt.created_at), 'yyyy-MM-dd');
-        receiptsByDate.set(dateKey, (receiptsByDate.get(dateKey) || 0) + 1);
-      }
-    });
-
-    analyticsApprovedReceipts.data?.forEach((receipt: any) => {
-      if (receipt.created_at) {
-        const dateKey = format(new Date(receipt.created_at), 'yyyy-MM-dd');
-        const points = Math.floor((receipt.total_amount || 0) / bahtPerPoint);
-        pointsByDate.set(dateKey, (pointsByDate.get(dateKey) || 0) + points);
-      }
-    });
-
-    const analyticsData = dateInterval.map(date => {
-      const dateKey = format(date, 'yyyy-MM-dd');
-      return {
-        date: format(date, 'dd/MM'),
-        users: usersByDate.get(dateKey) || 0,
-        receipts: receiptsByDate.get(dateKey) || 0,
-        points: pointsByDate.get(dateKey) || 0
-      };
-    });
-
-    return NextResponse.json(
-      {
-        metrics: {
-          totalUsers,
-          contractorCount,
-          homeownerCount,
-          monthlyActiveUsers: newUsersInRange,
-          totalReceipts,
-          pendingReceipts,
-          approvedReceipts: approvedCount,
-          rejectedReceipts,
-          totalReceiptValue: totalValue,
-          activeRewards: activeRewardsCount.count || 0,
-          pendingRedemptions: pendingRedemptionsCount.count || 0,
-          totalPointsEarned: 0,
-          totalPointsSpent: 0,
-          averageProcessingTime: 0,
-          pointSettings: pointSettings.data || []
-        },
-        recentReceipts: recentReceipts.data || [],
-        analytics: analyticsData
-      },
-      {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, private',
-          'Pragma': 'no-cache',
-          'Expires': '0'
+      analyticsUsers.data?.forEach((u: any) => {
+        if (u.created_at) {
+          const key = format(new Date(u.created_at), 'yyyy-MM')
+          usersByKey.set(key, (usersByKey.get(key) || 0) + 1)
         }
-      }
-    );
+      })
+      analyticsReceipts.data?.forEach((r: any) => {
+        if (r.created_at) {
+          const key = format(new Date(r.created_at), 'yyyy-MM')
+          receiptsByKey.set(key, (receiptsByKey.get(key) || 0) + 1)
+        }
+      })
+      analyticsApprovedReceipts.data?.forEach((r: any) => {
+        if (r.created_at) {
+          const key = format(new Date(r.created_at), 'yyyy-MM')
+          const pts = Math.floor((r.total_amount || 0) / bahtPerPoint)
+          pointsByKey.set(key, (pointsByKey.get(key) || 0) + pts)
+        }
+      })
 
-  } catch (error: any) {
-    console.error("Consolidated dashboard API error:", error);
+      const analyticsData = eachMonthOfInterval({ start: startForChart, end: endForChart }).map(m => ({
+        date: format(m, 'MM/yy'),
+        users: usersByKey.get(format(m, 'yyyy-MM')) || 0,
+        receipts: receiptsByKey.get(format(m, 'yyyy-MM')) || 0,
+        points: pointsByKey.get(format(m, 'yyyy-MM')) || 0,
+      }))
 
-    if (typeof error?.message === 'string') {
-      if (error.message.startsWith('Unauthorized')) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-      if (error.message.includes('Forbidden')) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-      }
+      return buildResponse({ totalUsers, contractorCount, homeownerCount, newUsersInRange, totalReceipts, pendingReceipts, approvedCount, rejectedReceipts, totalValue, activeRewards: activeRewardsCount.count || 0, pendingRedemptions: pendingRedemptionsCount.count || 0, pointSettings: pointSettings.data || [] }, recentReceipts.data || [], analyticsData)
     }
 
+    // Daily grouping
+    const days = eachDayOfInterval({ start: startForChart, end: endForChart })
+    days.forEach(d => {
+      const key = format(d, 'yyyy-MM-dd')
+      usersByKey.set(key, 0)
+      receiptsByKey.set(key, 0)
+      pointsByKey.set(key, 0)
+    })
+    analyticsUsers.data?.forEach((u: any) => {
+      if (u.created_at) {
+        const key = format(new Date(u.created_at), 'yyyy-MM-dd')
+        usersByKey.set(key, (usersByKey.get(key) || 0) + 1)
+      }
+    })
+    analyticsReceipts.data?.forEach((r: any) => {
+      if (r.created_at) {
+        const key = format(new Date(r.created_at), 'yyyy-MM-dd')
+        receiptsByKey.set(key, (receiptsByKey.get(key) || 0) + 1)
+      }
+    })
+    analyticsApprovedReceipts.data?.forEach((r: any) => {
+      if (r.created_at) {
+        const key = format(new Date(r.created_at), 'yyyy-MM-dd')
+        const pts = Math.floor((r.total_amount || 0) / bahtPerPoint)
+        pointsByKey.set(key, (pointsByKey.get(key) || 0) + pts)
+      }
+    })
+
+    const analyticsData = days.map(d => ({
+      date: format(d, 'dd/MM'),
+      users: usersByKey.get(format(d, 'yyyy-MM-dd')) || 0,
+      receipts: receiptsByKey.get(format(d, 'yyyy-MM-dd')) || 0,
+      points: pointsByKey.get(format(d, 'yyyy-MM-dd')) || 0,
+    }))
+
+    return buildResponse({ totalUsers, contractorCount, homeownerCount, newUsersInRange, totalReceipts, pendingReceipts, approvedCount, rejectedReceipts, totalValue, activeRewards: activeRewardsCount.count || 0, pendingRedemptions: pendingRedemptionsCount.count || 0, pointSettings: pointSettings.data || [] }, recentReceipts.data || [], analyticsData)
+
+  } catch (error: any) {
+    console.error("Dashboard API error:", error);
+    if (typeof error?.message === 'string') {
+      if (error.message.startsWith('Unauthorized')) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      if (error.message.includes('Forbidden')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
     return NextResponse.json({ error: "Failed to fetch dashboard data" }, { status: 500 });
   }
+}
+
+function buildResponse(metrics: any, recentReceipts: any[], analytics: any[]) {
+  return NextResponse.json(
+    {
+      metrics: {
+        totalUsers: metrics.totalUsers,
+        contractorCount: metrics.contractorCount,
+        homeownerCount: metrics.homeownerCount,
+        monthlyActiveUsers: metrics.newUsersInRange,
+        totalReceipts: metrics.totalReceipts,
+        pendingReceipts: metrics.pendingReceipts,
+        approvedReceipts: metrics.approvedCount,
+        rejectedReceipts: metrics.rejectedReceipts,
+        totalReceiptValue: metrics.totalValue,
+        activeRewards: metrics.activeRewards,
+        pendingRedemptions: metrics.pendingRedemptions,
+        totalPointsEarned: 0,
+        totalPointsSpent: 0,
+        averageProcessingTime: 0,
+        pointSettings: metrics.pointSettings,
+      },
+      recentReceipts,
+      analytics,
+    },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    }
+  )
 }
