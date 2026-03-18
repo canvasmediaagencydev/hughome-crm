@@ -21,7 +21,7 @@ export function DashboardMetrics({ metrics, loading }: DashboardMetricsProps) {
               </p>
               <div className="flex items-center text-xs text-slate-500 mt-1">
                 <Activity className="h-3 w-3 mr-1" />
-                +{metrics.monthlyActiveUsers} ผู้สมัครเดือนนี้
+                +{metrics.monthlyActiveUsers} สมัครในช่วงนี้
               </div>
             </div>
             <div className="p-3 bg-slate-100 rounded-lg">

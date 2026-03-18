@@ -54,9 +54,11 @@ export async function GET(request: Request) {
         return q
       })(),
 
-      // All receipts (with role filter)
+      // All receipts in date range (with role filter)
       applyRoleFilter(
         supabase.from("receipts").select("status, total_amount, created_at")
+          .gte('created_at', startRangeISO)
+          .lte('created_at', endRangeISO)
       ),
 
       // Active rewards (no role filter)
@@ -68,11 +70,13 @@ export async function GET(request: Request) {
       // Point settings
       supabase.from("point_settings").select("*").order("created_at", { ascending: false }),
 
-      // Recent receipts (with role filter)
+      // Recent receipts in date range (with role filter)
       applyRoleFilter(
         supabase
           .from("receipts")
           .select(`*, user_profiles!receipts_user_id_fkey (id, display_name, first_name, last_name)`)
+          .gte('created_at', startRangeISO)
+          .lte('created_at', endRangeISO)
           .order("created_at", { ascending: false })
           .limit(10)
       ),
