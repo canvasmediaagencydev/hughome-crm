@@ -153,10 +153,11 @@ export default function OnboardingForm() {
       return
     }
 
-    if (!phoneVerified) {
-      setValidationErrors(prev => ({ ...prev, phone: 'กรุณายืนยันเบอร์โทรศัพท์ด้วย OTP ก่อน' }))
-      return
-    }
+    // TODO: เปิดใช้ OTP อีกครั้งในอนาคต
+    // if (!phoneVerified) {
+    //   setValidationErrors(prev => ({ ...prev, phone: 'กรุณายืนยันเบอร์โทรศัพท์ด้วย OTP ก่อน' }))
+    //   return
+    // }
 
     setIsLoading(true)
     try {
@@ -335,7 +336,8 @@ export default function OnboardingForm() {
                   placeholder="0xx-xxx-xxxx"
                   maxLength={20}
                 />
-                {!phoneVerified && (
+                {/* TODO: เปิดปุ่ม OTP อีกครั้งในอนาคต */}
+                {/* {!phoneVerified && (
                   <button
                     type="button"
                     onClick={handleSendOtp}
@@ -350,24 +352,26 @@ export default function OnboardingForm() {
                           ? 'ส่งใหม่'
                           : 'ส่ง OTP'}
                   </button>
-                )}
+                )} */}
               </div>
 
-              {phoneVerified && (
+              {/* TODO: เปิดใช้ OTP อีกครั้งในอนาคต */}
+              {/* {phoneVerified && (
                 <div className="mt-2 flex items-center gap-1.5 text-green-700 text-sm">
                   <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                   ยืนยันเบอร์โทรศัพท์สำเร็จ
                 </div>
-              )}
+              )} */}
 
               {validationErrors.phone && (
                 <p className="mt-1 text-xs text-red-600">{validationErrors.phone}</p>
               )}
 
+              {/* TODO: เปิดใช้ OTP อีกครั้งในอนาคต */}
               {/* OTP input */}
-              {otpSent && !phoneVerified && (
+              {/* {otpSent && !phoneVerified && (
                 <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-3">
                   <p className="text-sm text-gray-600">
                     ส่งรหัส OTP ไปยัง <span className="font-medium text-gray-800">{formData.phone}</span> แล้ว
@@ -402,17 +406,17 @@ export default function OnboardingForm() {
                     <p className="text-xs text-red-600">{otpError}</p>
                   )}
                 </div>
-              )}
+              )} */}
 
               {/* OTP send error (before OTP sent) */}
-              {!otpSent && otpError && (
+              {/* {!otpSent && otpError && (
                 <p className="mt-1 text-xs text-red-600">{otpError}</p>
-              )}
+              )} */}
             </div>
 
             <button
               type="submit"
-              disabled={isLoading || !phoneVerified}
+              disabled={isLoading /* TODO: เปิด OTP อีกครั้ง: || !phoneVerified */}
               className="w-full bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-3 text-base"
             >
               {isLoading ? (
