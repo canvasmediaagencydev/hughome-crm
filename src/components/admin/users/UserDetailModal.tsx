@@ -18,6 +18,8 @@ import { useTags } from '@/hooks/useTags'
 import { useEffect, useState } from 'react'
 import { useAdminAuth } from '@/hooks/useAdminAuth'
 import { PERMISSIONS } from '@/types/admin'
+import { axiosAdmin } from '@/lib/axios-admin'
+import axios from 'axios'
 
 interface UserDetailModalProps {
   isOpen: boolean
@@ -85,20 +87,17 @@ export function UserDetailModal({
     setSavingCode(true)
     setCodeError(null)
     try {
-      const res = await fetch(`/api/admin/users/${user.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customer_code: editingCodeValue.trim() }),
+      const { data } = await axiosAdmin.patch(`/api/admin/users/${user.id}`, {
+        customer_code: editingCodeValue.trim(),
       })
-      const data = await res.json()
-      if (!res.ok) {
-        setCodeError(data.error || 'เกิดข้อผิดพลาด')
+      setLocalCustomerCode(data.user.customer_code)
+      setIsEditingCode(false)
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        setCodeError(err.response?.data?.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่')
       } else {
-        setLocalCustomerCode(data.user.customer_code)
-        setIsEditingCode(false)
+        setCodeError('เกิดข้อผิดพลาด กรุณาลองใหม่')
       }
-    } catch {
-      setCodeError('เกิดข้อผิดพลาด กรุณาลองใหม่')
     } finally {
       setSavingCode(false)
     }
