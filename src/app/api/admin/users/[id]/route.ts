@@ -101,12 +101,12 @@ export async function PATCH(
     const body = await request.json();
     const { customer_code } = body;
 
-    // Validate format: HH- followed by 1-20 alphanumeric chars, or null/empty
+    // Validate format: either "XX-digits" (e.g. AR-10297) or "digits+letters-digits" (e.g. 50ลส-1030)
     const normalized = customer_code === "" ? null : customer_code;
     if (normalized !== null) {
-      if (!/^HH-[A-Za-z0-9]{1,20}$/.test(normalized)) {
+      if (!/^([A-Za-z]{2}-\d+|\d+[A-Za-zก-๙]+-\d+)$/.test(normalized)) {
         return NextResponse.json(
-          { error: "รูปแบบรหัสไม่ถูกต้อง ต้องขึ้นต้นด้วย HH- ตามด้วยตัวอักษรหรือตัวเลข 1-20 ตัว" },
+          { error: "รูปแบบรหัสไม่ถูกต้อง ต้องเป็น เช่น AR-10297 หรือ 50ลส-1030" },
           { status: 400 }
         );
       }

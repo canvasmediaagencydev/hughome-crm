@@ -77,7 +77,7 @@ export function UserDetailModal({
   }, [user?.id, user?.customer_code])
 
   const handleEditCode = () => {
-    setEditingCodeValue(localCustomerCode || 'HH-')
+    setEditingCodeValue(localCustomerCode || '')
     setCodeError(null)
     setIsEditingCode(true)
   }
@@ -141,8 +141,8 @@ export function UserDetailModal({
                     <input
                       type="text"
                       value={editingCodeValue}
-                      onChange={(e) => setEditingCodeValue(e.target.value.toUpperCase())}
-                      placeholder="HH-XXXXXX"
+                      onChange={(e) => setEditingCodeValue(e.target.value)}
+                      placeholder="AR-10297 หรือ 50ลส-1030"
                       className="text-sm font-mono px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 w-36"
                       disabled={savingCode}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCode(); if (e.key === 'Escape') setIsEditingCode(false) }}

@@ -261,7 +261,7 @@ export default function AdminReceiptUploadPage() {
                 <div className="relative flex-1">
                   <Input
                     id="search"
-                    placeholder="เช่น HH-000123 หรือ 089..."
+                    placeholder="เช่น AR-10297, 50ลส-1030 หรือ 089..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onFocus={() => {
