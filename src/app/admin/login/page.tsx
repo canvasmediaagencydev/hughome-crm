@@ -200,7 +200,7 @@ export default function AdminLogin() {
           {/* Footer */}
           <div className="mt-8 pt-6 border-t border-slate-200">
             <p className="text-center text-xs text-slate-500">
-              Hughome CRM Admin System
+              Hug Point Admin System
             </p>
           </div>
         </div>

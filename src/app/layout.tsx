@@ -14,8 +14,8 @@ const notoSansThai = Noto_Sans_Thai({
 });
 
 export const metadata: Metadata = {
-  title: "Hughome CRM",
-  description: "Customer relationship management for home services",
+  title: "Hug Point",
+  description: "Customer relationship management for Hug Point",
 };
 
 export const viewport: Viewport = {
