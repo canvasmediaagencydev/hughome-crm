@@ -235,7 +235,7 @@ function RewardsContent() {
       </div>
 
       {/* Segmented Tabs */}
-      <div className="px-4 pt-5">
+      {/* <div className="px-4 pt-5">
         <div
           role="tablist"
           aria-label="rewards tabs"
@@ -268,7 +268,7 @@ function RewardsContent() {
             ประวัติ
           </button>
         </div>
-      </div>
+      </div> */}
 
       {/* Available Rewards */}
       {activeTab === 'rewards' && (
