@@ -368,39 +368,52 @@ export default function OnboardingForm() {
 
               {/* OTP input */}
               {otpSent && !phoneVerified && (
-                <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-lg space-y-3">
-                  <p className="text-sm text-gray-600">
-                    ส่งรหัส OTP ไปยัง <span className="font-medium text-gray-800">{formData.phone}</span> แล้ว
-                  </p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={otpCode}
-                      onChange={(e) => {
-                        const v = e.target.value.replace(/\D/g, '').slice(0, 6)
-                        setOtpCode(v)
-                        setOtpError('')
-                      }}
-                      className={`flex-1 px-3 py-3 border rounded-lg text-base text-center tracking-widest font-mono focus:outline-none transition-colors ${
-                        otpError ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
-                      }`}
-                      placeholder="รหัส OTP"
-                      maxLength={6}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleVerifyOtp}
-                      disabled={isVerifyingOtp || otpCode.length < 4}
-                      className="shrink-0 px-4 py-3 bg-red-700 text-white text-sm font-medium rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {isVerifyingOtp ? 'กำลังตรวจสอบ...' : 'ยืนยัน'}
-                    </button>
+                <div className="mt-3 p-4 sm:p-5 bg-gray-50 border border-gray-200 rounded-xl space-y-4">
+                  <div className="space-y-0.5">
+                    <p className="text-sm text-gray-700">
+                      ส่งรหัส OTP ไปยัง{' '}
+                      <span className="font-medium text-gray-900">{formData.phone}</span>
+                    </p>
+                    <p className="text-xs text-gray-500">กรอกรหัส 6 หลักที่ได้รับ</p>
                   </div>
+
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="one-time-code"
+                    value={otpCode}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, '').slice(0, 6)
+                      setOtpCode(v)
+                      setOtpError('')
+                    }}
+                    className={`w-full px-4 py-4 border rounded-lg text-2xl text-center tracking-[0.4em] font-mono focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors ${
+                      otpError ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
+                    }`}
+                    placeholder="••••••"
+                    maxLength={6}
+                  />
+
                   {otpError && (
                     <p className="text-xs text-red-600">{otpError}</p>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={handleVerifyOtp}
+                    disabled={isVerifyingOtp || otpCode.length < 4}
+                    className="w-full min-h-[52px] px-4 py-3.5 bg-red-700 active:bg-red-800 text-white text-base font-semibold rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                  >
+                    {isVerifyingOtp ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        กำลังตรวจสอบ...
+                      </>
+                    ) : (
+                      'ยืนยัน OTP'
+                    )}
+                  </button>
                 </div>
               )}
 
