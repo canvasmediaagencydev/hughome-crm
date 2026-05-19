@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Shield, FileText, Download, Search, Loader2 } from 'lucide-react'
+import { Shield, FileText, Download, Search, Loader2, Users, HardHat, Home } from 'lucide-react'
 import { useAdminAuth } from '@/hooks/useAdminAuth'
 import { PERMISSIONS } from '@/types/admin'
 import { Button } from '@/components/ui/button'
@@ -19,12 +19,15 @@ import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { toast } from 'sonner'
 import { axiosAdmin } from '@/lib/axios-admin'
 
+type RoleFilter = 'all' | 'contractor' | 'homeowner'
+
 interface UserReport {
   created_at: string
   first_name: string | null
   last_name: string | null
   phone: string | null
   points_balance: number | null
+  role: string | null
 }
 
 interface ReportResponse {
@@ -61,6 +64,7 @@ export default function AdminReportsPage() {
 
   const [startDate, setStartDate] = useState(defaultStart)
   const [endDate, setEndDate] = useState(defaultEnd)
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
   const [reportData, setReportData] = useState<ReportResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [downloading, setDownloading] = useState(false)
@@ -101,7 +105,9 @@ export default function AdminReportsPage() {
 
     setLoading(true)
     try {
-      const res = await axiosAdmin.get(`/api/admin/reports/users?start=${startDate}&end=${endDate}`)
+      const params = new URLSearchParams({ start: startDate, end: endDate })
+      if (roleFilter !== 'all') params.set('role', roleFilter)
+      const res = await axiosAdmin.get(`/api/admin/reports/users?${params.toString()}`)
       setReportData(res.data)
     } catch (error) {
       console.error('Error fetching report:', error)
@@ -119,14 +125,17 @@ export default function AdminReportsPage() {
 
     setDownloading(true)
     try {
-      const res = await axiosAdmin.get(`/api/admin/reports/users/excel?start=${startDate}&end=${endDate}`, {
+      const params = new URLSearchParams({ start: startDate, end: endDate })
+      if (roleFilter !== 'all') params.set('role', roleFilter)
+      const res = await axiosAdmin.get(`/api/admin/reports/users/excel?${params.toString()}`, {
         responseType: 'blob'
       })
       const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `users-report-${startDate}-to-${endDate}.xlsx`
+      const roleSuffix = roleFilter !== 'all' ? `-${roleFilter}` : ''
+      a.download = `users-report-${startDate}-to-${endDate}${roleSuffix}.xlsx`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
@@ -249,6 +258,36 @@ export default function AdminReportsPage() {
               3 เดือนล่าสุด
             </Button>
           </div>
+
+          {/* Role filter */}
+          <div className="mt-4 pt-4 border-t border-slate-100">
+            <Label className="text-slate-700 text-sm">ประเภทลูกค้า</Label>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {([
+                { value: 'all', label: 'ทั้งหมด', icon: Users },
+                { value: 'contractor', label: 'ช่าง', icon: HardHat },
+                { value: 'homeowner', label: 'เจ้าของบ้าน', icon: Home },
+              ] as const).map((opt) => {
+                const Icon = opt.icon
+                const active = roleFilter === opt.value
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setRoleFilter(opt.value)}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                      active
+                        ? 'bg-slate-900 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Results */}
@@ -275,6 +314,16 @@ export default function AdminReportsPage() {
                     {reportData.start_date} ถึง {reportData.end_date}
                   </p>
                 </div>
+                <div>
+                  <span className="text-slate-500 text-sm">ประเภท</span>
+                  <p className="text-lg font-medium text-slate-900">
+                    {roleFilter === 'all'
+                      ? 'ทั้งหมด'
+                      : roleFilter === 'contractor'
+                      ? 'ช่าง'
+                      : 'เจ้าของบ้าน'}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -288,7 +337,8 @@ export default function AdminReportsPage() {
                     <TableHead>ชื่อจริง</TableHead>
                     <TableHead>นามสกุล</TableHead>
                     <TableHead className="w-32 text-center">เบอร์โทร</TableHead>
-                    <TableHead className="w-24 text-right">แต้มปัจจุบัน</TableHead>
+                    <TableHead className="w-36 text-center">ประเภท</TableHead>
+                    <TableHead className="w-48 text-right">แต้มปัจจุบัน</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -299,6 +349,21 @@ export default function AdminReportsPage() {
                       <TableCell>{user.first_name || '-'}</TableCell>
                       <TableCell>{user.last_name || '-'}</TableCell>
                       <TableCell className="text-center">{formatPhone(user.phone)}</TableCell>
+                      <TableCell className="text-center">
+                        {user.role === 'contractor' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                            <HardHat className="w-3 h-3" />
+                            ช่าง
+                          </span>
+                        ) : user.role === 'homeowner' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700 border border-sky-200">
+                            <Home className="w-3 h-3" />
+                            เจ้าของบ้าน
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right font-medium">{user.points_balance ?? 0}</TableCell>
                     </TableRow>
                   ))}

@@ -13,11 +13,19 @@ export async function GET(request: NextRequest) {
 
     const startDate = searchParams.get("start"); // "2025-01-01"
     const endDate = searchParams.get("end"); // "2025-01-31"
+    const role = searchParams.get("role"); // "contractor" | "homeowner" | null
 
     // Validate parameters
     if (!startDate || !endDate) {
       return NextResponse.json(
         { error: "Missing required parameters: start and end (format: YYYY-MM-DD)" },
+        { status: 400 }
+      );
+    }
+
+    if (role && role !== "contractor" && role !== "homeowner") {
+      return NextResponse.json(
+        { error: "Invalid role. Must be 'contractor' or 'homeowner'" },
         { status: 400 }
       );
     }
@@ -37,13 +45,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { data: users, error } = await supabase
+    let query = supabase
       .from("user_profiles")
-      .select("created_at, first_name, last_name, phone, points_balance")
+      .select("created_at, first_name, last_name, phone, points_balance, role")
       .not("role", "is", null)
       .gte("created_at", start.toISOString())
       .lte("created_at", end.toISOString())
       .order("created_at", { ascending: false });
+
+    if (role) {
+      query = query.eq("role", role);
+    }
+
+    const { data: users, error } = await query;
 
     if (error) {
       console.error("Database query error:", error);

@@ -30,10 +30,18 @@ export async function GET(request: NextRequest) {
 
     const startDate = searchParams.get("start");
     const endDate = searchParams.get("end");
+    const role = searchParams.get("role"); // "contractor" | "homeowner" | null
 
     if (!startDate || !endDate) {
       return NextResponse.json(
         { error: "Missing required parameters: start and end" },
+        { status: 400 }
+      );
+    }
+
+    if (role && role !== "contractor" && role !== "homeowner") {
+      return NextResponse.json(
+        { error: "Invalid role. Must be 'contractor' or 'homeowner'" },
         { status: 400 }
       );
     }
@@ -53,21 +61,33 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { data: users, error } = await supabase
+    let query = supabase
       .from("user_profiles")
-      .select("created_at, first_name, last_name, phone, points_balance")
+      .select("created_at, first_name, last_name, phone, points_balance, role")
       .not("role", "is", null)
       .gte("created_at", start.toISOString())
       .lte("created_at", end.toISOString())
       .order("created_at", { ascending: false });
+
+    if (role) {
+      query = query.eq("role", role);
+    }
+
+    const { data: users, error } = await query;
 
     if (error) {
       console.error("Database query error:", error);
       return NextResponse.json({ error: "Failed to fetch data" }, { status: 500 });
     }
 
+    const roleLabel = (r: string | null): string => {
+      if (r === "contractor") return "ช่าง";
+      if (r === "homeowner") return "เจ้าของบ้าน";
+      return "-";
+    };
+
     // สร้างข้อมูลสำหรับ Excel
-    const headers = ["ลำดับ", "วันที่สมัคร", "ชื่อจริง", "นามสกุล", "เบอร์โทร", "แต้มปัจจุบัน"];
+    const headers = ["ลำดับ", "วันที่สมัคร", "ชื่อจริง", "นามสกุล", "เบอร์โทร", "ประเภท", "แต้มปัจจุบัน"];
 
     const rows = (users || []).map((user, index) => [
       index + 1,
@@ -75,6 +95,7 @@ export async function GET(request: NextRequest) {
       user.first_name || "-",
       user.last_name || "-",
       formatPhone(user.phone),
+      roleLabel(user.role),
       user.points_balance ?? 0,
     ]);
 
@@ -89,15 +110,23 @@ export async function GET(request: NextRequest) {
       { wch: 15 },  // ชื่อจริง
       { wch: 15 },  // นามสกุล
       { wch: 14 },  // เบอร์โทร
+      { wch: 12 },  // ประเภท
       { wch: 12 },  // แต้มปัจจุบัน
     ];
 
-    XLSX.utils.book_append_sheet(wb, ws, "รายงานลูกค้า");
+    const sheetName = role === "contractor"
+      ? "รายงานช่าง"
+      : role === "homeowner"
+      ? "รายงานเจ้าของบ้าน"
+      : "รายงานลูกค้า";
+
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
     // สร้างไฟล์ Excel
     const excelBuffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
 
-    const filename = `users-report-${startDate}-to-${endDate}.xlsx`;
+    const roleSuffix = role ? `-${role}` : "";
+    const filename = `users-report-${startDate}-to-${endDate}${roleSuffix}.xlsx`;
 
     return new NextResponse(excelBuffer, {
       headers: {
