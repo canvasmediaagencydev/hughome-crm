@@ -662,6 +662,7 @@ export type Database = {
       }
       user_profiles: {
         Row: {
+          birthday: string | null
           created_at: string
           customer_code: string | null
           display_name: string | null
@@ -674,11 +675,13 @@ export type Database = {
           phone: string | null
           picture_url: string | null
           points_balance: number | null
+          points_expire_at: string | null
           role: string | null
           total_receipts: number | null
           updated_at: string
         }
         Insert: {
+          birthday?: string | null
           created_at?: string
           customer_code?: string | null
           display_name?: string | null
@@ -691,11 +694,13 @@ export type Database = {
           phone?: string | null
           picture_url?: string | null
           points_balance?: number | null
+          points_expire_at?: string | null
           role?: string | null
           total_receipts?: number | null
           updated_at?: string
         }
         Update: {
+          birthday?: string | null
           created_at?: string
           customer_code?: string | null
           display_name?: string | null
@@ -708,6 +713,7 @@ export type Database = {
           phone?: string | null
           picture_url?: string | null
           points_balance?: number | null
+          points_expire_at?: string | null
           role?: string | null
           total_receipts?: number | null
           updated_at?: string

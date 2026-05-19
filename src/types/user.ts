@@ -25,6 +25,8 @@ export interface User {
   total_receipts: number | null
   created_at: string
   customer_code: string | null
+  birthday: string | null
+  points_expire_at: string | null
   tags?: Tag[]
 }
 

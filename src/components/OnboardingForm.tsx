@@ -13,6 +13,7 @@ interface OnboardingFormData {
   first_name: string
   last_name: string
   phone: string
+  birthday: string
 }
 
 const OTP_RESEND_SECONDS = 60
@@ -27,6 +28,7 @@ export default function OnboardingForm() {
     first_name: '',
     last_name: '',
     phone: '',
+    birthday: '',
   })
 
   const [validationErrors, setValidationErrors] = useState<Partial<OnboardingFormData>>({})
@@ -310,6 +312,20 @@ export default function OnboardingForm() {
               {validationErrors.last_name && (
                 <p className="mt-1 text-xs text-red-600">{validationErrors.last_name}</p>
               )}
+            </div>
+
+            <div>
+              <label htmlFor="birthday" className="block text-sm font-medium text-gray-700 mb-2">
+                วันเกิด <span className="text-gray-400 text-xs">(ไม่บังคับ)</span>
+              </label>
+              <input
+                type="date"
+                id="birthday"
+                value={formData.birthday}
+                onChange={(e) => handleChange('birthday', e.target.value)}
+                max={new Date().toISOString().slice(0, 10)}
+                className="w-full px-3 py-3 border border-gray-300 bg-white rounded-lg text-base focus:outline-none transition-colors"
+              />
             </div>
 
             {/* Phone + OTP */}

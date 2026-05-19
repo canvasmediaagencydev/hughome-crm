@@ -99,24 +99,44 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { customer_code } = body;
+    const { customer_code, birthday } = body;
 
-    // Validate format: either "XX-digits" (e.g. AR-10297) or "digits+letters-digits" (e.g. 50ลส-1030)
-    const normalized = customer_code === "" ? null : customer_code;
-    if (normalized !== null) {
-      if (!/^([A-Za-z]{2}-\d+|\d+[A-Za-zก-๙]+-\d+)$/.test(normalized)) {
+    const updates: { customer_code?: string | null; birthday?: string | null } = {};
+
+    if (Object.prototype.hasOwnProperty.call(body, "customer_code")) {
+      // Validate format: either "XX-digits" (e.g. AR-10297) or "digits+letters-digits" (e.g. 50ลส-1030)
+      const normalized = customer_code === "" ? null : customer_code;
+      if (normalized !== null) {
+        if (!/^([A-Za-z]{2}-\d+|\d+[A-Za-zก-๙]+-\d+)$/.test(normalized)) {
+          return NextResponse.json(
+            { error: "รูปแบบรหัสไม่ถูกต้อง ต้องเป็น เช่น AR-10297 หรือ 50ลส-1030" },
+            { status: 400 }
+          );
+        }
+      }
+      updates.customer_code = normalized;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, "birthday")) {
+      const normalizedBirthday = birthday === "" || birthday == null ? null : birthday;
+      if (normalizedBirthday !== null && !/^\d{4}-\d{2}-\d{2}$/.test(normalizedBirthday)) {
         return NextResponse.json(
-          { error: "รูปแบบรหัสไม่ถูกต้อง ต้องเป็น เช่น AR-10297 หรือ 50ลส-1030" },
+          { error: "รูปแบบวันเกิดไม่ถูกต้อง (YYYY-MM-DD)" },
           { status: 400 }
         );
       }
+      updates.birthday = normalizedBirthday;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: "No fields to update" }, { status: 400 });
     }
 
     const supabase = createServerSupabaseClient();
 
     const { data, error } = await supabase
       .from("user_profiles")
-      .update({ customer_code: normalized })
+      .update(updates)
       .eq("id", id)
       .select()
       .single();
@@ -129,7 +149,7 @@ export async function PATCH(
         );
       }
       return NextResponse.json(
-        { error: "Failed to update customer code" },
+        { error: "Failed to update user" },
         { status: 500 }
       );
     }
@@ -137,7 +157,7 @@ export async function PATCH(
     return NextResponse.json({ user: data });
   } catch (error) {
     return NextResponse.json(
-      { error: "Failed to update customer code" },
+      { error: "Failed to update user" },
       { status: 500 }
     );
   }

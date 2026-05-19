@@ -10,6 +10,7 @@ interface CachedUserSession {
     first_name: string | null
     last_name: string | null
     phone: string | null
+    birthday: string | null
     is_onboarded: boolean
     points_balance: number
   }

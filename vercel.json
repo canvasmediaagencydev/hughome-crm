@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/birthday-greetings",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/points-expiry-reminder",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/expire-points",
+      "schedule": "30 17 * * *"
+    }
+  ]
+}

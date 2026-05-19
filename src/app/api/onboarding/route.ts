@@ -8,12 +8,13 @@ interface OnboardingRequestBody {
   first_name: string
   last_name: string
   phone: string
+  birthday?: string | null
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body: OnboardingRequestBody = await request.json()
-    const { line_user_id, role, first_name, last_name, phone } = body
+    const { line_user_id, role, first_name, last_name, phone, birthday } = body
 
     if (!line_user_id || !role || !first_name || !last_name || !phone) {
       return NextResponse.json(
@@ -22,8 +23,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate birthday format if provided
+    let normalizedBirthday: string | null = null
+    if (birthday) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(birthday)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid birthday format (expected YYYY-MM-DD)' },
+          { status: 400 }
+        )
+      }
+      normalizedBirthday = birthday
+    }
+
     const supabase = createServerSupabaseClient()
-    
+
     // Update user profile with onboarding data
     const { data: updatedUser, error } = await supabase
       .from('user_profiles')
@@ -32,6 +45,7 @@ export async function POST(request: NextRequest) {
         first_name,
         last_name,
         phone,
+        birthday: normalizedBirthday,
         updated_at: new Date().toISOString()
       })
       .eq('line_user_id', line_user_id)

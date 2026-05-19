@@ -72,9 +72,17 @@ export function UserDetailModal({
   const [savingCode, setSavingCode] = useState(false)
   const [codeError, setCodeError] = useState<string | null>(null)
 
+  // Birthday editing state
+  const [localBirthday, setLocalBirthday] = useState<string | null>(user?.birthday ?? null)
+  const [isEditingBirthday, setIsEditingBirthday] = useState(false)
+  const [editingBirthdayValue, setEditingBirthdayValue] = useState('')
+  const [savingBirthday, setSavingBirthday] = useState(false)
+  const [birthdayError, setBirthdayError] = useState<string | null>(null)
+
   useEffect(() => {
     setLocalCustomerCode(user?.customer_code ?? null)
-  }, [user?.id, user?.customer_code])
+    setLocalBirthday(user?.birthday ?? null)
+  }, [user?.id, user?.customer_code, user?.birthday])
 
   const handleEditCode = () => {
     setEditingCodeValue(localCustomerCode || '')
@@ -100,6 +108,33 @@ export function UserDetailModal({
       }
     } finally {
       setSavingCode(false)
+    }
+  }
+
+  const handleEditBirthday = () => {
+    setEditingBirthdayValue(localBirthday || '')
+    setBirthdayError(null)
+    setIsEditingBirthday(true)
+  }
+
+  const handleSaveBirthday = async () => {
+    if (!user) return
+    setSavingBirthday(true)
+    setBirthdayError(null)
+    try {
+      const { data } = await axiosAdmin.patch(`/api/admin/users/${user.id}`, {
+        birthday: editingBirthdayValue.trim() || null,
+      })
+      setLocalBirthday(data.user.birthday)
+      setIsEditingBirthday(false)
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        setBirthdayError(err.response?.data?.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่')
+      } else {
+        setBirthdayError('เกิดข้อผิดพลาด กรุณาลองใหม่')
+      }
+    } finally {
+      setSavingBirthday(false)
     }
   }
 
@@ -233,6 +268,68 @@ export function UserDetailModal({
                       <span className="text-sm font-medium text-slate-900">{formatDate(user.last_login_at)}</span>
                     </div>
                   )}
+                  {user.points_expire_at && (
+                    <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-slate-200">
+                      <span className="text-sm text-slate-600">แต้มหมดอายุ</span>
+                      <span className="text-sm font-medium text-slate-900">{formatDate(user.points_expire_at)}</span>
+                    </div>
+                  )}
+                  {/* Birthday (editable) */}
+                  <div className="p-3 bg-white rounded-lg border border-slate-200 md:col-span-2">
+                    {!isEditingBirthday ? (
+                      <div className="flex justify-between items-center gap-2">
+                        <span className="text-sm text-slate-600">วันเกิด</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-slate-900">
+                            {localBirthday ? formatDate(localBirthday) : '-'}
+                          </span>
+                          {canEditUsers && (
+                            <button
+                              type="button"
+                              onClick={handleEditBirthday}
+                              className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                            >
+                              แก้ไข
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-slate-600 shrink-0">วันเกิด</span>
+                          <input
+                            type="date"
+                            value={editingBirthdayValue}
+                            max={new Date().toISOString().slice(0, 10)}
+                            onChange={(e) => setEditingBirthdayValue(e.target.value)}
+                            className="flex-1 px-2 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingBirthday(false)}
+                            disabled={savingBirthday}
+                            className="px-3 py-1 text-xs text-slate-600 hover:text-slate-800"
+                          >
+                            ยกเลิก
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSaveBirthday}
+                            disabled={savingBirthday}
+                            className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded font-medium"
+                          >
+                            {savingBirthday ? 'กำลังบันทึก...' : 'บันทึก'}
+                          </button>
+                        </div>
+                        {birthdayError && (
+                          <p className="text-xs text-red-600">{birthdayError}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
