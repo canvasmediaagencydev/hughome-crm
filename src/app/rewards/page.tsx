@@ -17,7 +17,7 @@ import { UserSessionManager } from '@/lib/user-session'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { FaHistory } from 'react-icons/fa'
 import { HiOutlineGift, HiOutlineSparkles } from 'react-icons/hi'
-import { HiOutlineShoppingBag } from 'react-icons/hi2'
+import { HiOutlineShoppingBag, HiOutlineBuildingStorefront } from 'react-icons/hi2'
 import BottomNavigation from '@/components/BottomNavigation'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { StatusBadge } from '@/components/StatusBadge'
@@ -527,7 +527,7 @@ function RewardsContent() {
               ยืนยันการแลกรางวัล
             </DialogTitle>
             <DialogDescription>
-              รางวัลจะพร้อมให้รับที่ร้าน กรุณามารับภายใน 7 วัน
+              กรุณาตรวจสอบรายละเอียดและเงื่อนไขการรับสินค้าก่อนยืนยัน
             </DialogDescription>
           </DialogHeader>
           {selectedReward && (
@@ -584,6 +584,32 @@ function RewardsContent() {
                     {(userPoints - selectedReward.points_cost).toLocaleString()}{' '}
                     แต้ม
                   </span>
+                </div>
+              </div>
+
+              {/* Pickup Notice */}
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                <div className="flex gap-2.5">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                    <HiOutlineBuildingStorefront className="h-4 w-4 text-red-600" />
+                  </div>
+                  <div className="flex-1 space-y-1.5">
+                    <p className="text-[13px] font-semibold text-red-900 leading-snug">
+                      เงื่อนไขการรับสินค้า
+                    </p>
+                    <p className="text-[11.5px] text-red-800/90 leading-relaxed">
+                      หลังจากกดแลกแต้มเรียบร้อยแล้ว สินค้าจะพร้อมให้มารับ
+                      ณ หน้าร้านภายใน{' '}
+                      <span className="font-semibold">7-14 วันทำการ</span>
+                    </p>
+                    <p className="text-[11.5px] text-red-800/90 leading-relaxed">
+                      ขอสงวนสิทธิ์ในการรับสินค้าที่หน้าร้านเท่านั้น
+                      <span className="text-red-700/80">
+                        {' '}
+                        (ไม่มีบริการจัดส่งไปยังที่อยู่)
+                      </span>
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
