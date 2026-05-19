@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { requirePermission } from "@/lib/admin-auth";
 import { PERMISSIONS } from "@/types/admin";
+import { notifyPointChange, type PointNotificationKind } from "@/lib/line-messaging";
 
 interface AdjustPointsRequest {
   amount: number;
@@ -47,7 +48,7 @@ export async function POST(
     // Get current user
     const { data: user, error: userError } = await supabase
       .from("user_profiles")
-      .select("points_balance")
+      .select("points_balance, line_user_id")
       .eq("id", id)
       .single();
 
@@ -102,6 +103,18 @@ export async function POST(
         { status: 500 }
       );
     }
+
+    // Notify user via LINE push message (fire-and-forget)
+    const kindMap: Record<typeof type, PointNotificationKind> = {
+      bonus: "points_bonus",
+      refund: "points_refund",
+      spent: "points_spent",
+    };
+    await notifyPointChange(user.line_user_id, {
+      kind: kindMap[type],
+      pointsDelta: amount,
+      newBalance: newBalance,
+    });
 
     return NextResponse.json({
       success: true,

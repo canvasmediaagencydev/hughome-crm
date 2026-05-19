@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { requirePermission } from "@/lib/admin-auth";
 import { PERMISSIONS } from "@/types/admin";
+import { notifyPointChange } from "@/lib/line-messaging";
 
 interface RouteParams {
   params: Promise<{
@@ -33,7 +34,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         *,
         user_profiles!receipts_user_id_fkey (
           id,
-          points_balance
+          points_balance,
+          line_user_id
         )
       `)
       .eq("id", id)
@@ -145,6 +147,15 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (transactionError) {
       console.error("Error creating point transaction:", transactionError);
       // Don't fail the whole operation for transaction log failure
+    }
+
+    // Notify user via LINE push message (fire-and-forget)
+    if (points_awarded > 0) {
+      await notifyPointChange(user.line_user_id, {
+        kind: "receipt_approved",
+        pointsDelta: points_awarded,
+        newBalance: newPointsBalance,
+      });
     }
 
     return NextResponse.json({
