@@ -39,7 +39,10 @@ yarn-error.log*
 
 /.bmad-core
 /.claude
+/.playwright-mcp
+/database-triggers
 /docs
+/migrations
 
 
 # typescript
