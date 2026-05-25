@@ -136,6 +136,11 @@ export async function pushMessage(
 ): Promise<void> {
   if (!toLineUserId) return;
 
+  if (process.env.NOTIFICATIONS_ENABLED === "false") {
+    console.log("[line-messaging] notifications disabled, skipping push to", toLineUserId);
+    return;
+  }
+
   const res = await lineRequest("POST", "/message/push", {
     to: toLineUserId,
     messages,
