@@ -18,6 +18,7 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [showWelcome, setShowWelcome] = useState(true)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const router = useRouter()
 
   const authenticateWithBackend = async (profile: any, forceValidation = false, retryCount = 0) => {
@@ -31,6 +32,9 @@ export default function Home() {
       })
       
       const data = response.data
+      if (!data.success) {
+        setErrorMsg(`เข้าสู่ระบบไม่สำเร็จ: ${data.error || 'unknown'}${idToken ? '' : ' (ไม่มี idToken — LIFF ต้องเปิด scope openid)'}`)
+      }
       if (data.success && data.user) {
         const userData = {
           ...profile,
@@ -53,7 +57,10 @@ export default function Home() {
       return false
     } catch (apiError: any) {
       console.error('API authentication failed:', apiError)
-      
+      const status = apiError.response?.status
+      const serverErr = apiError.response?.data?.error
+      setErrorMsg(`เข้าสู่ระบบไม่สำเร็จ (HTTP ${status ?? '?'}): ${serverErr || apiError.message || 'unknown'}`)
+
       // If user not found in database, logout and retry login
       if (apiError.response?.status === 404) {
         console.log('User not found in database during login, logging out and retrying')
@@ -112,6 +119,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error('LIFF initialization error:', error)
+      setErrorMsg(`LIFF init error: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setIsLoading(false)
     }
@@ -159,4 +167,25 @@ export default function Home() {
       </div>
     )
   }
+
+  // Not loading: never render blank. If we reach here, a redirect didn't happen
+  // (auth failed) — show the reason so it's debuggable on the phone.
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="max-w-sm w-full text-center space-y-4">
+        <h1 className="text-xl font-bold text-gray-800">Hughome</h1>
+        {errorMsg ? (
+          <p className="text-sm text-red-600 break-words whitespace-pre-wrap">{errorMsg}</p>
+        ) : (
+          <p className="text-sm text-gray-600">กำลังเปลี่ยนหน้า...</p>
+        )}
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-red-500 text-white px-4 py-2 rounded"
+        >
+          ลองใหม่
+        </button>
+      </div>
+    </div>
+  )
 }
