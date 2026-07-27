@@ -77,6 +77,13 @@ export default function OnboardingForm() {
       errors.phone = 'กรุณาใส่เบอร์โทรศัพท์'
     }
 
+    // birthday is required by the API (user_profiles.birthday NOT NULL)
+    if (!formData.birthday.trim()) {
+      errors.birthday = 'กรุณาเลือกวันเกิด'
+    } else if (!/^\d{4}-\d{2}-\d{2}$/.test(formData.birthday)) {
+      errors.birthday = 'รูปแบบวันเกิดไม่ถูกต้อง (YYYY-MM-DD)'
+    }
+
     setValidationErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -316,7 +323,7 @@ export default function OnboardingForm() {
 
             <div>
               <label htmlFor="birthday" className="block text-sm font-medium text-gray-700 mb-2">
-                วันเกิด <span className="text-gray-400 text-xs">(ไม่บังคับ)</span>
+                วันเกิด <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
@@ -326,6 +333,9 @@ export default function OnboardingForm() {
                 max={new Date().toISOString().slice(0, 10)}
                 className="w-full px-3 py-3 border border-gray-300 bg-white rounded-lg text-base focus:outline-none transition-colors"
               />
+              {validationErrors.birthday && (
+                <p className="mt-1 text-xs text-red-600">{validationErrors.birthday}</p>
+              )}
             </div>
 
             {/* Phone + OTP */}
