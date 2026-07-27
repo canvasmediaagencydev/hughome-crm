@@ -24,8 +24,7 @@ interface Redemption {
   created_at: string
   points_used: number
   quantity: number
-  status: 'requested' | 'processing' | 'shipped' | 'cancelled'
-  shipping_address: string | null
+  status: 'requested' | 'processing' | 'shipped' | 'cancelled' // TODO Sprint 8: 4-status model
   admin_notes: string | null
   processed_at: string | null
   rewards: {

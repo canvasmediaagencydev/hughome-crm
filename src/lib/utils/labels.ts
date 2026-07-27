@@ -23,18 +23,6 @@ export function getTransactionColor(type: string): string {
 }
 
 /**
- * Receipt status labels mapping
- */
-export function getReceiptStatusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    pending: 'รออนุมัติ',
-    approved: 'อนุมัติแล้ว',
-    rejected: 'ถูกปฏิเสธ'
-  }
-  return labels[status] || status
-}
-
-/**
  * Redemption status labels mapping
  */
 export function getRedemptionStatusLabel(status: string): string {

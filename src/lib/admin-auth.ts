@@ -207,7 +207,7 @@ export async function getAdminPermissions(
 /**
  * ตรวจสอบว่า admin มี permission นี้หรือไม่
  * @param adminUserId - UUID จาก admin_users
- * @param permissionKey - permission key (เช่น 'receipts.approve')
+ * @param permissionKey - permission key (เช่น 'rewards.edit')
  * @returns boolean
  */
 export async function checkPermission(

@@ -20,13 +20,10 @@ export interface User {
   picture_url: string | null
   role: string | null
   points_balance: number | null
-  is_admin: boolean | null
   last_login_at: string | null
-  total_receipts: number | null
   created_at: string
   customer_code: string | null
   birthday: string | null
-  points_expire_at: string | null
   tags?: Tag[]
 }
 

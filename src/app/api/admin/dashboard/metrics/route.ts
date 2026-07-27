@@ -15,53 +15,44 @@ export async function GET() {
     const currentMonthStart = startOfMonth(now);
     const currentMonthEnd = endOfMonth(now);
 
-    // Optimize by fetching all user profiles once and counting in-memory
+    // New model: "receipts" no longer exist. Map the old metric shape onto the
+    // real tables — committed batches, not-yet-delivered redemptions, and total
+    // points handed out. All zero until real data exists (correct).
     const [
       allUsers,
-      allReceipts,
+      committedBatches,
+      voidedBatches,
+      pendingPickups,
+      ledger,
       activeRewardsCount,
       pendingRedemptionsCount,
       pointSettings
     ] = await Promise.all([
-      // Get all users with role (single query instead of 4)
-      supabase
-        .from("user_profiles")
-        .select("role, created_at"),
-
-      // Get all receipts with status and amount (single query instead of 3)
-      supabase
-        .from("receipts")
-        .select("status, total_amount, created_at"),
-
-      // Active rewards count
-      supabase
-        .from("rewards")
-        .select("*", { count: "exact", head: true })
-        .eq("is_active", true),
-
-      // Pending redemptions count
-      supabase
-        .from("redemptions")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "requested"),
-
-      // Point settings (include in dashboard to avoid separate API call)
-      supabase
-        .from("point_settings")
-        .select("*")
-        .order("created_at", { ascending: false })
+      supabase.from("user_profiles").select("role, created_at"),
+      // จำนวนใบเสร็จ → จำนวน batch ที่ commit
+      supabase.from("point_batches").select("*", { count: "exact", head: true }).eq("status", "committed"),
+      supabase.from("point_batches").select("*", { count: "exact", head: true }).eq("status", "voided"),
+      // รออนุมัติ → คำขอแลกที่ยังไม่ delivered
+      supabase.from("redemptions").select("*", { count: "exact", head: true }).not("status", "in", "(delivered,cancelled)"),
+      // ยอดรวม → แต้มที่แจกไปทั้งหมด
+      supabase.from("point_batch_ledger").select("points_earned"),
+      supabase.from("rewards").select("*", { count: "exact", head: true }).eq("is_active", true),
+      supabase.from("redemptions").select("*", { count: "exact", head: true }).eq("status", "requested"),
+      supabase.from("point_settings").select("*").order("created_at", { ascending: false })
     ]);
 
     // Check for errors
     if (allUsers.error) throw allUsers.error;
-    if (allReceipts.error) throw allReceipts.error;
+    if (committedBatches.error) throw committedBatches.error;
+    if (voidedBatches.error) throw voidedBatches.error;
+    if (pendingPickups.error) throw pendingPickups.error;
+    if (ledger.error) throw ledger.error;
     if (activeRewardsCount.error) throw activeRewardsCount.error;
     if (pendingRedemptionsCount.error) throw pendingRedemptionsCount.error;
     if (pointSettings.error) throw pointSettings.error;
 
     // Calculate metrics in-memory (more efficient than multiple queries)
     const users = allUsers.data || [];
-    const receipts = allReceipts.data || [];
 
     const totalUsers = users.length;
     const contractorCount = users.filter(u => u.role === "contractor").length;
@@ -71,12 +62,11 @@ export async function GET() {
       return createdAt >= currentMonthStart && createdAt <= currentMonthEnd;
     }).length;
 
-    const totalReceipts = receipts.length;
-    const pendingReceipts = receipts.filter(r => r.status === "pending").length;
-    const approvedReceipts = receipts.filter(r => r.status === "approved");
-    const approvedCount = approvedReceipts.length;
-    const rejectedReceipts = receipts.filter(r => r.status === "rejected").length;
-    const totalValue = approvedReceipts.reduce((sum, r) => sum + (r.total_amount || 0), 0);
+    const totalReceipts = committedBatches.count || 0;      // committed batches
+    const pendingReceipts = pendingPickups.count || 0;      // redemptions not delivered
+    const approvedCount = committedBatches.count || 0;
+    const rejectedReceipts = voidedBatches.count || 0;      // voided batches
+    const totalValue = (ledger.data || []).reduce((sum, r) => sum + (r.points_earned || 0), 0);
 
     // Return consolidated metrics (including point settings)
     return NextResponse.json(

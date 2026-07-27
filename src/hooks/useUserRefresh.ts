@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation'
 import { axiosAdmin as axios } from '@/lib/axios-admin'
 import { UserData } from '@/types'
 import { UserSessionManager } from '@/lib/user-session'
+import { clientEnv } from '@/config/env'
 
 interface UseUserRefreshParams {
   onSuccess?: (updatedData: UserData) => void
@@ -49,7 +50,8 @@ export function useUserRefresh({ onSuccess, transformUserData }: UseUserRefreshP
         // Logout from LINE LIFF and redirect to login page
         try {
           const liff = (await import('@line/liff')).default
-          await liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID || "2000719050-rGVOBePm" })
+          // No hardcoded fallback (MIGRATION_PLAN.md §9.1).
+          await liff.init({ liffId: clientEnv.NEXT_PUBLIC_LINE_LIFF_ID })
           if (liff.isLoggedIn()) {
             liff.logout()
           }

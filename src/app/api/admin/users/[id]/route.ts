@@ -53,8 +53,7 @@ export async function GET(
         id,
         points_used,
         status,
-        shipping_address,
-        tracking_number,
+        pickup_code,
         created_at,
         rewards (
           name,

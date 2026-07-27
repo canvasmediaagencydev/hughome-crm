@@ -7,15 +7,11 @@ import type { DateRange, RoleFilter } from '@/hooks/useDashboard'
 import { usePointSettings } from '@/hooks/usePointSettings'
 import { DashboardMetrics } from '@/components/admin/dashboard/DashboardMetrics'
 import { UserStatistics } from '@/components/admin/dashboard/UserStatistics'
-import { TimeSeriesChart } from '@/components/admin/dashboard/TimeSeriesChart'
-import { ReceiptStatusChart } from '@/components/admin/dashboard/ReceiptStatusChart'
 import { UserDistributionChart } from '@/components/admin/dashboard/UserDistributionChart'
 import { UsageStatistics } from '@/components/admin/dashboard/UsageStatistics'
-import { RecentReceiptsTable } from '@/components/admin/dashboard/RecentReceiptsTable'
 import { PointSettingsForm } from '@/components/admin/dashboard/PointSettingsForm'
 import { QuickActions } from '@/components/admin/dashboard/QuickActions'
-import { MetricCardSkeleton, ChartSkeleton, TableSkeleton } from '@/components/ui/skeleton'
-import { calculatePoints } from '@/utils/receiptHelpers'
+import { MetricCardSkeleton, ChartSkeleton } from '@/components/ui/skeleton'
 import { useAdminAuth } from '@/hooks/useAdminAuth'
 import { PERMISSIONS } from '@/types/admin'
 
@@ -40,12 +36,8 @@ export default function AdminDashboard() {
   const {
     loading,
     metricsLoading,
-    receiptsLoading,
     dashboardMetrics,
-    recentReceipts,
-    timeSeriesData,
     userDistribution,
-    receiptStatusDistribution,
     pointSetting,
     bahtPerPoint,
     setBahtPerPoint,
@@ -69,11 +61,6 @@ export default function AdminDashboard() {
 
   const handleSavePointSetting = async () => {
     const success = await savePointSetting(pointSetting, bahtPerPoint, fetchAllDashboardData)
-  }
-
-  const calcPoints = (totalAmount: number) => {
-    if (!pointSetting) return 0
-    return calculatePoints(totalAmount, pointSetting.setting_value)
   }
 
   const visibleTabs = useMemo(() => {
@@ -214,29 +201,8 @@ export default function AdminDashboard() {
             <UserStatistics metrics={dashboardMetrics} loading={false} />
           )}
 
-          {/* Charts Row */}
-          {metricsLoading ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <ChartSkeleton />
-              <ChartSkeleton />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <TimeSeriesChart data={timeSeriesData} dateRange={dateRange} />
-              <ReceiptStatusChart data={receiptStatusDistribution} />
-            </div>
-          )}
-
-          {/* Recent Receipts */}
-          {receiptsLoading ? (
-            <TableSkeleton rows={5} />
-          ) : (
-            <RecentReceiptsTable
-              receipts={recentReceipts}
-              loading={false}
-              calculatePoints={calcPoints}
-            />
-          )}
+          {/* NOTE: receipt charts / recent-receipts table removed (OCR flow gone).
+              Points/batch charts will be rebuilt in Sprint 9. */}
         </TabsContent>
 
         {showAnalyticsTab && (

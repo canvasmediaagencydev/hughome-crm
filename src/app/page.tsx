@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import liff from '@line/liff'
 import axios from 'axios'
 import { UserSessionManager } from '@/lib/user-session'
+import { clientEnv } from '@/config/env'
 
 interface User {
   userId: string
@@ -90,7 +91,9 @@ export default function Home() {
       // REMOVED FAST PATH - Always validate with backend before redirecting
       // This prevents race conditions where cached data is stale
 
-      await liff.init({ liffId: process.env.NEXT_PUBLIC_LINE_LIFF_ID || "2000719050-rGVOBePm" })
+      // No hardcoded fallback: a missing LIFF id must fail loudly, never route
+      // testers into the real Mae Rim production LINE (MIGRATION_PLAN.md §9.1).
+      await liff.init({ liffId: clientEnv.NEXT_PUBLIC_LINE_LIFF_ID })
 
       if (liff.isLoggedIn()) {
         const profile = await liff.getProfile()

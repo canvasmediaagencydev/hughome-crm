@@ -18,7 +18,6 @@ export {
 export {
   getTransactionTypeLabel,
   getTransactionColor,
-  getReceiptStatusLabel,
   getRedemptionStatusLabel,
   getRedemptionStatusColor,
   getRoleLabel

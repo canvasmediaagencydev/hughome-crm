@@ -64,13 +64,17 @@ export interface AdminPermission {
 
 export type PermissionCategory =
   | 'dashboard'
-  | 'receipts'
   | 'users'
   | 'rewards'
   | 'redemptions'
   | 'settings'
   | 'admins'
   | 'tags'
+  | 'batches'
+  | 'promos'
+  | 'notifications'
+  | 'reports'
+  | 'sales'
 
 export interface PermissionsByCategory {
   category: PermissionCategory
@@ -113,13 +117,6 @@ export const PERMISSIONS = {
   // Dashboard
   DASHBOARD_VIEW: 'dashboard.view',
 
-  // Receipts
-  RECEIPTS_VIEW: 'receipts.view',
-  RECEIPTS_APPROVE: 'receipts.approve',
-  RECEIPTS_REJECT: 'receipts.reject',
-  RECEIPTS_AUTO_PROCESS: 'receipts.auto_process',
-  RECEIPTS_UPLOAD: 'receipts.upload',
-
   // Users
   USERS_VIEW: 'users.view',
   USERS_EDIT: 'users.edit',
@@ -140,12 +137,33 @@ export const PERMISSIONS = {
   // Redemptions
   REDEMPTIONS_VIEW: 'redemptions.view',
   REDEMPTIONS_PROCESS: 'redemptions.process',
+  REDEMPTIONS_DELIVER: 'redemptions.deliver',
+
+  // Batches (Excel upload)
+  BATCHES_VIEW: 'batches.view',
+  BATCHES_UPLOAD: 'batches.upload',
+  BATCHES_COMMIT: 'batches.commit',
+  BATCHES_REVIEW: 'batches.review',
+  BATCHES_VOID: 'batches.void',
+
+  // Promo codes
+  PROMOS_VIEW: 'promos.view',
+  PROMOS_MANAGE: 'promos.manage',
+
+  // Notifications
+  NOTIFICATIONS_MANAGE: 'notifications.manage',
+
+  // Reports
+  REPORTS_VIEW: 'reports.view',
 
   // Settings
   SETTINGS_EDIT: 'settings.edit',
 
   // Admins
   ADMINS_MANAGE: 'admins.manage',
+
+  // Sales (reserved — no UI yet)
+  SALES_ENTRY: 'sales.entry',
 } as const
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS]
@@ -156,9 +174,11 @@ export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS]
 
 export const ROLES = {
   SUPER_ADMIN: 'super_admin',
-  RECEIPT_MANAGER: 'receipt_manager',
-  CUSTOMER_SUPPORT: 'customer_support',
+  MANAGER: 'manager',
+  ACCOUNTING: 'accounting',
+  SALES_STAFF: 'sales_staff',
   REWARD_MANAGER: 'reward_manager',
+  CUSTOMER_SUPPORT: 'customer_support',
 } as const
 
 export type RoleName = typeof ROLES[keyof typeof ROLES]

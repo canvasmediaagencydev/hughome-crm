@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Users, Receipt, Gift } from 'lucide-react'
+import { Users, Gift } from 'lucide-react'
 import { useAdminAuth } from '@/hooks/useAdminAuth'
 import { PERMISSIONS } from '@/types/admin'
 
@@ -16,12 +16,6 @@ export function QuickActions() {
       label: 'ดูผู้ใช้ทั้งหมด',
       icon: Users,
       show: hasPermission(PERMISSIONS.USERS_VIEW),
-    },
-    {
-      href: '/admin/receipts',
-      label: 'ใบเสร็จรอการอนุมัติ',
-      icon: Receipt,
-      show: hasPermission(PERMISSIONS.RECEIPTS_VIEW),
     },
     {
       href: '/admin/rewards',

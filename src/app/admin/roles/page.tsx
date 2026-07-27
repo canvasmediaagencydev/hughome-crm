@@ -325,7 +325,7 @@ export default function RolesPage() {
               <Label htmlFor="name">ชื่อ Role (snake_case)*</Label>
               <Input
                 id="name"
-                placeholder="receipt_manager"
+                placeholder="reward_manager"
                 value={formData.name}
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })

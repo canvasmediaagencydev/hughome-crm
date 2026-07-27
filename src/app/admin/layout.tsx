@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { PERMISSIONS } from '@/types/admin'
 import {
   Users,
-  Receipt,
   Gift,
   BarChart3,
   LogOut,
@@ -127,13 +126,6 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       icon: Home,
       current: pathname === '/admin',
       show: canViewDashboard,
-    },
-    {
-      name: 'ตรวจสอบใบเสร็จ',
-      href: '/admin/receipts',
-      icon: Receipt,
-      current: pathname.startsWith('/admin/receipts'),
-      show: hasPermission(PERMISSIONS.RECEIPTS_VIEW),
     },
     {
       name: 'จัดการผู้ใช้',

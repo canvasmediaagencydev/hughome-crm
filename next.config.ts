@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 import createBundleAnalyzer from "@next/bundle-analyzer";
 
+// Validate all env at the earliest possible point of any Next command
+// (build / dev / start). next.config is evaluated before route modules are
+// collected, so a missing/invalid env fails here with a clear, named list
+// (src/config/env.ts) instead of a later, cryptic "supabaseUrl is required"
+// from a Supabase client instantiated at module top-level in an API route.
+// MIGRATION_PLAN.md §3 / Sprint 0 item 3: "fail ตอน boot ให้เร็วที่สุด".
+import "./src/config/env";
+
 const withBundleAnalyzer = createBundleAnalyzer({
   enabled: process.env.ANALYZE === 'true',
 });

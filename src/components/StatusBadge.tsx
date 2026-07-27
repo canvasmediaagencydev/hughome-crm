@@ -1,24 +1,16 @@
 import { memo } from 'react'
 
-type ReceiptStatus = 'pending' | 'approved' | 'rejected'
+// NOTE: receipt status removed (OCR flow gone). Redemption statuses are still
+// the old set here; they get updated to the 4-status model in Sprint 8.
 type RedemptionStatus = 'requested' | 'processing' | 'shipped' | 'cancelled'
 type RoleType = 'contractor' | 'homeowner' | null
 
 interface StatusBadgeProps {
   status: string
-  type?: 'receipt' | 'redemption'
+  type?: 'redemption'
 }
 
-export const StatusBadge = memo(({ status, type = 'receipt' }: StatusBadgeProps) => {
-  const getReceiptConfig = (status: string) => {
-    const configs: Record<ReceiptStatus, { text: string; color: string }> = {
-      pending: { text: 'รออนุมัติ', color: 'bg-slate-50 text-slate-600 border-slate-200' },
-      approved: { text: 'อนุมัติแล้ว', color: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
-      rejected: { text: 'ถูกปฏิเสธ', color: 'bg-rose-50 text-rose-600 border-rose-200' }
-    }
-    return configs[status as ReceiptStatus] || configs.pending
-  }
-
+export const StatusBadge = memo(({ status }: StatusBadgeProps) => {
   const getRedemptionConfig = (status: string) => {
     const configs: Record<RedemptionStatus, { text: string; color: string }> = {
       requested: { text: 'รับสินค้าที่ร้าน', color: 'bg-amber-50 text-amber-600 border-amber-200' },
@@ -29,7 +21,7 @@ export const StatusBadge = memo(({ status, type = 'receipt' }: StatusBadgeProps)
     return configs[status as RedemptionStatus] || configs.requested
   }
 
-  const config = type === 'receipt' ? getReceiptConfig(status) : getRedemptionConfig(status)
+  const config = getRedemptionConfig(status)
 
   return (
     <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${config.color}`}>

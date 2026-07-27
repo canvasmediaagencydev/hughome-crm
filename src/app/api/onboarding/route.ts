@@ -1,104 +1,122 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getSession, createSession } from '@/lib/session'
 import { isUserOnboarded } from '@/lib/onboarding-utils'
+import { normalizeThaiPhone } from '@/lib/phone'
 
 interface OnboardingRequestBody {
-  line_user_id: string
   role: 'homeowner' | 'contractor'
   first_name: string
   last_name: string
   phone: string
-  birthday?: string | null
+  birthday: string // required (schema: user_profiles.birthday NOT NULL)
 }
 
 export async function POST(request: NextRequest) {
+  // Identity from the session, never from the body.
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const body: OnboardingRequestBody = await request.json()
-    const { line_user_id, role, first_name, last_name, phone, birthday } = body
+    const { role, first_name, last_name, phone, birthday } = body
 
-    if (!line_user_id || !role || !first_name || !last_name || !phone) {
+    if (!role || !first_name || !last_name || !phone || !birthday) {
       return NextResponse.json(
-        { success: false, error: 'Missing required fields' },
-        { status: 400 }
+        { success: false, error: 'Missing required fields (role, first_name, last_name, phone, birthday)' },
+        { status: 400 },
       )
     }
+    if (role !== 'homeowner' && role !== 'contractor') {
+      return NextResponse.json({ success: false, error: 'Invalid role' }, { status: 400 })
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(birthday)) {
+      return NextResponse.json({ success: false, error: 'Invalid birthday format (YYYY-MM-DD)' }, { status: 400 })
+    }
 
-    // Validate birthday format if provided
-    let normalizedBirthday: string | null = null
-    if (birthday) {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(birthday)) {
-        return NextResponse.json(
-          { success: false, error: 'Invalid birthday format (expected YYYY-MM-DD)' },
-          { status: 400 }
-        )
-      }
-      normalizedBirthday = birthday
+    // The phone MUST be the one this session verified via OTP, and still valid.
+    // Phone is the key of the whole points system, so registering someone else's
+    // number without passing its OTP is not allowed (Sprint 2.1 A).
+    const localPhone = normalizeThaiPhone(phone)
+    if (!localPhone) {
+      return NextResponse.json({ success: false, error: 'เบอร์โทรศัพท์ไม่ถูกต้อง' }, { status: 400 })
+    }
+    const nowSec = Math.floor(Date.now() / 1000)
+    if (
+      !session.verified_phone ||
+      !session.vp_exp ||
+      session.vp_exp < nowSec ||
+      session.verified_phone !== localPhone
+    ) {
+      return NextResponse.json(
+        { success: false, error: 'กรุณายืนยันเบอร์โทรศัพท์ด้วย OTP ก่อน (หรือยืนยันใหม่)' },
+        { status: 403 },
+      )
     }
 
     const supabase = createServerSupabaseClient()
 
-    // Update user profile with onboarding data
-    const { data: updatedUser, error } = await supabase
+    // Create the profile now (birthday is required from day one). Idempotent on
+    // line_user_id: onboarding again updates the existing row.
+    const { data: user, error } = await supabase
       .from('user_profiles')
-      .update({
-        role,
-        first_name,
-        last_name,
-        phone,
-        birthday: normalizedBirthday,
-        updated_at: new Date().toISOString()
-      })
-      .eq('line_user_id', line_user_id)
+      .upsert(
+        {
+          line_user_id: session.line_user_id,
+          display_name: session.name ?? null,
+          picture_url: session.picture ?? null,
+          role,
+          first_name,
+          last_name,
+          phone: localPhone, // canonical 0xxxxxxxxx (matches batch upload)
+          birthday,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'line_user_id' },
+      )
       .select()
       .single()
 
     if (error) {
-      console.error('Onboarding update error:', error)
-      return NextResponse.json(
-        { success: false, error: 'Failed to update profile' },
-        { status: 500 }
-      )
+      // Unique violation on phone → friendly message
+      if ((error as { code?: string }).code === '23505') {
+        return NextResponse.json({ success: false, error: 'เบอร์โทรนี้ถูกใช้งานแล้ว' }, { status: 409 })
+      }
+      console.error('Onboarding upsert error:', error)
+      return NextResponse.json({ success: false, error: 'Failed to save profile' }, { status: 500 })
     }
 
-    if (!updatedUser) {
-      console.error('Onboarding update returned null')
-      return NextResponse.json(
-        { success: false, error: 'Failed to update profile - no data returned' },
-        { status: 500 }
-      )
-    }
-
-    // Calculate is_onboarded using shared utility
-    const onboardedStatus = isUserOnboarded(updatedUser)
+    // Now that the profile exists, bind uid into the session.
+    await createSession({
+      line_user_id: session.line_user_id,
+      name: session.name,
+      picture: session.picture,
+      uid: user.id,
+    })
 
     return NextResponse.json({
       success: true,
       user: {
-        id: updatedUser.id,
-        line_user_id: updatedUser.line_user_id,
-        display_name: updatedUser.display_name,
-        picture_url: updatedUser.picture_url,
-        role: updatedUser.role,
-        first_name: updatedUser.first_name,
-        last_name: updatedUser.last_name,
-        phone: updatedUser.phone,
-        points_balance: updatedUser.points_balance || 0,
-        is_onboarded: onboardedStatus
-      }
+        id: user.id,
+        line_user_id: user.line_user_id,
+        display_name: user.display_name,
+        picture_url: user.picture_url,
+        role: user.role,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        phone: user.phone,
+        points_balance: user.points_balance || 0,
+        is_onboarded: isUserOnboarded(user),
+      },
     })
-
   } catch (error) {
     console.error('Onboarding API error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
 }
 
 export async function GET(): Promise<NextResponse> {
-  return NextResponse.json(
-    { success: false, error: 'Method not allowed' },
-    { status: 405 }
-  )
+  return NextResponse.json({ success: false, error: 'Method not allowed' }, { status: 405 })
 }

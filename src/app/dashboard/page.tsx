@@ -1,19 +1,14 @@
 'use client'
 
 import { useState, useEffect, memo } from 'react'
-import ReceiptCamera from '@/components/ReceiptCamera'
-import ReceiptUploadResult from '@/components/ReceiptUploadResult'
 import BottomNavigation from '@/components/BottomNavigation'
 import { HeaderSection } from '@/components/dashboard/HeaderSection'
 import { StatusCard } from '@/components/dashboard/StatusCard'
 import { QuickActions } from '@/components/dashboard/QuickActions'
-import { UploadSection } from '@/components/dashboard/UploadSection'
 import { useUserSession } from '@/hooks/useUserSession'
 import { useUserRefresh } from '@/hooks/useUserRefresh'
-import { useReceiptUpload } from '@/hooks/useReceiptUpload'
 
 function DashboardPage() {
-  const [isCameraOpen, setIsCameraOpen] = useState(false)
   const [hasInitialRefresh, setHasInitialRefresh] = useState(false)
 
   // Custom hooks
@@ -21,22 +16,10 @@ function DashboardPage() {
 
   const { isRefreshing, refreshUserData } = useUserRefresh({
     transformUserData,
-    onSuccess: (updatedData) => {
-      // Note: userData is managed internally by useUserSession
-      // This callback can be used for side effects if needed
-    }
+    onSuccess: () => {
+      // userData is managed internally by useUserSession
+    },
   })
-
-  const {
-    isUploadResultOpen,
-    isUploadLoading,
-    ocrResult,
-    uploadError,
-    processOCR,
-    uploadToDatabase,
-    handleRetake,
-    handleClose
-  } = useReceiptUpload()
 
   // Auto-refresh points on initial load (only once)
   useEffect(() => {
@@ -47,24 +30,6 @@ function DashboardPage() {
       }, 500)
     }
   }, [hasInitialRefresh, userData, refreshUserData])
-
-  // Event handlers
-  const handleCameraOpen = () => {
-    setIsCameraOpen(true)
-  }
-
-  const handleCameraClose = () => {
-    setIsCameraOpen(false)
-  }
-
-  const handleReceiptCapture = async (imageFile: File) => {
-    await processOCR(imageFile)
-  }
-
-  const handleUploadRetake = () => {
-    handleRetake()
-    setIsCameraOpen(true)
-  }
 
   // Loading state
   if (isLoading) {
@@ -85,7 +50,7 @@ function DashboardPage() {
         <div className="text-center space-y-4">
           <p className="text-gray-600">ไม่พบข้อมูลผู้ใช้</p>
           <button
-            onClick={() => window.location.href = '/'}
+            onClick={() => (window.location.href = '/')}
             className="bg-red-500 text-white px-4 py-2 rounded"
           >
             กลับหน้าหลัก
@@ -114,14 +79,11 @@ function DashboardPage() {
       {/* Quick Actions */}
       <QuickActions />
 
-      {/* Upload Section */}
-      {/* <UploadSection onCameraOpen={handleCameraOpen} /> */}
-      <div className='flex justify-center items-center py-8 px-4'>
-        <div className='text-center space-y-2'>
-          <p className='text-gray-600 text-sm font-medium'>
-            สะสมคะแนนอัตโนมัติ
-          </p>
-          <p className='text-gray-400 text-xs'>
+      {/* Points are added automatically from in-store purchases (new flow) */}
+      <div className="flex justify-center items-center py-8 px-4">
+        <div className="text-center space-y-2">
+          <p className="text-gray-600 text-sm font-medium">สะสมคะแนนอัตโนมัติ</p>
+          <p className="text-gray-400 text-xs">
             ทุกครั้งที่ซื้อสินค้า คะแนนจะเข้าสู่บัญชีของคุณโดยอัตโนมัติ
           </p>
         </div>
@@ -129,24 +91,6 @@ function DashboardPage() {
 
       {/* Bottom Navigation */}
       <BottomNavigation currentPage="home" />
-
-      {/* Receipt Camera */}
-      <ReceiptCamera
-        isOpen={isCameraOpen}
-        onClose={handleCameraClose}
-        onCapture={handleReceiptCapture}
-      />
-
-      {/* Receipt Upload Result */}
-      <ReceiptUploadResult
-        isOpen={isUploadResultOpen}
-        onClose={handleClose}
-        onConfirm={uploadToDatabase}
-        onRetake={handleUploadRetake}
-        isLoading={isUploadLoading}
-        ocrResult={ocrResult}
-        error={uploadError}
-      />
     </div>
   )
 }

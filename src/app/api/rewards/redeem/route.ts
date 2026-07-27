@@ -1,164 +1,57 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { NextRequest, NextResponse } from 'next/server'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getSession } from '@/lib/session'
 
 export async function POST(request: NextRequest) {
+  // Identity from the session, never from the body.
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  if (!session.uid) {
+    return NextResponse.json({ error: 'กรุณาลงทะเบียนให้เสร็จก่อนแลกรางวัล' }, { status: 403 })
+  }
+
   try {
-    const supabase = createServerSupabaseClient();
-    const body = await request.json();
-    const { userId, rewardId, quantity = 1 } = body;
-
-    if (!userId || !rewardId) {
-      return NextResponse.json(
-        { error: "User ID and Reward ID are required" },
-        { status: 400 }
-      );
+    const body = await request.json()
+    const { rewardId, quantity = 1 } = body
+    if (!rewardId) {
+      return NextResponse.json({ error: 'Reward ID is required' }, { status: 400 })
+    }
+    const qty = Number(quantity)
+    if (!Number.isInteger(qty) || qty <= 0) {
+      return NextResponse.json({ error: 'Invalid quantity' }, { status: 400 })
     }
 
-    // Fetch user profile to check points balance
-    const { data: user, error: userError } = await supabase
-      .from("user_profiles")
-      .select("points_balance")
-      .eq("id", userId)
-      .single();
+    const supabase = createServerSupabaseClient()
 
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+    // All checks (stock, balance) + FIFO deduction happen atomically in the RPC
+    // under a row lock — no client-supplied user id, no race conditions.
+    const { data: redemptionId, error } = await supabase.rpc('redeem_reward', {
+      p_user: session.uid,
+      p_reward: rewardId,
+      p_qty: qty,
+    })
+
+    if (error) {
+      // RPC RAISEs on insufficient points / out of stock / unavailable reward.
+      console.warn('redeem_reward failed:', error.message)
+      return NextResponse.json({ error: error.message || 'ไม่สามารถแลกรางวัลได้' }, { status: 400 })
     }
 
-    // Fetch reward details
-    const { data: reward, error: rewardError } = await supabase
-      .from("rewards")
-      .select("*")
-      .eq("id", rewardId)
-      .single();
-
-    if (rewardError || !reward) {
-      return NextResponse.json(
-        { error: "Reward not found" },
-        { status: 404 }
-      );
-    }
-
-    // Check if reward is active
-    if (!reward.is_active) {
-      return NextResponse.json(
-        { error: "Reward is not available" },
-        { status: 400 }
-      );
-    }
-
-    // Check stock availability
-    if (reward.stock_quantity !== null) {
-      // Fetch redemptions to calculate remaining stock
-      const { data: redemptions, error: redemptionsError } = await supabase
-        .from("redemptions")
-        .select("quantity")
-        .eq("reward_id", rewardId)
-        .neq("status", "cancelled");
-
-      if (redemptionsError) {
-        return NextResponse.json(
-          { error: "Failed to check stock" },
-          { status: 500 }
-        );
-      }
-
-      const redeemedCount = redemptions?.reduce((sum, r) => sum + (r.quantity || 1), 0) || 0;
-      const remainingStock = reward.stock_quantity - redeemedCount;
-
-      if (remainingStock < quantity) {
-        return NextResponse.json(
-          { error: "Insufficient stock" },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Calculate total points needed
-    const totalPoints = reward.points_cost * quantity;
-
-    // Check if user has enough points
-    if ((user.points_balance ?? 0) < totalPoints) {
-      return NextResponse.json(
-        { error: "Insufficient points" },
-        { status: 400 }
-      );
-    }
-
-    // Calculate new balance
-    const newBalance = (user.points_balance ?? 0) - totalPoints;
-
-    // Update user points balance first
-    const { error: updateUserError } = await supabase
-      .from("user_profiles")
-      .update({ points_balance: newBalance })
-      .eq("id", userId);
-
-    if (updateUserError) {
-      return NextResponse.json(
-        { error: "Failed to update points balance" },
-        { status: 500 }
-      );
-    }
-
-    // Create redemption record
-    const { data: redemption, error: redemptionError } = await supabase
-      .from("redemptions")
-      .insert({
-        user_id: userId,
-        reward_id: rewardId,
-        points_used: totalPoints,
-        quantity: quantity,
-        status: "requested",
-      })
-      .select()
-      .single();
-
-    if (redemptionError) {
-      // Rollback points if redemption creation fails
-      await supabase
-        .from("user_profiles")
-        .update({ points_balance: user.points_balance })
-        .eq("id", userId);
-
-      return NextResponse.json(
-        { error: "Failed to create redemption" },
-        { status: 500 }
-      );
-    }
-
-    // Create point transaction record (for logging only, no balance calculation)
-    const { error: transactionError } = await supabase
-      .from("point_transactions")
-      .insert({
-        user_id: userId,
-        type: "spent",
-        points: totalPoints,
-        balance_after: newBalance,
-        reference_type: "redemption",
-        reference_id: redemption.id,
-        description: `แลกรางวัล: ${reward.name}`,
-        created_by: userId,
-      });
-
-    if (transactionError) {
-      console.error("Failed to create transaction record:", transactionError);
-      // Don't rollback, transaction log is not critical
-    }
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('points_balance')
+      .eq('id', session.uid)
+      .maybeSingle()
 
     return NextResponse.json({
       success: true,
-      redemption,
-      newBalance,
-    });
+      redemptionId,
+      newBalance: profile?.points_balance ?? null,
+    })
   } catch (error) {
-    console.error("Redemption error:", error);
-    return NextResponse.json(
-      { error: "Failed to redeem reward" },
-      { status: 500 }
-    );
+    console.error('Redemption error:', error)
+    return NextResponse.json({ error: 'Failed to redeem reward' }, { status: 500 })
   }
 }

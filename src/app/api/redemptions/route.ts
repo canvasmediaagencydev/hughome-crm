@@ -1,22 +1,22 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { NextResponse } from 'next/server'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getSession } from '@/lib/session'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
+  // Identity from the session — never a client-supplied userId (Sprint 2.1 B).
+  const session = await getSession()
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  // Logged in but no profile yet → no redemptions.
+  if (!session.uid) {
+    return NextResponse.json([])
+  }
+
   try {
-    const supabase = createServerSupabaseClient();
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "User ID is required" },
-        { status: 400 }
-      );
-    }
-
-    // Fetch user's redemptions with reward details
+    const supabase = createServerSupabaseClient()
     const { data: redemptions, error } = await supabase
-      .from("redemptions")
+      .from('redemptions')
       .select(`
         *,
         rewards (
@@ -27,18 +27,15 @@ export async function GET(request: NextRequest) {
           points_cost
         )
       `)
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+      .eq('user_id', session.uid)
+      .order('created_at', { ascending: false })
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
-
-    return NextResponse.json(redemptions);
+    return NextResponse.json(redemptions)
   } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to fetch redemptions" },
-      { status: 500 }
-    );
+    console.error('Fetch redemptions error:', error)
+    return NextResponse.json({ error: 'Failed to fetch redemptions' }, { status: 500 })
   }
 }

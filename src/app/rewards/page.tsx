@@ -94,7 +94,8 @@ function RewardsContent() {
   const fetchRedemptions = async (uid: string) => {
     try {
       setLoadingRedemptions(true)
-      const response = await fetch(`/api/redemptions?userId=${uid}`)
+      // Identity comes from the session cookie (sent automatically); no userId in the URL.
+      const response = await fetch(`/api/redemptions`)
       if (response.ok) {
         const data = await response.json()
         setRedemptions(data)

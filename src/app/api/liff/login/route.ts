@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { v4 as uuidv4 } from 'uuid'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { verifyLineIdToken, extractUserProfileData } from '@/lib/line-auth'
+import { createSession } from '@/lib/session'
 import { isUserOnboarded } from '@/lib/onboarding-utils'
 
 interface LoginRequestBody {
@@ -9,146 +9,75 @@ interface LoginRequestBody {
   skipDbUpdate?: boolean
 }
 
-interface LoginResponse {
-  success: boolean
-  user?: {
-    id: string
-    line_user_id: string
-    display_name: string | null
-    picture_url: string | null
-    role: string | null
-    first_name: string | null
-    last_name: string | null
-    phone: string | null
-    is_onboarded: boolean
-    points_balance: number
-  }
-  error?: string
-}
-
-export async function POST(request: NextRequest): Promise<NextResponse<LoginResponse>> {
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  // --- Auth: verify the LINE ID token (signature + iss + aud + exp) ---------
+  let profileData: ReturnType<typeof extractUserProfileData>
   try {
     const body: LoginRequestBody = await request.json()
-    const { idToken, skipDbUpdate = false } = body
-
-    if (!idToken || typeof idToken !== 'string') {
-      return NextResponse.json(
-        { success: false, error: 'ID token is required' },
-        { status: 400 }
-      )
+    if (!body?.idToken || typeof body.idToken !== 'string') {
+      return NextResponse.json({ success: false, error: 'ID token is required' }, { status: 400 })
     }
+    const tokenPayload = await verifyLineIdToken(body.idToken)
+    profileData = extractUserProfileData(tokenPayload)
+  } catch (err) {
+    // Any verification failure → 401 (never trust the token)
+    console.warn('LINE token verification failed:', err instanceof Error ? err.message : err)
+    return NextResponse.json({ success: false, error: 'Invalid LINE token' }, { status: 401 })
+  }
 
-    // Verify LINE token
-    const tokenPayload = await verifyLineIdToken(idToken)
-    const profileData = extractUserProfileData(tokenPayload)
-
-    // Create or get user from Supabase
+  // --- Identity established. Look up (do NOT create) the profile. -----------
+  try {
     const supabase = createServerSupabaseClient()
-    
-    // Check if user exists
     const { data: existingUser } = await supabase
       .from('user_profiles')
       .select('*')
       .eq('line_user_id', profileData.line_user_id)
-      .single()
+      .maybeSingle()
 
-    let userProfile
+    // Refresh display fields for known users (best-effort).
     if (existingUser) {
-      if (skipDbUpdate) {
-        // Skip database update for cached validation - just return existing user
-        userProfile = existingUser
-      } else {
-        // Update existing user with fresh data
-        const updateData: any = {
-          display_name: profileData.display_name,
-          picture_url: profileData.picture_url,
-        }
-        
-        // Only update last_login_at if it's been more than 1 hour
-        const lastLogin = existingUser.last_login_at ? new Date(existingUser.last_login_at) : new Date(0)
-        const hourAgo = new Date(Date.now() - 60 * 60 * 1000)
-        
-        if (lastLogin < hourAgo) {
-          updateData.last_login_at = new Date().toISOString()
-        }
-        
-        const { data: updatedUser } = await supabase
-          .from('user_profiles')
-          .update(updateData)
-          .eq('line_user_id', profileData.line_user_id)
-          .select()
-          .single()
-        
-        userProfile = updatedUser || existingUser
-      }
-    } else {
-      // Create new user
-      const { data: newUser, error: insertError } = await supabase
+      const lastLogin = existingUser.last_login_at ? new Date(existingUser.last_login_at) : new Date(0)
+      const hourAgo = new Date(Date.now() - 60 * 60 * 1000)
+      await supabase
         .from('user_profiles')
-        .insert({
-          id: uuidv4(),
-          line_user_id: profileData.line_user_id,
+        .update({
           display_name: profileData.display_name,
           picture_url: profileData.picture_url,
-          last_login_at: new Date().toISOString(),
-          role: null,
-          first_name: null,
-          last_name: null,
-          phone: null,
-          points_balance: 0
+          ...(lastLogin < hourAgo ? { last_login_at: new Date().toISOString() } : {}),
         })
-        .select()
-        .single()
-
-      if (insertError) {
-        console.error('Failed to create user profile:', insertError)
-        throw new Error(`Database insert failed: ${insertError.message}`)
-      }
-
-      if (!newUser) {
-        console.error('User profile creation returned null')
-        throw new Error('Database insert returned no data')
-      }
-
-      userProfile = newUser
+        .eq('line_user_id', profileData.line_user_id)
     }
 
-    if (!userProfile) {
-      console.error('User profile is null after database operations')
-      throw new Error('Failed to create or update user profile')
-    }
+    // Issue the server session — identity comes from the verified token, not the client.
+    await createSession({
+      line_user_id: profileData.line_user_id,
+      name: profileData.display_name,
+      picture: profileData.picture_url,
+      uid: existingUser?.id,
+    })
 
-    // Check if user is onboarded using shared utility
-    const onboardedStatus = isUserOnboarded(userProfile)
-
+    const onboarded = existingUser ? isUserOnboarded(existingUser) : false
     return NextResponse.json({
       success: true,
       user: {
-        id: userProfile.id,
-        line_user_id: userProfile.line_user_id,
-        display_name: userProfile.display_name,
-        picture_url: userProfile.picture_url,
-        role: userProfile.role,
-        first_name: userProfile.first_name,
-        last_name: userProfile.last_name,
-        phone: userProfile.phone,
-        is_onboarded: onboardedStatus,
-        points_balance: userProfile.points_balance || 0
-      }
+        id: existingUser?.id ?? null,
+        line_user_id: profileData.line_user_id,
+        display_name: existingUser?.display_name ?? profileData.display_name,
+        picture_url: existingUser?.picture_url ?? profileData.picture_url,
+        role: existingUser?.role ?? null,
+        first_name: existingUser?.first_name ?? null,
+        last_name: existingUser?.last_name ?? null,
+        phone: existingUser?.phone ?? null,
+        is_onboarded: onboarded,
+        points_balance: existingUser?.points_balance ?? 0,
+      },
     })
-
   } catch (error) {
     console.error('Login API error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
 }
 
 export async function GET(): Promise<NextResponse> {
-  return NextResponse.json(
-    { success: false, error: 'Method not allowed' },
-    { status: 405 }
-  )
+  return NextResponse.json({ success: false, error: 'Method not allowed' }, { status: 405 })
 }

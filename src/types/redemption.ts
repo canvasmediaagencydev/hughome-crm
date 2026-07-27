@@ -4,8 +4,7 @@ export interface Redemption {
   id: string;
   points_used: number;
   status: string;
-  shipping_address: string | null;
-  tracking_number: string | null;
+  pickup_code: string | null;
   created_at: string;
   rewards: {
     name: string;

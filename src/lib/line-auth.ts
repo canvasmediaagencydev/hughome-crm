@@ -1,46 +1,57 @@
-// Simple LINE token verification
-interface LineProfile {
+/**
+ * LINE ID token verification — MIGRATION_PLAN.md §6.1
+ *
+ * Real cryptographic verification (was: decode-only, forgeable). Uses jose to:
+ *   - verify the signature against LINE's JWKS (https://api.line.me/oauth2/v2.1/certs)
+ *   - require iss === 'https://access.line.me'
+ *   - require aud === LINE_CHANNEL_ID (this instance's Login channel — blocks
+ *     tokens minted for a different channel/instance)
+ *   - require a non-expired token (exp)
+ * Any failure throws — never returns a partial/empty profile.
+ */
+import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from 'jose'
+import { serverEnv } from '@/config/env'
+
+const LINE_ISSUER = 'https://access.line.me'
+const LINE_JWKS_URL = 'https://api.line.me/oauth2/v2.1/certs'
+
+export interface LineProfile {
   sub: string // LINE user ID
   name: string
   picture: string
 }
 
-export async function verifyLineIdToken(idToken: string): Promise<LineProfile> {
-  try {
-    // Validate token format
-    if (!idToken || typeof idToken !== 'string') {
-      console.error('LINE token is missing or invalid type')
-      throw new Error('Invalid LINE token: missing or wrong type')
-    }
+// Memoized remote key set — jose caches the fetched keys (no fetch per request).
+let cachedJwks: JWTVerifyGetKey | null = null
+function lineJwks(): JWTVerifyGetKey {
+  if (!cachedJwks) cachedJwks = createRemoteJWKSet(new URL(LINE_JWKS_URL))
+  return cachedJwks
+}
 
-    const parts = idToken.split('.')
-    if (parts.length !== 3) {
-      console.error('LINE token does not have 3 parts:', parts.length)
-      throw new Error('Invalid LINE token: incorrect format')
-    }
+/**
+ * Verify a LINE ID token. `jwks` is injectable for tests (default = LINE's).
+ */
+export async function verifyLineIdToken(
+  idToken: string,
+  jwks: JWTVerifyGetKey = lineJwks(),
+): Promise<LineProfile> {
+  if (!idToken || typeof idToken !== 'string') {
+    throw new Error('Invalid LINE token: missing or wrong type')
+  }
 
-    // In a real app, you would verify the token with LINE's JWKS endpoint
-    // For now, we'll just decode the JWT payload (unsafe for production!)
-    // Use Buffer in Node.js instead of atob (browser API)
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'))
+  const { payload } = await jwtVerify(idToken, jwks, {
+    issuer: LINE_ISSUER,
+    audience: serverEnv.LINE_CHANNEL_ID,
+  })
 
-    // Validate required fields
-    if (!payload.sub) {
-      console.error('LINE token missing sub field:', payload)
-      throw new Error('Invalid LINE token: missing user ID')
-    }
+  if (!payload.sub) {
+    throw new Error('Invalid LINE token: missing user ID (sub)')
+  }
 
-    return {
-      sub: payload.sub,
-      name: payload.name || '',
-      picture: payload.picture || ''
-    }
-  } catch (error) {
-    console.error('LINE token verification failed:', error)
-    if (error instanceof Error && error.message.startsWith('Invalid LINE token')) {
-      throw error
-    }
-    throw new Error('Invalid LINE token: parsing failed')
+  return {
+    sub: payload.sub,
+    name: (payload.name as string) || '',
+    picture: (payload.picture as string) || '',
   }
 }
 
@@ -48,6 +59,6 @@ export function extractUserProfileData(tokenPayload: LineProfile) {
   return {
     line_user_id: tokenPayload.sub,
     display_name: tokenPayload.name,
-    picture_url: tokenPayload.picture
+    picture_url: tokenPayload.picture,
   }
 }

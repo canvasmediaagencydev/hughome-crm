@@ -268,12 +268,7 @@ export function UserDetailModal({
                       <span className="text-sm font-medium text-slate-900">{formatDate(user.last_login_at)}</span>
                     </div>
                   )}
-                  {user.points_expire_at && (
-                    <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-slate-200">
-                      <span className="text-sm text-slate-600">แต้มหมดอายุ</span>
-                      <span className="text-sm font-medium text-slate-900">{formatDate(user.points_expire_at)}</span>
-                    </div>
-                  )}
+                  {/* แต้มหมดอายุ: step-wise per-lot expiry now (point_batch_ledger) — shown per lot in Sprint 7/9 */}
                   {/* Birthday (editable) */}
                   <div className="p-3 bg-white rounded-lg border border-slate-200 md:col-span-2">
                     {!isEditingBirthday ? (
@@ -438,9 +433,9 @@ export function UserDetailModal({
                           <div className="font-medium text-slate-900">{redemption.rewards.name}</div>
                           <div className="text-sm text-blue-600 font-semibold mt-1">{formatPoints(redemption.points_used)} แต้ม</div>
                           <div className="text-xs text-slate-500 mt-1">{formatDate(redemption.created_at, { includeTime: true })}</div>
-                          {redemption.tracking_number && (
+                          {redemption.pickup_code && (
                             <div className="text-xs text-slate-600 mt-1">
-                              Tracking: {redemption.tracking_number}
+                              รหัสรับสินค้า: {redemption.pickup_code}
                             </div>
                           )}
                         </div>

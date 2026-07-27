@@ -1,18 +1,11 @@
 import { memo } from 'react'
 import { useRouter } from 'next/navigation'
-import { IoReceipt, IoGift, IoTime } from "react-icons/io5"
+import { IoGift, IoTime } from "react-icons/io5"
 
 export const QuickActions = memo(() => {
   const router = useRouter()
 
   const actions = [
-    {
-      icon: IoReceipt,
-      label: 'ประวัติใบเสร็จ',
-      description: 'ดูใบเสร็จทั้งหมด',
-      color: 'from-red-500 to-red-600',
-      onClick: () => router.push('/history')
-    },
     {
       icon: IoGift,
       label: 'แลกของรางวัล',
@@ -31,7 +24,7 @@ export const QuickActions = memo(() => {
 
   return (
     <div className="px-6 py-6">
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         {actions.map((action, index) => {
           const Icon = action.icon
           return (

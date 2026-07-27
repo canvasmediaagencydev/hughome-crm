@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.4"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -186,38 +186,277 @@ export type Database = {
         }
         Relationships: []
       }
+      app_config: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
+      line_quota_cache: {
+        Row: {
+          consumed: number | null
+          fetched_at: string
+          id: number
+          quota_limit: number | null
+        }
+        Insert: {
+          consumed?: number | null
+          fetched_at?: string
+          id?: number
+          quota_limit?: number | null
+        }
+        Update: {
+          consumed?: number | null
+          fetched_at?: string
+          id?: number
+          quota_limit?: number | null
+        }
+        Relationships: []
+      }
+      notification_channels: {
+        Row: {
+          created_at: string
+          events: string[]
+          id: string
+          is_active: boolean
+          last_error: string | null
+          target_id: string
+          token: string | null
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          events?: string[]
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          target_id: string
+          token?: string | null
+          type: string
+        }
+        Update: {
+          created_at?: string
+          events?: string[]
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          target_id?: string
+          token?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
+      point_batch_ledger: {
+        Row: {
+          created_at: string
+          discount_amount: number | null
+          earned_month: string
+          expires_at: string
+          gross_amount: number | null
+          id: string
+          multiplier: number
+          net_amount: number | null
+          points_earned: number
+          points_remaining: number
+          promo_code_id: string | null
+          source: string
+          source_batch_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          discount_amount?: number | null
+          earned_month: string
+          expires_at: string
+          gross_amount?: number | null
+          id?: string
+          multiplier?: number
+          net_amount?: number | null
+          points_earned: number
+          points_remaining: number
+          promo_code_id?: string | null
+          source?: string
+          source_batch_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          discount_amount?: number | null
+          earned_month?: string
+          expires_at?: string
+          gross_amount?: number | null
+          id?: string
+          multiplier?: number
+          net_amount?: number | null
+          points_earned?: number
+          points_remaining?: number
+          promo_code_id?: string | null
+          source?: string
+          source_batch_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "point_batch_ledger_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "point_batch_ledger_source_batch_id_fkey"
+            columns: ["source_batch_id"]
+            isOneToOne: false
+            referencedRelation: "point_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "point_batch_ledger_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      point_batches: {
+        Row: {
+          committed_at: string | null
+          created_at: string
+          file_name: string
+          file_sha256: string
+          id: string
+          invalid_rows: number
+          raw_rows: Json
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["batch_status"]
+          total_points: number
+          total_rows: number
+          unmatched_rows: number
+          uploaded_by: string
+          valid_rows: number
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          committed_at?: string | null
+          created_at?: string
+          file_name: string
+          file_sha256: string
+          id?: string
+          invalid_rows?: number
+          raw_rows?: Json
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["batch_status"]
+          total_points?: number
+          total_rows?: number
+          unmatched_rows?: number
+          uploaded_by: string
+          valid_rows?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          committed_at?: string | null
+          created_at?: string
+          file_name?: string
+          file_sha256?: string
+          id?: string
+          invalid_rows?: number
+          raw_rows?: Json
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["batch_status"]
+          total_points?: number
+          total_rows?: number
+          unmatched_rows?: number
+          uploaded_by?: string
+          valid_rows?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+          week_end?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "point_batches_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "point_batches_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "point_batches_voided_by_fkey"
+            columns: ["voided_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       point_settings: {
         Row: {
-          created_at: string | null
+          created_at: string
           created_by: string | null
           description: string | null
           id: string
-          is_active: boolean | null
+          is_active: boolean
           setting_key: string
           setting_value: number
-          updated_at: string | null
+          updated_at: string
           updated_by: string | null
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           created_by?: string | null
           description?: string | null
           id?: string
-          is_active?: boolean | null
+          is_active?: boolean
           setting_key: string
           setting_value: number
-          updated_at?: string | null
+          updated_at?: string
           updated_by?: string | null
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           created_by?: string | null
           description?: string | null
           id?: string
-          is_active?: boolean | null
+          is_active?: boolean
           setting_key?: string
           setting_value?: number
-          updated_at?: string | null
+          updated_at?: string
           updated_by?: string | null
         }
         Relationships: []
@@ -225,37 +464,37 @@ export type Database = {
       point_transactions: {
         Row: {
           balance_after: number
-          created_at: string | null
+          created_at: string
           created_by: string | null
           description: string | null
           id: string
           points: number
-          reference_id: string | null
-          reference_type: string | null
+          source: string
+          source_batch_id: string | null
           type: Database["public"]["Enums"]["transaction_type"]
           user_id: string
         }
         Insert: {
           balance_after: number
-          created_at?: string | null
+          created_at?: string
           created_by?: string | null
           description?: string | null
           id?: string
           points: number
-          reference_id?: string | null
-          reference_type?: string | null
+          source: string
+          source_batch_id?: string | null
           type: Database["public"]["Enums"]["transaction_type"]
           user_id: string
         }
         Update: {
           balance_after?: number
-          created_at?: string | null
+          created_at?: string
           created_by?: string | null
           description?: string | null
           id?: string
           points?: number
-          reference_id?: string | null
-          reference_type?: string | null
+          source?: string
+          source_batch_id?: string | null
           type?: Database["public"]["Enums"]["transaction_type"]
           user_id?: string
         }
@@ -264,168 +503,74 @@ export type Database = {
             foreignKeyName: "point_transactions_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
-            referencedRelation: "user_dashboard"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "point_transactions_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "point_transactions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_dashboard"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "point_transactions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      receipt_images: {
-        Row: {
-          created_at: string | null
-          file_name: string
-          file_path: string
-          file_size: number | null
-          height: number | null
-          id: string
-          mime_type: string | null
-          receipt_id: string
-          sha256_hash: string
-          width: number | null
-        }
-        Insert: {
-          created_at?: string | null
-          file_name: string
-          file_path: string
-          file_size?: number | null
-          height?: number | null
-          id?: string
-          mime_type?: string | null
-          receipt_id: string
-          sha256_hash: string
-          width?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          file_name?: string
-          file_path?: string
-          file_size?: number | null
-          height?: number | null
-          id?: string
-          mime_type?: string | null
-          receipt_id?: string
-          sha256_hash?: string
-          width?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "receipt_images_receipt_id_fkey"
-            columns: ["receipt_id"]
-            isOneToOne: false
-            referencedRelation: "receipts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      receipts: {
-        Row: {
-          admin_notes: string | null
-          approved_at: string | null
-          approved_by: string | null
-          created_at: string | null
-          id: string
-          ocr_data: Json | null
-          ocr_processed_at: string | null
-          points_awarded: number | null
-          receipt_date: string | null
-          receipt_number: string | null
-          status: Database["public"]["Enums"]["receipt_status"] | null
-          total_amount: number | null
-          updated_at: string | null
-          uploaded_by_admin_id: string | null
-          user_id: string
-          vendor_name: string | null
-        }
-        Insert: {
-          admin_notes?: string | null
-          approved_at?: string | null
-          approved_by?: string | null
-          created_at?: string | null
-          id?: string
-          ocr_data?: Json | null
-          ocr_processed_at?: string | null
-          points_awarded?: number | null
-          receipt_date?: string | null
-          receipt_number?: string | null
-          status?: Database["public"]["Enums"]["receipt_status"] | null
-          total_amount?: number | null
-          updated_at?: string | null
-          uploaded_by_admin_id?: string | null
-          user_id: string
-          vendor_name?: string | null
-        }
-        Update: {
-          admin_notes?: string | null
-          approved_at?: string | null
-          approved_by?: string | null
-          created_at?: string | null
-          id?: string
-          ocr_data?: Json | null
-          ocr_processed_at?: string | null
-          points_awarded?: number | null
-          receipt_date?: string | null
-          receipt_number?: string | null
-          status?: Database["public"]["Enums"]["receipt_status"] | null
-          total_amount?: number | null
-          updated_at?: string | null
-          uploaded_by_admin_id?: string | null
-          user_id?: string
-          vendor_name?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "receipts_approved_by_fkey"
-            columns: ["approved_by"]
-            isOneToOne: false
-            referencedRelation: "user_dashboard"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "receipts_approved_by_fkey"
-            columns: ["approved_by"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "receipts_uploaded_by_admin_id_fkey"
-            columns: ["uploaded_by_admin_id"]
-            isOneToOne: false
             referencedRelation: "admin_users"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "receipts_user_id_fkey"
-            columns: ["user_id"]
+            foreignKeyName: "point_transactions_source_batch_id_fkey"
+            columns: ["source_batch_id"]
             isOneToOne: false
-            referencedRelation: "user_dashboard"
+            referencedRelation: "point_batches"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "receipts_user_id_fkey"
+            foreignKeyName: "point_transactions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promo_codes: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          expires_at: string
+          id: string
+          is_active: boolean
+          max_uses: number | null
+          multiplier: number
+          name: string
+          starts_at: string
+          usage_count: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expires_at: string
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          multiplier: number
+          name: string
+          starts_at: string
+          usage_count?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          expires_at?: string
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          multiplier?: number
+          name?: string
+          starts_at?: string
+          usage_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_codes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
             referencedColumns: ["id"]
           },
         ]
@@ -433,62 +578,65 @@ export type Database = {
       redemptions: {
         Row: {
           admin_notes: string | null
-          created_at: string | null
+          created_at: string
+          delivered_at: string | null
+          delivered_by: string | null
           id: string
+          pickup_code: string | null
           points_used: number
           processed_at: string | null
           processed_by: string | null
-          quantity: number | null
+          quantity: number
           reward_id: string
-          shipping_address: string | null
-          status: Database["public"]["Enums"]["redemption_status"] | null
-          tracking_number: string | null
-          updated_at: string | null
+          status: Database["public"]["Enums"]["redemption_status"]
+          updated_at: string
           user_id: string
         }
         Insert: {
           admin_notes?: string | null
-          created_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivered_by?: string | null
           id?: string
+          pickup_code?: string | null
           points_used: number
           processed_at?: string | null
           processed_by?: string | null
-          quantity?: number | null
+          quantity?: number
           reward_id: string
-          shipping_address?: string | null
-          status?: Database["public"]["Enums"]["redemption_status"] | null
-          tracking_number?: string | null
-          updated_at?: string | null
+          status?: Database["public"]["Enums"]["redemption_status"]
+          updated_at?: string
           user_id: string
         }
         Update: {
           admin_notes?: string | null
-          created_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivered_by?: string | null
           id?: string
+          pickup_code?: string | null
           points_used?: number
           processed_at?: string | null
           processed_by?: string | null
-          quantity?: number | null
+          quantity?: number
           reward_id?: string
-          shipping_address?: string | null
-          status?: Database["public"]["Enums"]["redemption_status"] | null
-          tracking_number?: string | null
-          updated_at?: string | null
+          status?: Database["public"]["Enums"]["redemption_status"]
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "redemptions_processed_by_fkey"
-            columns: ["processed_by"]
+            foreignKeyName: "redemptions_delivered_by_fkey"
+            columns: ["delivered_by"]
             isOneToOne: false
-            referencedRelation: "user_dashboard"
+            referencedRelation: "admin_users"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "redemptions_processed_by_fkey"
             columns: ["processed_by"]
             isOneToOne: false
-            referencedRelation: "user_profiles"
+            referencedRelation: "admin_users"
             referencedColumns: ["id"]
           },
           {
@@ -496,13 +644,6 @@ export type Database = {
             columns: ["reward_id"]
             isOneToOne: false
             referencedRelation: "rewards"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "redemptions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_dashboard"
             referencedColumns: ["id"]
           },
           {
@@ -517,52 +658,52 @@ export type Database = {
       rewards: {
         Row: {
           category: string | null
-          created_at: string | null
+          created_at: string
           description: string | null
           id: string
           image_url: string | null
-          is_active: boolean | null
+          is_active: boolean
           is_archived: boolean
           name: string
           points_cost: number
           sort_order: number | null
           stock_quantity: number | null
-          updated_at: string | null
+          updated_at: string
         }
         Insert: {
           category?: string | null
-          created_at?: string | null
+          created_at?: string
           description?: string | null
           id?: string
           image_url?: string | null
-          is_active?: boolean | null
+          is_active?: boolean
           is_archived?: boolean
           name: string
           points_cost: number
           sort_order?: number | null
           stock_quantity?: number | null
-          updated_at?: string | null
+          updated_at?: string
         }
         Update: {
           category?: string | null
-          created_at?: string | null
+          created_at?: string
           description?: string | null
           id?: string
           image_url?: string | null
-          is_active?: boolean | null
+          is_active?: boolean
           is_archived?: boolean
           name?: string
           points_cost?: number
           sort_order?: number | null
           stock_quantity?: number | null
-          updated_at?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
       tags: {
         Row: {
           color: string
-          created_at: string | null
+          created_at: string
           created_by: string | null
           id: string
           line_audience_id: number | null
@@ -570,7 +711,7 @@ export type Database = {
         }
         Insert: {
           color?: string
-          created_at?: string | null
+          created_at?: string
           created_by?: string | null
           id?: string
           line_audience_id?: number | null
@@ -578,7 +719,7 @@ export type Database = {
         }
         Update: {
           color?: string
-          created_at?: string | null
+          created_at?: string
           created_by?: string | null
           id?: string
           line_audience_id?: number | null
@@ -596,30 +737,27 @@ export type Database = {
       }
       user_notes: {
         Row: {
-          created_at: string | null
-          created_by: string | null
+          created_at: string
           created_by_admin_id: string | null
           id: string
           note_content: string
-          updated_at: string | null
+          updated_at: string
           user_id: string
         }
         Insert: {
-          created_at?: string | null
-          created_by?: string | null
+          created_at?: string
           created_by_admin_id?: string | null
           id?: string
           note_content: string
-          updated_at?: string | null
+          updated_at?: string
           user_id: string
         }
         Update: {
-          created_at?: string | null
-          created_by?: string | null
+          created_at?: string
           created_by_admin_id?: string | null
           id?: string
           note_content?: string
-          updated_at?: string | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: [
@@ -628,27 +766,6 @@ export type Database = {
             columns: ["created_by_admin_id"]
             isOneToOne: false
             referencedRelation: "admin_users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_notes_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "user_dashboard"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_notes_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_notes_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_dashboard"
             referencedColumns: ["id"]
           },
           {
@@ -662,79 +779,70 @@ export type Database = {
       }
       user_profiles: {
         Row: {
-          birthday: string | null
+          birthday: string
           created_at: string
           customer_code: string | null
           display_name: string | null
           first_name: string | null
           id: string
-          is_admin: boolean | null
           last_login_at: string | null
           last_name: string | null
           line_user_id: string
           phone: string | null
           picture_url: string | null
-          points_balance: number | null
-          points_expire_at: string | null
-          role: string | null
-          total_receipts: number | null
+          points_balance: number
+          role: Database["public"]["Enums"]["user_role"] | null
           updated_at: string
         }
         Insert: {
-          birthday?: string | null
+          birthday: string
           created_at?: string
           customer_code?: string | null
           display_name?: string | null
           first_name?: string | null
           id?: string
-          is_admin?: boolean | null
           last_login_at?: string | null
           last_name?: string | null
           line_user_id: string
           phone?: string | null
           picture_url?: string | null
-          points_balance?: number | null
-          points_expire_at?: string | null
-          role?: string | null
-          total_receipts?: number | null
+          points_balance?: number
+          role?: Database["public"]["Enums"]["user_role"] | null
           updated_at?: string
         }
         Update: {
-          birthday?: string | null
+          birthday?: string
           created_at?: string
           customer_code?: string | null
           display_name?: string | null
           first_name?: string | null
           id?: string
-          is_admin?: boolean | null
           last_login_at?: string | null
           last_name?: string | null
           line_user_id?: string
           phone?: string | null
           picture_url?: string | null
-          points_balance?: number | null
-          points_expire_at?: string | null
-          role?: string | null
-          total_receipts?: number | null
+          points_balance?: number
+          role?: Database["public"]["Enums"]["user_role"] | null
           updated_at?: string
         }
         Relationships: []
       }
       user_tags: {
         Row: {
-          assigned_at: string | null
+          assigned_at: string
           assigned_by: string | null
           tag_id: string
           user_id: string
         }
         Insert: {
-          assigned_at?: string | null
+          assigned_at?: string
           assigned_by?: string | null
           tag_id: string
           user_id: string
         }
         Update: {
-          assigned_at?: string | null
+          assigned_at?: string
           assigned_by?: string | null
           tag_id?: string
           user_id?: string
@@ -758,13 +866,6 @@ export type Database = {
             foreignKeyName: "user_tags_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "user_dashboard"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_tags_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
             referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
@@ -772,30 +873,37 @@ export type Database = {
       }
     }
     Views: {
-      user_dashboard: {
-        Row: {
-          created_at: string | null
-          display_name: string | null
-          id: string | null
-          last_login_at: string | null
-          line_user_id: string | null
-          pending_receipts: number | null
-          pending_redemptions: number | null
-          picture_url: string | null
-          points_balance: number | null
-          role: string | null
-          total_receipts: number | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
+      adjust_points_manual: {
+        Args: {
+          p_admin: string
+          p_delta: number
+          p_note: string
+          p_user: string
+        }
+        Returns: number
+      }
+      award_points_from_batch: { Args: { p_batch_id: string }; Returns: number }
+      expire_ledger_batches: { Args: { p_as_of: string }; Returns: number }
+      redeem_reward: {
+        Args: { p_qty: number; p_reward: string; p_user: string }
+        Returns: string
+      }
+      void_batch: {
+        Args: { p_admin: string; p_batch_id: string; p_reason: string }
+        Returns: undefined
+      }
     }
     Enums: {
-      receipt_status: "pending" | "processing" | "approved" | "rejected"
-      redemption_status: "requested" | "processing" | "shipped" | "cancelled"
+      batch_status: "draft" | "previewed" | "committed" | "voided"
+      redemption_status:
+        | "requested"
+        | "approved"
+        | "ready"
+        | "delivered"
+        | "cancelled"
       transaction_type: "earned" | "spent" | "expired" | "bonus" | "refund"
       user_role: "contractor" | "homeowner"
     }
@@ -925,8 +1033,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      receipt_status: ["pending", "processing", "approved", "rejected"],
-      redemption_status: ["requested", "processing", "shipped", "cancelled"],
+      batch_status: ["draft", "previewed", "committed", "voided"],
+      redemption_status: [
+        "requested",
+        "approved",
+        "ready",
+        "delivered",
+        "cancelled",
+      ],
       transaction_type: ["earned", "spent", "expired", "bonus", "refund"],
       user_role: ["contractor", "homeowner"],
     },

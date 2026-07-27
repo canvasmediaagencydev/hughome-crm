@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { format, subDays, startOfDay, endOfDay, parseISO, eachDayOfInterval } from "date-fns";
 
+// New model: no receipts. The daily time-series now sources from real tables:
+//   "receipts" series → committed batches per day (point_batches)
+//   "points"   series → points handed out per day (point_batch_ledger.points_earned)
+// Values are 0 until real data exists (correct).
 export async function GET(request: NextRequest) {
   try {
     const supabase = createServerSupabaseClient();
@@ -9,12 +13,9 @@ export async function GET(request: NextRequest) {
     const days = parseInt(searchParams.get("days") || "30");
     const startDate = searchParams.get("start_date");
     const endDate = searchParams.get("end_date");
-    const bahtPerPointParam = searchParams.get("baht_per_point");
 
-    // Determine date range
     let startRange: Date;
     let endRange: Date;
-
     if (startDate && endDate) {
       startRange = parseISO(startDate);
       endRange = parseISO(endDate);
@@ -27,110 +28,55 @@ export async function GET(request: NextRequest) {
     const startRangeISO = startOfDay(startRange).toISOString();
     const endRangeISO = endOfDay(endRange).toISOString();
 
-    // Use baht_per_point from query param if provided (to avoid duplicate DB query)
-    let bahtPerPoint = 100; // default
-    if (bahtPerPointParam) {
-      bahtPerPoint = parseFloat(bahtPerPointParam);
-    }
+    const [usersResult, batchesResult, ledgerResult] = await Promise.all([
+      supabase.from('user_profiles').select('created_at')
+        .gte('created_at', startRangeISO).lte('created_at', endRangeISO),
+      // committed batches in range → "receipts" series
+      supabase.from('point_batches').select('committed_at')
+        .eq('status', 'committed')
+        .gte('committed_at', startRangeISO).lte('committed_at', endRangeISO),
+      // points handed out in range → "points" series
+      supabase.from('point_batch_ledger').select('created_at, points_earned')
+        .gte('created_at', startRangeISO).lte('created_at', endRangeISO),
+    ]);
 
-    // Fetch ALL data in single queries (instead of looping per day)
-    // Only fetch point_settings if not provided via param
-    const shouldFetchSettings = !bahtPerPointParam;
-
-    const baseQueries = [
-      // All users in date range
-      supabase
-        .from('user_profiles')
-        .select('created_at')
-        .gte('created_at', startRangeISO)
-        .lte('created_at', endRangeISO),
-
-      // All receipts in date range
-      supabase
-        .from('receipts')
-        .select('created_at')
-        .gte('created_at', startRangeISO)
-        .lte('created_at', endRangeISO),
-
-      // All approved receipts with amounts
-      supabase
-        .from('receipts')
-        .select('created_at, total_amount')
-        .eq('status', 'approved')
-        .gte('created_at', startRangeISO)
-        .lte('created_at', endRangeISO)
-    ] as const;
-
-    // Conditionally add point_settings query
-    const results = shouldFetchSettings
-      ? await Promise.all([
-          ...baseQueries,
-          supabase
-            .from('point_settings')
-            .select('setting_value')
-            .eq('setting_key', 'baht_per_point')
-            .eq('is_active', true)
-            .single()
-        ])
-      : await Promise.all(baseQueries);
-
-    const usersResult = results[0];
-    const receiptsResult = results[1];
-    const approvedReceiptsResult = results[2];
-    const settingsResult = shouldFetchSettings ? results[3] : null;
-
-    if (settingsResult?.data?.setting_value) {
-      bahtPerPoint = settingsResult.data.setting_value;
-    }
-
-    // Group data by date in JavaScript (more efficient than N queries)
     const usersByDate = new Map<string, number>();
-    const receiptsByDate = new Map<string, number>();
+    const batchesByDate = new Map<string, number>();
     const pointsByDate = new Map<string, number>();
 
-    // Initialize all dates with 0
     dateInterval.forEach(date => {
       const key = format(date, 'yyyy-MM-dd');
       usersByDate.set(key, 0);
-      receiptsByDate.set(key, 0);
+      batchesByDate.set(key, 0);
       pointsByDate.set(key, 0);
     });
 
-    // Count users per date
-    usersResult.data?.forEach((user: any) => {
-      if (user.created_at) {
-        const dateKey = format(new Date(user.created_at), 'yyyy-MM-dd');
-        usersByDate.set(dateKey, (usersByDate.get(dateKey) || 0) + 1);
+    usersResult.data?.forEach((u: any) => {
+      if (u.created_at) {
+        const k = format(new Date(u.created_at), 'yyyy-MM-dd');
+        usersByDate.set(k, (usersByDate.get(k) || 0) + 1);
+      }
+    });
+    batchesResult.data?.forEach((b: any) => {
+      if (b.committed_at) {
+        const k = format(new Date(b.committed_at), 'yyyy-MM-dd');
+        batchesByDate.set(k, (batchesByDate.get(k) || 0) + 1);
+      }
+    });
+    ledgerResult.data?.forEach((l: any) => {
+      if (l.created_at) {
+        const k = format(new Date(l.created_at), 'yyyy-MM-dd');
+        pointsByDate.set(k, (pointsByDate.get(k) || 0) + (l.points_earned || 0));
       }
     });
 
-    // Count receipts per date
-    receiptsResult.data?.forEach((receipt: any) => {
-      if (receipt.created_at) {
-        const dateKey = format(new Date(receipt.created_at), 'yyyy-MM-dd');
-        receiptsByDate.set(dateKey, (receiptsByDate.get(dateKey) || 0) + 1);
-      }
-    });
-
-    // Calculate points per date
-    approvedReceiptsResult.data?.forEach((receipt: any) => {
-      if (receipt.created_at) {
-        const dateKey = format(new Date(receipt.created_at), 'yyyy-MM-dd');
-        const points = Math.floor((receipt.total_amount || 0) / bahtPerPoint);
-        pointsByDate.set(dateKey, (pointsByDate.get(dateKey) || 0) + points);
-      }
-    });
-
-    // Build final analytics array
     const analyticsData = dateInterval.map(date => {
       const dateKey = format(date, 'yyyy-MM-dd');
-      const displayDate = format(date, 'dd/MM');
-
       return {
-        date: displayDate,
+        date: format(date, 'dd/MM'),
         users: usersByDate.get(dateKey) || 0,
-        receipts: receiptsByDate.get(dateKey) || 0,
-        points: pointsByDate.get(dateKey) || 0
+        receipts: batchesByDate.get(dateKey) || 0, // committed batches
+        points: pointsByDate.get(dateKey) || 0,
       };
     });
 
@@ -140,8 +86,8 @@ export async function GET(request: NextRequest) {
         totalUsers: analyticsData.reduce((sum, item) => sum + item.users, 0),
         totalReceipts: analyticsData.reduce((sum, item) => sum + item.receipts, 0),
         totalPoints: analyticsData.reduce((sum, item) => sum + item.points, 0),
-        days: dateInterval.length
-      }
+        days: dateInterval.length,
+      },
     });
 
   } catch (error) {
