@@ -9,12 +9,12 @@ export async function POST(
 ) {
   try {
     // ต้องมี redemptions.process permission
-    await requirePermission(PERMISSIONS.REDEMPTIONS_PROCESS);
+    const adminUser = await requirePermission(PERMISSIONS.REDEMPTIONS_PROCESS);
 
     const supabase = createServerSupabaseClient();
     const { id } = await params;
     const body = await request.json();
-    const { adminId, adminNotes } = body;
+    const { adminNotes } = body;
 
     // Get redemption details
     const { data: redemption, error: redemptionError } = await supabase
@@ -30,20 +30,22 @@ export async function POST(
       );
     }
 
-    // Check if already processed
-    if (redemption.status === "shipped" || redemption.status === "cancelled") {
+    // Only pending requests can be approved (new 4-status enum:
+    // requested → approved → ready → delivered / cancelled). Full ready/delivered
+    // + QR pickup is Sprint 8; this transition unblocks admin approval.
+    if (redemption.status !== "requested" && redemption.status !== "processing") {
       return NextResponse.json(
         { error: "Redemption already processed" },
         { status: 400 }
       );
     }
 
-    // Update redemption status to "shipped" (completed/picked up)
+    // Update redemption status to "approved" (new enum)
     const { data: updatedRedemption, error: updateError } = await supabase
       .from("redemptions")
       .update({
-        status: "shipped",
-        processed_by: adminId,
+        status: "approved",
+        processed_by: adminUser.id,
         processed_at: new Date().toISOString(),
         admin_notes: adminNotes || null,
         updated_at: new Date().toISOString(),
