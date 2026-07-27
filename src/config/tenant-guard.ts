@@ -2,18 +2,14 @@
  * Tenant guard — MIGRATION_PLAN.md §9.1
  *
  * Verifies at server boot that the connected database belongs to the same
- * tenant as the env config (TENANT.code). This prevents a catastrophic
- * mis-deploy where, e.g., the ฟ้าฮ่าม build is accidentally pointed at the
- * แม่ริม production database.
+ * tenant as the env config (TENANT.code), preventing a mis-deploy where one
+ * branch's build is pointed at another branch's database.
  *
- * Behavior (agreed):
- *   - env TENANT.code ≠ DB app_config.tenant_code  → ALWAYS refuse to boot
- *     (this is the dangerous "wrong branch" case).
- *   - DB has no tenant_code yet (not migrated/seeded) → warn in dev, refuse in
- *     production. Lets local dev run before migrations are applied.
- *
- * Server-only: reads via the service_role client. Throws if imported/run in the
- * browser so secrets never reach the client bundle.
+ * Resilience (updated): startup must not brick the whole app. Only a DEFINITE
+ * mismatch (DB has a tenant_code and it differs from env) is treated as fatal
+ * and thrown — and even that is caught by instrumentation.ts and logged rather
+ * than crashing every route. A read failure / missing row is logged loudly but
+ * NOT fatal (a transient DB blip shouldn't take the whole app down).
  */
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { TENANT } from './tenant'
@@ -21,46 +17,47 @@ import { TENANT } from './tenant'
 let verified = false
 
 export async function assertTenantMatchesDatabase(): Promise<void> {
-  if (typeof window !== 'undefined') {
-    throw new Error('[tenant-guard] must not run in the browser')
-  }
+  if (typeof window !== 'undefined') return
   if (verified) return
 
-  const isProd = process.env.NODE_ENV === 'production'
-  const expected = TENANT.code
-
-  const supabase = createServerSupabaseClient()
-  const { data, error } = await supabase
-    .from('app_config')
-    .select('value')
-    .eq('key', 'tenant_code')
-    .maybeSingle()
-
-  // Table/row not there yet (DB not migrated) — Postgres "undefined_table" (42P01)
-  // surfaces as an error; a missing row surfaces as data === null.
-  if (error) {
-    const msg = `[tenant-guard] อ่าน app_config.tenant_code ไม่ได้ (ยัง apply migration?): ${error.message}`
-    if (isProd) throw new Error(`${msg} — refuse to boot (production)`)
-    console.warn(`⚠️  ${msg} — ข้ามชั่วคราว (dev)`)
+  let expected: string
+  try {
+    expected = TENANT.code
+  } catch (e) {
+    console.error('🚨 [tenant-guard] อ่าน env TENANT.code ไม่ได้ (ข้าม, ไม่ crash):', e instanceof Error ? e.message : e)
     return
   }
 
-  const dbCode = data?.value ?? null
+  let dbCode: string | null = null
+  try {
+    const supabase = createServerSupabaseClient()
+    const { data, error } = await supabase
+      .from('app_config')
+      .select('value')
+      .eq('key', 'tenant_code')
+      .maybeSingle()
+    if (error) {
+      console.error(`🚨 [tenant-guard] อ่าน app_config.tenant_code ไม่ได้ (ข้าม, ไม่ crash): ${error.message}`)
+      return
+    }
+    dbCode = data?.value ?? null
+  } catch (e) {
+    console.error('🚨 [tenant-guard] query app_config ล้มเหลว (ข้าม, ไม่ crash):', e instanceof Error ? e.message : e)
+    return
+  }
+
   if (dbCode === null) {
-    const msg = `[tenant-guard] ไม่พบ app_config.tenant_code (ยังไม่ได้ seed)`
-    if (isProd) throw new Error(`${msg} — refuse to boot (production)`)
-    console.warn(`⚠️  ${msg} — ข้ามชั่วคราว (dev)`)
+    console.error('🚨 [tenant-guard] ไม่พบ app_config.tenant_code (ยัง seed? หรือ service_role อ่านไม่ได้) — ข้าม, ไม่ crash')
     return
   }
 
   if (dbCode !== expected) {
+    // The dangerous case — a real wrong-branch connection.
     throw new Error(
-      `[tenant-guard] ❌ tenant ไม่ตรงกัน — refuse to boot!\n` +
-        `  env  TENANT.code            = '${expected}'\n` +
-        `  DB   app_config.tenant_code = '${dbCode}'\n` +
-        `  อาจกำลังต่อฐานข้อมูลผิดสาขา — ตรวจ .env.local / Supabase project ให้ตรงกัน`,
+      `[tenant-guard] ❌ tenant ไม่ตรงกัน: env TENANT.code='${expected}' แต่ DB app_config.tenant_code='${dbCode}' — อาจต่อฐานผิดสาขา`,
     )
   }
 
   verified = true
+  console.log(`✅ [tenant-guard] tenant ตรง: ${expected}`)
 }
