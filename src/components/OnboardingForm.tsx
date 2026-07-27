@@ -196,9 +196,11 @@ export default function OnboardingForm() {
       } else {
         setError(data.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง')
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Onboarding error:', err)
-      setError('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง')
+      const status = err?.response?.status
+      const serverErr = err?.response?.data?.error
+      setError(serverErr ? `${serverErr}${status ? ` (${status})` : ''}` : 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง')
     } finally {
       setIsLoading(false)
     }
