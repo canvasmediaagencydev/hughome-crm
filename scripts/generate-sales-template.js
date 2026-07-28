@@ -1,92 +1,57 @@
 /**
- * สร้าง docs/Hughome_Sales_Staff_Template.xlsx
+ * สร้าง docs/Hughome_Sales_Staff_Template.xlsx (ไฟล์ "ตัวอย่าง" สำหรับดู/ส่งให้ลูกค้าตรวจ)
  *
- *   node scripts/generate-sales-template.js
+ *   node scripts/generate-sales-template.js --staff "S01:สมชาย ใจดี,S02:วรรณภา ช่วยชุบ"
  *
- * รันใหม่ทุกครั้งที่ column spec เปลี่ยน — HEADERS ด้านล่างคือ single source of truth
- * ที่ parser ใน /api/admin/batches/upload ต้องอ่านให้ตรงกัน
+ * ⚠️ ไฟล์ที่พนักงานขายใช้จริงต้องโหลดจาก GET /api/admin/batches/template
+ *    เพราะ dropdown ต้อง generate จาก sales_reps ที่ is_active=true ณ ตอนนั้น
+ *    สคริปต์นี้รับรายชื่อผ่าน CLI เท่านั้น — ไม่มี default list โดยเจตนา
+ *    (รายชื่อ hardcode = พนักงานที่ลาออกแล้วยังถูกคีย์ต่อได้)
+ *
+ * ตัว builder อยู่ที่ src/lib/excel/build-template.js — ใช้ร่วมกับ API route ไฟล์เดียวกัน
  */
-const XLSX = require('xlsx')
 const path = require('path')
 const fs = require('fs')
+const { buildSalesTemplate, repLabel, HEADERS, SPEC } = require('../src/lib/excel/build-template')
 
-// ---- Column spec ----
-const HEADERS = [
-  'เบอร์โทรลูกค้า',
-  'ชื่อลูกค้า',
-  'ยอดซื้อ',
-  'ยอดลดหนี้',
-  'Promo Code',
-  'หมายเหตุ',
-]
+function parseStaffArg(argv) {
+  const i = argv.indexOf('--staff')
+  if (i === -1 || !argv[i + 1]) {
+    throw new Error(
+      'ต้องระบุรายชื่อพนักงานขาย:\n' +
+        '  node scripts/generate-sales-template.js --staff "S01:สมชาย ใจดี,S02:วรรณภา ช่วยชุบ"\n' +
+        'รูปแบบ: รหัส:ชื่อ คั่นด้วยคอมม่า'
+    )
+  }
+  return argv[i + 1]
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const sep = entry.indexOf(':')
+      if (sep < 1 || sep === entry.length - 1) {
+        throw new Error(`รูปแบบพนักงานขายผิด: "${entry}" (ต้องเป็น รหัส:ชื่อ)`)
+      }
+      return { code: entry.slice(0, sep).trim(), full_name: entry.slice(sep + 1).trim() }
+    })
+}
 
-// ---------- Sheet 1: ยอดซื้อ (แผ่นกรอกข้อมูล) ----------
-const dataSheet = XLSX.utils.aoa_to_sheet([HEADERS])
-dataSheet['!cols'] = [
-  { wch: 16 }, // เบอร์โทรลูกค้า
-  { wch: 26 }, // ชื่อลูกค้า
-  { wch: 12 }, // ยอดซื้อ
-  { wch: 12 }, // ยอดลดหนี้
-  { wch: 14 }, // Promo Code
-  { wch: 30 }, // หมายเหตุ
-]
-// หมายเหตุ: xlsx (community) เขียนได้แค่ความกว้างคอลัมน์
-// ยังตั้ง "รูปแบบข้อความ" ให้คอลัมน์เบอร์โทร และ freeze หัวตาราง ไม่ได้
-// → จะเพิ่มตอนย้ายไป exceljs ใน Sprint 4 (ดู MIGRATION_PLAN.md §9.3)
-// ระหว่างนี้ parser ฝั่ง server เติมเลข 0 หน้าให้อยู่แล้ว (8xx → 08xx)
+async function main() {
+  const reps = parseStaffArg(process.argv)
+  const wb = buildSalesTemplate(reps) // validate ซ้ำ (code ซ้ำ / มีตัวคั่น) อยู่ข้างใน
 
-// ---------- Sheet 2: คำแนะนำ ----------
-const guide = [
-  ['คำแนะนำการกรอกข้อมูลยอดซื้อ — HugHome Hug Point'],
-  [],
-  ['*** ห้ามแก้ชื่อหัวตาราง ห้ามสลับลำดับคอลัมน์ ห้ามเพิ่ม/ลบคอลัมน์ ***'],
-  ['ระบบอ่านไฟล์จากชื่อหัวตารางในแถวที่ 1 ของแผ่น "ยอดซื้อ" เท่านั้น'],
-  [],
-  ['── คอลัมน์ ──'],
-  ['คอลัมน์', 'จำเป็น', 'รูปแบบ', 'คำอธิบาย'],
-  ['เบอร์โทรลูกค้า', 'จำเป็น', 'ข้อความ 10 หลัก', 'เบอร์ของ "เจ้าของบัญชีแต้ม" · ถ้าเลข 0 หน้าหาย ระบบเติมให้อัตโนมัติ (8xx → 08xx)'],
-  ['ชื่อลูกค้า', 'ไม่จำเป็น', 'ข้อความ', 'ใช้ตรวจทานเฉยๆ · ระบบจับคู่ด้วยเบอร์โทรอย่างเดียว'],
-  ['ยอดซื้อ', 'จำเป็น', 'ตัวเลข', 'ยอดก่อนหักลดหนี้ · ห้ามใส่คอมม่าหรือคำว่า "บาท" · เช่น 2500.50'],
-  ['ยอดลดหนี้', 'ไม่จำเป็น', 'ตัวเลข', 'ยอดคืนของ/ลดหนี้ · เว้นว่างได้ ระบบนับเป็น 0'],
-  ['Promo Code', 'ไม่จำเป็น', 'ข้อความ', 'ใส่เฉพาะช่วงมีกิจกรรม · ตัวพิมพ์เล็ก/ใหญ่ไม่มีผล · เช่น NEWYEAR2X'],
-  ['หมายเหตุ', 'ไม่จำเป็น', 'ข้อความ', 'บันทึกภายใน ไม่ส่งถึงลูกค้า'],
-  [],
-  ['── ตัวอย่างการกรอก ──'],
-  HEADERS,
-  ['0812345678', 'สมชาย ใจดี', 2500, 0, '', ''],
-  ['0898765432', 'วรรณภา ช่วยชุบ', 12000, 1500, 'NEWYEAR2X', 'คืนกระเบื้อง 2 กล่อง'],
-  ['0923239269', 'กำธร รวงเรียว', 4837, 0, '', 'ผู้รับเหมา'],
-  [],
-  ['── สูตรคำนวณแต้ม (ระบบคิดให้อัตโนมัติ) ──'],
-  ['ยอดสุทธิ = ยอดซื้อ − ยอดลดหนี้'],
-  ['แต้ม = ปัดเศษ( ยอดสุทธิ ÷ อัตราแลกแต้ม × ตัวคูณ Promo )'],
-  ['อัตราแลกแต้มตั้งค่าในระบบหลังบ้าน (ค่าเริ่มต้น 100 บาท = 1 แต้ม)'],
-  [],
-  ['── ข้อผิดพลาดที่พบบ่อย ──'],
-  ['1. เลข 0 หน้าเบอร์หาย (812345678)', 'ระบบเติมให้ แต่ควรตั้งรูปแบบเซลล์เป็น "ข้อความ" ไว้ก่อน'],
-  ['2. ใส่คอมม่าในยอดเงิน (2,500)', 'ให้พิมพ์ 2500 เฉยๆ'],
-  ['3. ใส่คำว่า "บาท" ต่อท้ายยอด', 'ใส่แต่ตัวเลข'],
-  ['4. กรอกเบอร์คนที่มาซื้อแทนเจ้าของบัญชี', 'ต้องกรอกเบอร์ "เจ้าของแต้ม" เสมอ แม้ฝากคนอื่นมาซื้อ'],
-  ['5. Promo Code หมดอายุแล้ว', 'ระบบแจ้งเตือนตอนบัญชี upload'],
-  ['6. มีแถวว่างคั่นกลาง', 'ระบบข้ามให้ แต่ควรลบออกเพื่อความชัดเจน'],
-  [],
-  ['── ขั้นตอนการทำงาน ──'],
-  ['1. พนักงานขายกรอกลงแผ่น "ยอดซื้อ" ทุกวัน (paste หลายรายการพร้อมกันได้)'],
-  ['2. ส่งไฟล์ให้บัญชีทุกสัปดาห์'],
-  ['3. บัญชี upload เข้าระบบหลังบ้าน → ตรวจหน้า preview → กดยืนยัน'],
-  ['4. แต้มเข้าบัญชีลูกค้าทันที และลูกค้าได้รับแจ้งทาง LINE'],
-  ['5. ผู้จัดการสุ่มตรวจจากรายงานรายสัปดาห์ย้อนหลัง'],
-]
-const guideSheet = XLSX.utils.aoa_to_sheet(guide)
-guideSheet['!cols'] = [{ wch: 34 }, { wch: 14 }, { wch: 18 }, { wch: 62 }]
+  const outDir = path.join(__dirname, '..', 'docs')
+  fs.mkdirSync(outDir, { recursive: true })
+  const outFile = path.join(outDir, 'Hughome_Sales_Staff_Template.xlsx')
+  await wb.xlsx.writeFile(outFile)
 
-// ---------- Build ----------
-const wb = XLSX.utils.book_new()
-XLSX.utils.book_append_sheet(wb, dataSheet, 'ยอดซื้อ')
-XLSX.utils.book_append_sheet(wb, guideSheet, 'คำแนะนำ')
+  console.log('written:', outFile)
+  console.log('columns:', HEADERS.join(' | '))
+  console.log('sales reps in dropdown:', reps.map(repLabel).join(', '))
+  console.log('limits:', `${(SPEC.limits.maxFileBytes / 1024 / 1024).toFixed(0)} MB / ${SPEC.limits.maxDataRows} แถว`)
+}
 
-const outDir = path.join(__dirname, '..', 'docs')
-fs.mkdirSync(outDir, { recursive: true })
-const outFile = path.join(outDir, 'Hughome_Sales_Staff_Template.xlsx')
-XLSX.writeFile(wb, outFile)
-console.log('written:', outFile)
+main().catch((err) => {
+  console.error('\n' + err.message + '\n')
+  process.exit(1)
+})

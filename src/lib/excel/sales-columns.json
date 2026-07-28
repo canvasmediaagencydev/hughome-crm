@@ -1,0 +1,23 @@
+{
+  "_comment": "Single source of truth for the sales-staff Excel spec. Read by BOTH scripts/generate-sales-template.js (plain JS, require) and the Sprint 4 parser + /api/admin/batches/template (TS, resolveJsonModule). Never redeclare these headers anywhere else. Changing this file is a breaking change for sales staff who already hold the template.",
+  "sheetName": "ยอดซื้อ",
+  "guideSheetName": "คำแนะนำ",
+  "staffSheetName": "_staff",
+  "headerRow": 1,
+  "salesRepSeparator": " · ",
+  "columns": [
+    { "key": "purchase_date",  "header": "วันที่ซื้อ",      "letter": "A", "required": true,  "type": "date",   "width": 13 },
+    { "key": "bill_no",        "header": "เลขที่บิล",       "letter": "B", "required": true,  "type": "text",   "width": 18 },
+    { "key": "phone",          "header": "เบอร์โทรลูกค้า",   "letter": "C", "required": true,  "type": "text",   "width": 16 },
+    { "key": "customer_name",  "header": "ชื่อลูกค้า",       "letter": "D", "required": false, "type": "text",   "width": 26 },
+    { "key": "gross",          "header": "ยอดซื้อ",         "letter": "E", "required": true,  "type": "number", "width": 12 },
+    { "key": "discount",       "header": "ยอดลดหนี้",       "letter": "F", "required": false, "type": "number", "width": 12 },
+    { "key": "sales_rep",      "header": "พนักงานขาย",      "letter": "G", "required": true,  "type": "list",   "width": 28 },
+    { "key": "note",           "header": "หมายเหตุ",        "letter": "H", "required": false, "type": "text",   "width": 30 }
+  ],
+  "limits": {
+    "maxFileBytes": 5242880,
+    "maxDataRows": 5000,
+    "validationRows": 2000
+  }
+}

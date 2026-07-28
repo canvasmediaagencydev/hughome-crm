@@ -3,7 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { requirePermission } from "@/lib/admin-auth";
 import { PERMISSIONS } from "@/types/admin";
 import { parseISO, startOfDay, endOfDay, format } from "date-fns";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 function formatThaiDate(dateString: string): string {
   const date = new Date(dateString);
@@ -99,36 +99,39 @@ export async function GET(request: NextRequest) {
       user.points_balance ?? 0,
     ]);
 
-    // สร้าง workbook และ worksheet
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-
-    // กำหนดความกว้าง column
-    ws["!cols"] = [
-      { wch: 8 },   // ลำดับ
-      { wch: 18 },  // วันที่สมัคร
-      { wch: 15 },  // ชื่อจริง
-      { wch: 15 },  // นามสกุล
-      { wch: 14 },  // เบอร์โทร
-      { wch: 12 },  // ประเภท
-      { wch: 12 },  // แต้มปัจจุบัน
-    ];
-
     const sheetName = role === "contractor"
       ? "รายงานช่าง"
       : role === "homeowner"
       ? "รายงานเจ้าของบ้าน"
       : "รายงานลูกค้า";
 
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    // สร้าง workbook และ worksheet
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "HugHome CRM";
+    const ws = wb.addWorksheet(sheetName);
+
+    // กำหนดความกว้าง column
+    ws.columns = [
+      { width: 8 },   // ลำดับ
+      { width: 18 },  // วันที่สมัคร
+      { width: 15 },  // ชื่อจริง
+      { width: 15 },  // นามสกุล
+      { width: 14 },  // เบอร์โทร
+      { width: 12 },  // ประเภท
+      { width: 12 },  // แต้มปัจจุบัน
+    ];
+
+    ws.addRow(headers).font = { bold: true };
+    rows.forEach((row) => ws.addRow(row));
+    ws.views = [{ state: "frozen", ySplit: 1 }];
 
     // สร้างไฟล์ Excel
-    const excelBuffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+    const excelBuffer = await wb.xlsx.writeBuffer();
 
     const roleSuffix = role ? `-${role}` : "";
     const filename = `users-report-${startDate}-to-${endDate}${roleSuffix}.xlsx`;
 
-    return new NextResponse(excelBuffer, {
+    return new NextResponse(new Uint8Array(excelBuffer), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "Content-Disposition": `attachment; filename="${filename}"`,

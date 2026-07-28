@@ -71,7 +71,8 @@ export type PermissionCategory =
   | 'admins'
   | 'tags'
   | 'batches'
-  | 'promos'
+  | 'campaigns'
+  | 'salesreps'
   | 'notifications'
   | 'reports'
   | 'sales'
@@ -146,9 +147,13 @@ export const PERMISSIONS = {
   BATCHES_REVIEW: 'batches.review',
   BATCHES_VOID: 'batches.void',
 
-  // Promo codes
-  PROMOS_VIEW: 'promos.view',
-  PROMOS_MANAGE: 'promos.manage',
+  // Point campaigns (ตัวคูณแต้มผูกช่วงวันที่ ตั้งหลังบ้านเท่านั้น — ไม่มีโค้ดให้พนักงานกรอก)
+  CAMPAIGNS_VIEW: 'campaigns.view',
+  CAMPAIGNS_MANAGE: 'campaigns.manage',
+
+  // Sales reps (รายชื่อพนักงานขายที่ป้อน dropdown ในไฟล์ Excel)
+  SALESREPS_VIEW: 'salesreps.view',
+  SALESREPS_MANAGE: 'salesreps.manage',
 
   // Notifications
   NOTIFICATIONS_MANAGE: 'notifications.manage',

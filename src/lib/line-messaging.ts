@@ -154,6 +154,7 @@ export async function pushMessage(
 
 export type PointNotificationKind =
   | "receipt_approved"
+  | "batch_award"
   | "points_bonus"
   | "points_refund"
   | "points_spent";
@@ -171,6 +172,13 @@ const KIND_META: Record<
   receipt_approved: {
     title: "อนุมัติใบเสร็จแล้ว",
     emoji: "✅",
+    color: "#16A34A",
+    deltaLabel: "ได้รับแต้ม",
+  },
+  // แต้มจากยอดซื้อรายสัปดาห์ (batch upload) — เส้นทางหลักของระบบใหม่
+  batch_award: {
+    title: "ได้รับแต้มจากยอดซื้อ",
+    emoji: "🛒",
     color: "#16A34A",
     deltaLabel: "ได้รับแต้ม",
   },

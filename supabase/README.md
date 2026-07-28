@@ -1,7 +1,7 @@
 # Supabase — Migration Runbook (Phase 1: ฐานเปล่า)
 
-อ้างอิง **MIGRATION_PLAN.md §5**. Sprint 1 สร้าง migration 001–012 แล้ว
-(013 `seed_demo_data.sql` เป็นงาน Sprint 9 · seed แบบรันมือ)
+อ้างอิง **MIGRATION_PLAN.md §5**. Sprint 1 สร้าง migration 001–012 (apply ขึ้น pilot แล้ว)
+pre-Sprint 4 เพิ่ม 013–020 (**ยังไม่ apply**) · `seed_demo_data.sql` เป็นงาน Sprint 9 · seed แบบรันมือ
 
 ## โครงโฟลเดอร์
 
@@ -43,7 +43,7 @@ supabase/
 supabase link --project-ref <PROJECT_REF>
 ```
 
-### 2. Push migrations (001 → 012)
+### 2. Push migrations (001 → 020)
 ```bash
 supabase db push
 ```
@@ -104,4 +104,50 @@ psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/rollback/012_s
 | 010 | `rpc_points_functions.sql` | award/void/redeem/expire/adjust (SECURITY DEFINER, service_role only) |
 | 011 | `rls_policies.sql` | enable RLS ทุกตาราง (deny-by-default, server ใช้ service_role) |
 | 012 | `seed_permissions_roles.sql` | 27 permissions + 6 roles (ไม่มี receipts.*) |
-| 013 | `seed_demo_data.sql` | **Sprint 9 · แยก supabase/seed/ · รันมือ** |
+
+### pre-Sprint 4 (27 ก.ค. 2026) — ยังไม่ apply ขึ้น pilot
+
+001–012 apply ขึ้น Supabase pilot ไปแล้ว → **ห้ามแก้ย้อนหลัง** ของใหม่เป็น 013–020
+
+| # | ไฟล์ | เนื้อหา |
+|---|------|---------|
+| 013 | `create_sales_reps.sql` | รายชื่อพนักงานขาย (ป้อน dropdown ในไฟล์ Excel) |
+| 014 | `create_point_campaigns.sql` | ตัวคูณแต้มผูกช่วงวันที่ + `EXCLUDE USING gist` ห้ามซ้อนช่วง |
+| 015 | `batch_ledger_traceability.sql` | ledger +`purchase_date`/`bill_no`/`sales_rep_id`/`campaign_id`/`voided` · unique bill_no · **`DROP TABLE promo_codes`** |
+| 016 | `rls_new_tables.sql` | enable RLS สองตารางใหม่ |
+| 017 | `rpc_points_functions_v2.sql` | `award_points_from_batch` + `void_batch` ใหม่ (`earned_month` จาก `purchase_date` รายแถว) |
+| 018 | `permissions_campaigns_salesreps.sql` | `promos.*` → `campaigns.*` + `salesreps.*` → รวม **29 permissions** |
+| 019 | `batch_committed_by.sql` | `point_batches.committed_by` (ใครกดให้แต้มเข้า) + CHECK คู่กับ `committed_at` |
+| 020 | `rpc_award_v3_commit_actor.sql` | `award_points_from_batch(id, admin)` · **DROP ตัว 1 argument** |
+| seed | `supabase/seed/seed_demo_data.sql` | **Sprint 9 · รันมือ · ห้ามอยู่ใน migration path** |
+
+> ลำดับ rollback: `020 → 019 → 018 → 017 → 016 → 015 → 014 → 013`
+> - `020` ถอยแล้ว **ต้องถอย `019` ต่อทันที** — RPC v2 เซ็ต `committed_at` โดยไม่เซ็ต `committed_by`
+>   จะชน CHECK ของ 019 → ค้างครึ่งทางคือ commit batch ไม่ได้เลย
+> - `015` down ทำลายข้อมูล `purchase_date`/`bill_no`/`sales_rep_id` ถาวร — ถอยได้เฉพาะตอน pilot
+
+### ไฟล์รวม SQL (สร้างด้วย generator ห้ามแก้มือ)
+
+| ไฟล์ | ใช้เมื่อไร | สร้างด้วย |
+|---|---|---|
+| `_apply_all.sql` | **DB ใหม่เปล่า ๆ** (Phase 2 instance ใหม่) | `node scripts/build-apply-all.js --tenant pilot` |
+| `_apply_013_020.sql` | **DB ที่ apply 001–012 ไปแล้ว** เช่น pilot ตอนนี้ | `node scripts/build-apply-all.js --from 013 --to 020` |
+
+> 🔴 **ห้ามวาง `_apply_all.sql` ลง pilot** — มันรัน 001 ตั้งแต่ต้น จะพังทันทีที่ `CREATE TYPE user_role`
+> ที่มีอยู่แล้ว · pilot ต้องใช้ `_apply_013_020.sql` เท่านั้น
+
+`--tenant` ไม่มี default โดยเจตนา (ไฟล์รวมมี `INSERT tenant_code` อยู่ข้างใน — เดาให้แล้วมีวันรันทับ instance ผิด)
+โหมด `--from/--to` ไม่ใส่ `INSERT tenant_code` เพราะตั้งไปแล้วตอน apply ชุดแรก
+
+### ตรวจหลัง apply
+
+```bash
+node scripts/verify-schema.js     # schema ขึ้นครบไหม (ผ่าน PostgREST + service_role — ไม่ต้องมี DB password)
+node scripts/verify-types.js      # database.types.ts ตรงกับ DB จริงไหม (ทุกตาราง/คอลัมน์/nullability)
+```
+ตรวจ 13 ข้อ: ตารางใหม่ 2 ตัว · `promo_codes` หายไป · 5 คอลัมน์ใหม่ใน ledger · `promo_code_id` หายไป ·
+29 permissions · `campaigns.*`/`salesreps.*` ครบ · `promos.*` หมด · `point_batches.committed_by`
+
+**ตรวจจากสคริปต์ไม่ได้** (PostgREST มองไม่เห็น constraint/index/function signature) → รันใน SQL Editor เพิ่ม:
+block `VERIFICATION` ท้ายไฟล์ `_apply_013_020.sql` — สำคัญสุดคือ `award_points_from_batch`
+ต้องเหลือ signature เดียวคือ `(uuid, uuid)` ถ้ายังมี `(uuid)` แปลว่า `DROP FUNCTION` ใน 020 ไม่ทำงาน

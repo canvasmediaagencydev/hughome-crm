@@ -20,6 +20,8 @@ import {
   Package,
   FileText,
   Tag,
+  FileSpreadsheet,
+  UserSquare2,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -133,6 +135,20 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       icon: Users,
       current: pathname.startsWith('/admin/users'),
       show: hasPermission(PERMISSIONS.USERS_VIEW),
+    },
+    {
+      name: 'อัปโหลดยอดขาย',
+      href: '/admin/batches',
+      icon: FileSpreadsheet,
+      current: pathname.startsWith('/admin/batches'),
+      show: hasPermission(PERMISSIONS.BATCHES_VIEW),
+    },
+    {
+      name: 'พนักงานขาย',
+      href: '/admin/sales-reps',
+      icon: UserSquare2,
+      current: pathname.startsWith('/admin/sales-reps'),
+      show: hasPermission(PERMISSIONS.SALESREPS_VIEW),
     },
     {
       name: 'จัดการรางวัล',

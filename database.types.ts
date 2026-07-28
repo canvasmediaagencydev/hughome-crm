@@ -260,6 +260,8 @@ export type Database = {
       }
       point_batch_ledger: {
         Row: {
+          bill_no: string | null
+          campaign_id: string | null
           created_at: string
           discount_amount: number | null
           earned_month: string
@@ -270,12 +272,16 @@ export type Database = {
           net_amount: number | null
           points_earned: number
           points_remaining: number
-          promo_code_id: string | null
+          purchase_date: string | null
+          sales_rep_id: string | null
           source: string
           source_batch_id: string | null
           user_id: string
+          voided: boolean
         }
         Insert: {
+          bill_no?: string | null
+          campaign_id?: string | null
           created_at?: string
           discount_amount?: number | null
           earned_month: string
@@ -286,12 +292,16 @@ export type Database = {
           net_amount?: number | null
           points_earned: number
           points_remaining: number
-          promo_code_id?: string | null
+          purchase_date?: string | null
+          sales_rep_id?: string | null
           source?: string
           source_batch_id?: string | null
           user_id: string
+          voided?: boolean
         }
         Update: {
+          bill_no?: string | null
+          campaign_id?: string | null
           created_at?: string
           discount_amount?: number | null
           earned_month?: string
@@ -302,17 +312,26 @@ export type Database = {
           net_amount?: number | null
           points_earned?: number
           points_remaining?: number
-          promo_code_id?: string | null
+          purchase_date?: string | null
+          sales_rep_id?: string | null
           source?: string
           source_batch_id?: string | null
           user_id?: string
+          voided?: boolean
         }
         Relationships: [
           {
-            foreignKeyName: "point_batch_ledger_promo_code_id_fkey"
-            columns: ["promo_code_id"]
+            foreignKeyName: "point_batch_ledger_campaign_id_fkey"
+            columns: ["campaign_id"]
             isOneToOne: false
-            referencedRelation: "promo_codes"
+            referencedRelation: "point_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "point_batch_ledger_sales_rep_id_fkey"
+            columns: ["sales_rep_id"]
+            isOneToOne: false
+            referencedRelation: "sales_reps"
             referencedColumns: ["id"]
           },
           {
@@ -334,6 +353,7 @@ export type Database = {
       point_batches: {
         Row: {
           committed_at: string | null
+          committed_by: string | null
           created_at: string
           file_name: string
           file_sha256: string
@@ -357,6 +377,7 @@ export type Database = {
         }
         Insert: {
           committed_at?: string | null
+          committed_by?: string | null
           created_at?: string
           file_name: string
           file_sha256: string
@@ -380,6 +401,7 @@ export type Database = {
         }
         Update: {
           committed_at?: string | null
+          committed_by?: string | null
           created_at?: string
           file_name?: string
           file_sha256?: string
@@ -403,6 +425,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "point_batches_committed_by_fkey"
+            columns: ["committed_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "point_batches_reviewed_by_fkey"
             columns: ["reviewed_by"]
             isOneToOne: false
@@ -419,6 +448,53 @@ export type Database = {
           {
             foreignKeyName: "point_batches_voided_by_fkey"
             columns: ["voided_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      point_campaigns: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          ends_on: string
+          id: string
+          is_active: boolean
+          multiplier: number
+          name: string
+          starts_on: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_on: string
+          id?: string
+          is_active?: boolean
+          multiplier: number
+          name: string
+          starts_on: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_on?: string
+          id?: string
+          is_active?: boolean
+          multiplier?: number
+          name?: string
+          starts_on?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "point_campaigns_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "admin_users"
             referencedColumns: ["id"]
@@ -518,59 +594,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      promo_codes: {
-        Row: {
-          code: string
-          created_at: string
-          created_by: string | null
-          description: string | null
-          expires_at: string
-          id: string
-          is_active: boolean
-          max_uses: number | null
-          multiplier: number
-          name: string
-          starts_at: string
-          usage_count: number
-        }
-        Insert: {
-          code: string
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          expires_at: string
-          id?: string
-          is_active?: boolean
-          max_uses?: number | null
-          multiplier: number
-          name: string
-          starts_at: string
-          usage_count?: number
-        }
-        Update: {
-          code?: string
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          expires_at?: string
-          id?: string
-          is_active?: boolean
-          max_uses?: number | null
-          multiplier?: number
-          name?: string
-          starts_at?: string
-          usage_count?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "promo_codes_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "admin_users"
             referencedColumns: ["id"]
           },
         ]
@@ -699,6 +722,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      sales_reps: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          full_name: string
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_reps_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tags: {
         Row: {
@@ -885,7 +949,10 @@ export type Database = {
         }
         Returns: number
       }
-      award_points_from_batch: { Args: { p_batch_id: string }; Returns: number }
+      award_points_from_batch: {
+        Args: { p_admin: string; p_batch_id: string }
+        Returns: number
+      }
       expire_ledger_batches: { Args: { p_as_of: string }; Returns: number }
       redeem_reward: {
         Args: { p_qty: number; p_reward: string; p_user: string }
