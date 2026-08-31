@@ -35,7 +35,8 @@ ON CONFLICT DO NOTHING;   -- ชน unique index บน upper(code)
 --    Postgres จะ reject ทั้ง transaction (error 23P01) และ seed ทั้งไฟล์จะไม่ลง
 --
 --      แคมเปญ A: 2026-06-01 → 2026-06-30   (จบไปแล้ว)
---      แคมเปญ B: 2026-07-23 → 2026-08-05   (ยัง active วันนี้)
+--      แคมเปญ B: 2026-07-23 → 2026-08-05   (คลุมครึ่งหลังของสัปดาห์สาธิต)
+--      แคมเปญ C: 2026-08-15 → 2026-12-31   (กำลังดำเนินอยู่วันนี้)
 --      ห่างกัน 22 วัน — ไม่มีทางทับ
 --
 --    B ตั้งใจให้คลุม "ครึ่งหลัง" ของสัปดาห์สาธิต (20–26 ก.ค.) เท่านั้น
@@ -49,8 +50,15 @@ SELECT 'ต้นฤดูฝน รับแต้ม 1.5 เท่า', 'แ�
 WHERE NOT EXISTS (SELECT 1 FROM point_campaigns WHERE name = 'ต้นฤดูฝน รับแต้ม 1.5 เท่า');
 
 INSERT INTO point_campaigns (name, description, multiplier, starts_on, ends_on, is_active)
-SELECT 'ฮักโฮมกลางปี รับแต้ม 2 เท่า', 'แคมเปญสาธิต (กำลังดำเนินอยู่)', 2.00, DATE '2026-07-23', DATE '2026-08-05', true
+SELECT 'ฮักโฮมกลางปี รับแต้ม 2 เท่า', 'แคมเปญสาธิต (คลุมครึ่งหลังของสัปดาห์สาธิต)', 2.00, DATE '2026-07-23', DATE '2026-08-05', true
 WHERE NOT EXISTS (SELECT 1 FROM point_campaigns WHERE name = 'ฮักโฮมกลางปี รับแต้ม 2 เท่า');
+
+-- แคมเปญ C: 2026-08-15 → 2026-12-31 · x1.5 — ช่วง "กำลังดำเนินอยู่" ตอนที่เดโม
+--   มีไว้เพื่อให้หน้าแคมเปญมีแถว active จริงตอนสาธิต และเพื่อให้บิลที่คีย์สดวันนี้ได้ตัวคูณ
+--   ไม่ทับ B (จบ 2026-08-05) และไม่แตะสัปดาห์สาธิต 20–26 ก.ค. → ยอด 687 แต้มไม่เปลี่ยน
+INSERT INTO point_campaigns (name, description, multiplier, starts_on, ends_on, is_active)
+SELECT 'ฮักโฮมปลายฝน รับแต้ม 1.5 เท่า', 'แคมเปญสาธิต (กำลังดำเนินอยู่)', 1.50, DATE '2026-08-15', DATE '2026-12-31', true
+WHERE NOT EXISTS (SELECT 1 FROM point_campaigns WHERE name = 'ฮักโฮมปลายฝน รับแต้ม 1.5 เท่า');
 
 
 -- ---------------------------------------------------------------------------
@@ -80,7 +88,7 @@ ON CONFLICT DO NOTHING;   -- ชน unique บน line_user_id หรือ phon
 -- ตรวจหลังรัน
 -- ---------------------------------------------------------------------------
 -- SELECT code, full_name, is_active FROM sales_reps ORDER BY code;                    -- คาดหวัง 4 แถว
--- SELECT name, multiplier, starts_on, ends_on FROM point_campaigns ORDER BY starts_on; -- คาดหวัง 2 แถว ไม่ทับกัน
+-- SELECT name, multiplier, starts_on, ends_on FROM point_campaigns ORDER BY starts_on; -- คาดหวัง 3 แถว ไม่ทับกัน
 -- SELECT phone, display_name, points_balance FROM user_profiles
 --   WHERE line_user_id LIKE 'Udemo-%' ORDER BY phone;                                  -- คาดหวัง 8 แถว · 0 แต้ม
 

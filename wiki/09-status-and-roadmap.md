@@ -12,31 +12,24 @@ are marked as such.
 | Supabase | pilot `zoaxqouayhjkyterzzdt`, `tenant_code = pilot` |
 | Migrations | `001`–`020`, all applied |
 | Sprints complete | 0, 1, 2, 2.1, 3, 3.1, pre-4, 4, 5 (partial) |
-| Demo data | two seed sets applied — see the drift note below |
+| Demo data | `docs/demo/` (10 rows · 687 points) · `verify-demo-ready.js` 19/19 |
 
-### ⚠️ Demo data drift
+### Demo data — resolved 2026-08-31
 
-Two seed files have been applied to the pilot, and the second changed data the first one's assets
-depend on:
+Two seed files had been applied and the second one moved data the first one's assets depend on:
+`seed_mockdata50_customers.sql` widened the 2× campaign from `2026-07-23 → 2026-08-05` to
+`2026-07-15 → 2026-08-05`, which pushed the 10-row demo file from 687 to 874 points, and added
+sales rep `S029` plus 17 `Udemo50-%` customers for a 50-row file that is no longer in the repo.
 
-- `supabase/seed/seed_demo_data.sql` — 4 sales reps, 2 campaigns, 8 customers. Paired with
-  `docs/demo/` (10 rows, expected 687 points). Verified 19/19 when it was the only seed present.
-- `supabase/seed/seed_mockdata50_customers.sql` — adds sales rep `S029` and 17 more customers, and
-  **widens the 2× campaign from `2026-07-23 → 2026-08-05` to `2026-07-15 → 2026-08-05`** so that it
-  covers a 50-row mock file.
+`docs/demo/` (10 rows, 687 points) is now the demo set. `node scripts/repair-demo-data.js`
+restored the 2× window, deleted the mock50 rows (none were referenced by any ledger), and added a
+third demo campaign — `ฮักโฮมปลายฝน รับแต้ม 1.5 เท่า`, ×1.5, `2026-08-15 → 2026-12-31` — so a
+campaign is active on the day of the demo without touching the July numbers. The campaign is also
+in `seed_demo_data.sql`, so a fresh Phase 2 seed reproduces the same state.
 
-Consequence, confirmed by re-running `node scripts/verify-demo-ready.js` (now **16/19**):
-
-| Check | Was | Now |
-|---|---|---|
-| sales reps | 4 | 5 |
-| original demo file total | 687 points | **874 points** — rows dated 20–22 July now fall inside the 2× window |
-| a campaign is active today | yes | **no** — both windows ended before the current date |
-
-Nothing is broken; the numbers moved. Before demoing, decide which set is the demo, then either
-regenerate `docs/demo/` against the current campaign dates
-(`node scripts/build-demo-batch.js`, which needs its hardcoded `CAMPAIGN` constant updated to match)
-or move the campaign window back. `verify-demo-ready.js` is what tells you the two agree.
+`node scripts/verify-demo-ready.js` is now **19/19**. Re-run it after touching any seed.
+`seed_mockdata50_customers.sql` is kept with a conflict warning in its header; running it again
+re-breaks the demo file, and `repair-demo-data.js` undoes it.
 
 ## Completed
 
@@ -132,7 +125,7 @@ Each of these is a decision that was made explicitly and should not be revisited
 |---|---|
 | Parser self-check | ✅ 29/29 |
 | Demo file vs hand-computed points | ✅ 17/17 |
-| Seed vs demo file, read from the live database | ✅ 19/19 |
+| Seed vs demo file, read from the live database | ✅ 19/19 (re-verified 2026-08-31) |
 | End-to-end money path on the pilot database | ✅ 23/23 |
 | Schema on the pilot | ✅ 13/13 plus behavioural constraint checks |
 | `tsc --noEmit`, `npm run build` | ✅ |

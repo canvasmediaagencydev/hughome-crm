@@ -140,9 +140,10 @@ Calls `void_batch`, which returns remaining points, writes refund transactions, 
 inside a 2× campaign window and some outside. `docs/demo/README.md` explains what each row is meant
 to demonstrate.
 
-> Its 687-point total assumed the 2× campaign ran `2026-07-23 → 2026-08-05`. A later seed
-> (`seed_mockdata50_customers.sql`) widened that window to start `2026-07-15`, which makes the same
-> file total **874**. See the drift note in
+> Its 687-point total depends on the 2× campaign running `2026-07-23 → 2026-08-05`.
+> `seed_mockdata50_customers.sql` widens that window to start `2026-07-15`, which makes the same file
+> total **874** — do not run it unless you have the 50-row file and accept that `docs/demo/` stops
+> matching. `node scripts/repair-demo-data.js` puts the window back. See
 > [09 — Status & roadmap](09-status-and-roadmap.md).
 
 Rebuild with `node scripts/build-demo-batch.js`; verify with `node scripts/verify-demo-ready.js`,

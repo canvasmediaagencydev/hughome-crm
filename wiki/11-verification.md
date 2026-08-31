@@ -43,6 +43,9 @@ node scripts/verify-demo-ready.js # 19 checks: seed matches the demo file, bills
 
 `verify-demo-ready.js` is the one to run before a demo. Unlike `verify-demo-batch.js` it builds the
 parser context from the **live** database, so it catches seed data drifting away from the demo file.
+It expects 4 sales reps, 3 campaigns (one active today), 8 `Udemo-%` customers, and a 687-point
+total. When it fails on seed drift, `node scripts/repair-demo-data.js --dry` shows what it would put
+back; without `--dry` it applies the fix.
 
 ### What these cannot see
 

@@ -71,7 +71,7 @@ async function main() {
   )
 
   const camps = (await sb.from('point_campaigns').select('*').order('starts_on')).data ?? []
-  check('แคมเปญ 2 ช่วง', camps.length === 2, `ได้ ${camps.length}`)
+  check('แคมเปญ 3 ช่วง', camps.length === 3, `ได้ ${camps.length}`)
   camps.forEach((c) => console.log(`     · ${c.name} · x${c.multiplier} · ${c.starts_on} → ${c.ends_on}`))
 
   let overlap = false
