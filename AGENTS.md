@@ -1,30 +1,90 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
-- `src/app` hosts the Next.js App Router routes (admin dashboards, LIFF flows, API routes). Keep each route folder self-contained with `page.tsx`, `layout.tsx`, and supporting server actions.
-- `src/components`, `src/hooks`, `src/services`, `src/lib`, `src/utils`, and `src/types` contain reusable UI, data hooks, Supabase/LINE clients, helpers, and shared contracts. Favor colocating admin-only helpers under `src/lib/admin-*` when they need privileged tokens.
-- Persistent assets live under `public/`; Supabase buckets store user-generated media. Product docs and flows live in `docs/` (notably `docs/architecture.md` and the PRD series). Seed and maintenance jobs reside under `scripts/`.
+> Read `CLAUDE.md` first — it carries the project objectives and the hard rules.
+> `wiki/` holds the depth. This file is conventions only.
 
-## Build, Test, and Development Commands
-- `npm run dev` starts the Turbopack-powered dev server at `http://localhost:3000`; use when iterating on UI or API routes.
-- `npm run build` (or `npm run build:analyze` with `ANALYZE=true`) compiles the production bundle; run before proposing deployments.
-- `npm run start` serves the compiled build locally to mimic Vercel. Pair with production-like env vars when verifying Supabase/LINE flows.
-- `node scripts/create-test-admin.js` (or `create-test-admins.js`) provisions RBAC fixtures that match `TESTING_GUIDE.md`.
+## Project structure
 
-## Coding Style & Naming Conventions
-- Codebase is TypeScript-first; keep strict typing in services and React Server Components. Components and hooks use PascalCase (e.g., `AdminSidebar.tsx`), hooks use `useX` convention, utility modules use `*.ts`.
-- Follow 2-space indentation from existing files. Favor functional, client-annotated components only when browser APIs are required (`'use client'`).
-- Styling runs through Tailwind CSS 4 presets; group class names by layout → color → state. Share variants via `class-variance-authority` utilities under `src/lib`.
+- `src/app` — Next.js App Router. Customer LIFF pages at the root, back office under `admin/`,
+  endpoints under `api/`. Keep each route folder self-contained.
+- `src/components` (shadcn/ui in `components/ui`), `src/hooks`, `src/lib`, `src/config`,
+  `src/types` — shared UI, data hooks, clients, boot configuration, contracts.
+- `src/lib/excel/` — the Excel column spec, parser, and template builder.
+  `sales-columns.json` is the single source of truth for the sheet; never redeclare headers.
+- `supabase/migrations/` — `001`–`020` up, `rollback/` down.
+  `supabase/seed/` — manual-only seed data, deliberately outside the migration path.
+- `scripts/` — generators and verification scripts.
+- `wiki/` — committed documentation. `docs/` — working notes, **git-ignored**.
+- `public/` — static assets. User-generated media lives in Supabase Storage (bucket `rewards`).
 
-## Testing Guidelines
-- Automated coverage is limited; rely on the RBAC scenarios documented in `TESTING_GUIDE.md`. Work through the Super Admin, Receipt Manager, Customer Support, and Reward Manager checklists after any permission, OCR, or admin UI change.
-- When backend permissions change, run the cURL smoke tests in `TESTING_GUIDE.md` to confirm `403`/`200` expectations, then exercise the admin UI to ensure menus honor role filters.
-- Record any new manual scenario directly inside `TESTING_GUIDE.md` or link to issue-specific notes.
+## Build and development
 
-## Commit & Pull Request Guidelines
-- Follow the conventional style in `git log` (`feat(admin): ...`, `fix(admin): ...`, `refactor:`). Scope reflects the surface (`admin`, `receipts`, `ocr`), and the subject should describe the behavior change.
-- Each PR should include: summary of behavior change, screenshots/GIFs for UI updates, references to Supabase migrations or scripts touched, linked Jira/GitHub issue, and a checklist of manual tests executed.
+```bash
+npm run dev            # Turbopack dev server, http://localhost:3000
+npm run build          # production build
+npm run build:analyze  # ANALYZE=true
+npm start              # serve the compiled build
+npx tsc --noEmit       # typecheck — run before claiming done
+```
 
-## Security & Configuration Tips
-- Required env vars include `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, LINE LIFF credentials, and storage bucket names. Never expose the service role key to client code; keep server-only clients in `src/lib/supabase-server.ts` or API routes.
-- Confirm RLS policies before deploying migrations. When testing locally, load `.env.local` and avoid committing secrets.
+## Code style
+
+TypeScript-first, strict typing in services and server components. 2-space indent.
+Components and hooks PascalCase (`AdminSidebar.tsx`); hooks `useX`; utilities plain `*.ts`.
+`'use client'` only where browser APIs are needed. Tailwind CSS 4; group classes layout → colour →
+state. Path alias `@/*` → `src/*`.
+
+Comment the *why* — constraint rationale, security reasoning, traps. Not what the line does.
+
+## Patterns
+
+Guard every admin endpoint with `requirePermission` and map thrown errors to 401/403.
+Hiding a menu item is not security.
+
+`.select()` must be one string literal; concatenation breaks supabase-js type inference.
+
+Use `.in()` for exact matching, never `.or(col.ilike."value")` — `ilike` treats `%` and `_` as
+wildcards and PostgREST exposes no `ESCAPE`.
+
+All balance changes go through Postgres RPC. Never `UPDATE points_balance` from a route.
+Actor ids come from the session, never from a request body.
+LINE push is fire-and-forget and must never fail the admin action.
+
+## Testing
+
+No test framework. Verification is scripts, each exiting non-zero on failure — see
+`wiki/11-verification.md`.
+
+```bash
+node scripts/test-parse-sales-batch.js   # parser, offline
+node scripts/verify-schema.js            # live schema vs code
+node scripts/verify-types.js             # database.types.ts vs live DB
+node scripts/verify-demo-ready.js        # pilot ready to demo
+node scripts/e2e-batch-flow.js           # ⚠️ writes to the DB; cleans up after itself
+```
+
+`TESTING_GUIDE.md` and `ADMIN_RBAC_TASKS.md` still describe the deleted OCR/receipt system.
+Do not follow them.
+
+## Commits and PRs
+
+Conventional Commits, scoped: `feat(pilot):`, `fix(admin):`, `refactor:`.
+The subject describes the behaviour change; the body carries reasoning and, where it matters, what is
+deliberately *not* done.
+
+**A commit message must describe what is actually in the commit.** A message claiming a security fix
+that is not present tells every future reader the system is safer than it is.
+
+A PR should include the behaviour change, screenshots for UI work, any migrations or scripts touched,
+and which verification scripts were run with their results.
+
+## Security and configuration
+
+Every environment variable is validated at boot by `src/config/env.ts` with **no defaults** —
+see `wiki/07-environment-and-deployment.md` for the list.
+
+`SUPABASE_SERVICE_ROLE_KEY` is server-only; keep server clients in `src/lib/supabase-server.ts` or
+inside API routes. Never edit or commit `.env.local`. Never put a real phone number or a real
+person's name in the repository.
+
+RLS is on for every table with no permissive policies. Confirm policies before adding a table.
