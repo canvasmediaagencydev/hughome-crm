@@ -20,6 +20,7 @@ This wiki is the depth behind it.
 | [10 — Conventions & rules](10-conventions-and-rules.md) | Before your first commit |
 | [11 — Verification](11-verification.md) | Before you claim anything works |
 | [12 — Conflicts & unverified](12-conflicts-and-unverified.md) | When a document disagrees with the code |
+| [13 — Manual test plan](13-manual-test-plan.md) | Clicking the pilot end to end to hunt bugs before writing more code |
 
 ## The one-paragraph version
 
