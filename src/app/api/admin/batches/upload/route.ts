@@ -67,9 +67,13 @@ export async function POST(request: NextRequest) {
     const fileSha256 = createHash('sha256').update(buffer).digest('hex')
 
     // ---------------- กันไฟล์ซ้ำ ----------------
+    // committed → กัน (บิลเดียวได้แต้มครั้งเดียว · ต้อง void ก่อนถ้าจะส่งใหม่)
+    // previewed/draft → ไฟล์เดิมที่ยังไม่เคยให้แต้ม (เช่น เลือกสัปดาห์ผิดแล้วอัปใหม่) — ไม่มี ledger/
+    //   transaction อ้างถึง จึงลบ preview เก่าทิ้งแล้วทำ preview ใหม่แทน ไม่งั้นบัญชีติดตายที่ 409
+    //   (index point_batches_file_hash_idx กัน hash ซ้ำทุกสถานะที่ไม่ใช่ voided)
     const { data: dupBatch, error: dupErr } = await supabase
       .from('point_batches')
-      .select('id, status, created_at, file_name')
+      .select('id, status, created_at, file_name, week_start, week_end')
       .eq('file_sha256', fileSha256)
       .neq('status', 'voided')
       .maybeSingle()
@@ -77,15 +81,28 @@ export async function POST(request: NextRequest) {
       console.error('[batches/upload] dup check failed:', dupErr)
       return NextResponse.json({ error: 'ตรวจไฟล์ซ้ำไม่สำเร็จ' }, { status: 500 })
     }
+    let replacedPreviewId: string | null = null
     if (dupBatch) {
-      return NextResponse.json(
-        {
-          error: 'ไฟล์นี้เคยอัปโหลดไปแล้ว',
-          detail: `ตรงกับ batch "${dupBatch.file_name}" (สถานะ ${dupBatch.status}) เมื่อ ${dupBatch.created_at}`,
-          batch_id: dupBatch.id,
-        },
-        { status: 409 }
-      )
+      if (dupBatch.status === 'committed') {
+        return NextResponse.json(
+          {
+            error: `ไฟล์นี้ให้แต้มเข้าไปแล้ว (batch "${dupBatch.file_name}" สัปดาห์ ${dupBatch.week_start} → ${dupBatch.week_end}) — ถ้าไฟล์ผิดให้ยกเลิก batch นั้นก่อนแล้วค่อยอัปโหลดใหม่`,
+            detail: `ตรงกับ batch "${dupBatch.file_name}" (สถานะ ${dupBatch.status}) เมื่อ ${dupBatch.created_at}`,
+            batch_id: dupBatch.id,
+          },
+          { status: 409 }
+        )
+      }
+      const { error: delErr } = await supabase
+        .from('point_batches')
+        .delete()
+        .eq('id', dupBatch.id)
+        .in('status', ['previewed', 'draft'])
+      if (delErr) {
+        console.error('[batches/upload] replace stale preview failed:', delErr)
+        return NextResponse.json({ error: 'ลบ preview เดิมของไฟล์นี้ไม่สำเร็จ' }, { status: 500 })
+      }
+      replacedPreviewId = dupBatch.id
     }
 
     // ---------------- lookup ที่ parser ต้องใช้ ----------------
@@ -206,6 +223,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       batch_id: batch.id,
+      replaced_preview_id: replacedPreviewId,
       file_name: file.name,
       file_sha256: fileSha256,
       week_start: weekStart,

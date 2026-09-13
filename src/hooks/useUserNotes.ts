@@ -6,18 +6,12 @@ export interface UserNote {
   note_content: string
   created_at: string
   updated_at: string | null
-  created_by: string
   created_by_admin_id: string | null
   created_by_admin?: {
     id: string
     full_name: string | null
     email: string | null
   } | null
-  user_profiles: {
-    id: string
-    display_name: string | null
-    picture_url: string | null
-  }
 }
 
 export interface NotesPagination {

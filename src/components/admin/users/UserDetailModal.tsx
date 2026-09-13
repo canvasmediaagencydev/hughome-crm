@@ -506,7 +506,7 @@ export function UserDetailModal({
                           const authorIsAdmin = !!note.created_by_admin
                           const authorName = authorIsAdmin
                             ? note.created_by_admin?.full_name || note.created_by_admin?.email || 'ทีมแอดมิน'
-                            : note.user_profiles?.display_name || 'ผู้ใช้'
+                            : 'ผู้ใช้'
                           const authorAvatar = authorIsAdmin
                             ? (note.created_by_admin?.full_name || note.created_by_admin?.email || 'A').slice(0, 1).toUpperCase()
                             : getUserDisplayName(user).slice(0, 1).toUpperCase()

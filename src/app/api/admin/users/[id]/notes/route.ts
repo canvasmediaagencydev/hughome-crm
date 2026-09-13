@@ -38,13 +38,7 @@ export async function GET(
         note_content,
         created_at,
         updated_at,
-        created_by,
         created_by_admin_id,
-        user_profiles!user_notes_created_by_fkey (
-          id,
-          display_name,
-          picture_url
-        ),
         created_by_admin:admin_users!user_notes_created_by_admin_id_fkey (
           id,
           full_name,
@@ -102,7 +96,6 @@ export async function POST(
       .insert({
         user_id: id,
         note_content: note_content.trim(),
-        created_by: id,
         created_by_admin_id: adminUser.id,
       })
       .select(`
@@ -110,13 +103,7 @@ export async function POST(
         note_content,
         created_at,
         updated_at,
-        created_by,
         created_by_admin_id,
-        user_profiles!user_notes_created_by_fkey (
-          id,
-          display_name,
-          picture_url
-        ),
         created_by_admin:admin_users!user_notes_created_by_admin_id_fkey (
           id,
           full_name,
