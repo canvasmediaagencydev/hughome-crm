@@ -145,10 +145,7 @@ export default function AdminRedemptionsPage() {
       setProcessingId(selectedRedemption.id)
       await axiosAdmin.post(
         `/api/admin/redemptions/${selectedRedemption.id}/cancel`,
-        {
-          adminId: null,
-          adminNotes,
-        }
+        { adminNotes }
       )
 
       setShowNotesModal(false)

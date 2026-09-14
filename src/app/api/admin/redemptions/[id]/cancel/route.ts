@@ -3,116 +3,54 @@ import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { requirePermission } from "@/lib/admin-auth";
 import { PERMISSIONS } from "@/types/admin";
 
+/**
+ * POST /api/admin/redemptions/:id/cancel — ยกเลิกใบแลก คืนแต้ม+สต็อก
+ *
+ * เงินทั้งหมดขยับใน RPC cancel_redemption (migration 021) ภายใต้ row lock:
+ * คืนแต้มเข้า lot เดิม (ledger) + points_balance + point_transactions + สต็อก + status
+ * ในธุรกรรมเดียว — ห้าม UPDATE points_balance จากที่นี่
+ *
+ * ผู้ยกเลิก = admin จาก session เท่านั้น (ไม่รับ adminId จาก body)
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // ต้องมี redemptions.process permission
-    await requirePermission(PERMISSIONS.REDEMPTIONS_PROCESS);
+    const adminUser = await requirePermission(PERMISSIONS.REDEMPTIONS_PROCESS);
 
     const supabase = createServerSupabaseClient();
     const { id } = await params;
-    const body = await request.json();
-    const { adminId, adminNotes } = body;
+    const body = await request.json().catch(() => ({}));
+    // RPC stores NULL for an empty note.
+    const adminNotes = typeof body?.adminNotes === "string" ? body.adminNotes.trim() : "";
 
-    // Get redemption details
-    const { data: redemption, error: redemptionError } = await supabase
+    const { data: newBalance, error } = await supabase.rpc("cancel_redemption", {
+      p_redemption: id,
+      p_admin: adminUser.id,
+      p_note: adminNotes,
+    });
+
+    if (error) {
+      // RPC RAISEs on not found / already delivered or cancelled / inactive admin.
+      console.warn("cancel_redemption failed:", error.message);
+      const notFound = /not found/.test(error.message);
+      return NextResponse.json(
+        { error: error.message || "ไม่สามารถยกเลิกการแลกรางวัลได้" },
+        { status: notFound ? 404 : 400 }
+      );
+    }
+
+    const { data: updatedRedemption } = await supabase
       .from("redemptions")
       .select("*")
       .eq("id", id)
-      .single();
-
-    if (redemptionError || !redemption) {
-      return NextResponse.json(
-        { error: "Redemption not found" },
-        { status: 404 }
-      );
-    }
-
-    // Check if already processed
-    if (redemption.status === "shipped" || redemption.status === "cancelled") {
-      return NextResponse.json(
-        { error: "Redemption already processed" },
-        { status: 400 }
-      );
-    }
-
-    // Get user's current balance
-    const { data: user, error: userError } = await supabase
-      .from("user_profiles")
-      .select("points_balance")
-      .eq("id", redemption.user_id)
-      .single();
-
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
-    }
-
-    // Calculate new balance (refund points back to user)
-    const newBalance = (user.points_balance ?? 0) + redemption.points_used;
-
-    // Update user points balance
-    const { error: updateUserError } = await supabase
-      .from("user_profiles")
-      .update({ points_balance: newBalance })
-      .eq("id", redemption.user_id);
-
-    if (updateUserError) {
-      console.error("Failed to update user balance:", updateUserError);
-      return NextResponse.json(
-        { error: "Failed to refund points" },
-        { status: 500 }
-      );
-    }
-
-    // Create refund transaction record (for logging only)
-    const { error: transactionError } = await supabase
-      .from("point_transactions")
-      .insert({
-        user_id: redemption.user_id,
-        type: "refund",
-        points: redemption.points_used,
-        balance_after: newBalance,
-        reference_type: "redemption",
-        reference_id: redemption.id,
-        description: `คืนแต้มจากการยกเลิกการแลกรางวัล ${adminNotes ? `(${adminNotes})` : ''}`,
-        created_by: adminId,
-      });
-
-    if (transactionError) {
-      console.error("Failed to create transaction record:", transactionError);
-      // Don't fail the operation if transaction log fails
-    }
-
-    // Update redemption status to cancelled
-    const { data: updatedRedemption, error: updateError } = await supabase
-      .from("redemptions")
-      .update({
-        status: "cancelled",
-        processed_by: adminId,
-        processed_at: new Date().toISOString(),
-        admin_notes: adminNotes || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (updateError) {
-      return NextResponse.json(
-        { error: updateError.message },
-        { status: 500 }
-      );
-    }
+      .maybeSingle();
 
     return NextResponse.json({
       success: true,
       redemption: updatedRedemption,
-      refundedPoints: redemption.points_used,
       newBalance,
     });
   } catch (error) {

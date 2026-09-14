@@ -10,6 +10,17 @@ interface AdjustPointsRequest {
   type: "bonus" | "refund" | "spent";
 }
 
+/**
+ * POST /api/admin/users/:id/points — ปรับแต้มมือ
+ *
+ * เงินขยับใน RPC adjust_points_manual (migration 010) ภายใต้ row lock:
+ * +amount สร้าง lot ใหม่ใน point_batch_ledger (มีวันหมดอายุ หัก FIFO ได้)
+ * −amount หัก FIFO จาก lot ที่ยังไม่หมดอายุ · ลง point_transactions พร้อม created_by
+ * ห้าม UPDATE points_balance / INSERT ledger จากที่นี่
+ *
+ * `type` ใช้เลือกข้อความ LINE เท่านั้น — ชนิดธุรกรรมในฐาน RPC กำหนดจากเครื่องหมาย
+ * (+ = bonus, − = spent)
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -22,7 +33,7 @@ export async function POST(
     const body: AdjustPointsRequest = await request.json();
     const { amount, reason, type } = body;
 
-    if (!amount || typeof amount !== "number" || amount === 0) {
+    if (!amount || typeof amount !== "number" || !Number.isInteger(amount) || amount === 0) {
       return NextResponse.json(
         { error: "Invalid amount" },
         { status: 400 }
@@ -45,10 +56,10 @@ export async function POST(
 
     const supabase = createServerSupabaseClient();
 
-    // Get current user
+    // Need line_user_id for the push; also confirms the user exists before touching money.
     const { data: user, error: userError } = await supabase
       .from("user_profiles")
-      .select("points_balance, line_user_id")
+      .select("line_user_id")
       .eq("id", id)
       .single();
 
@@ -56,51 +67,21 @@ export async function POST(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Calculate new balance
-    const currentBalance = user.points_balance ?? 0;
-    const newBalance = currentBalance + amount;
+    const { data: newBalance, error: rpcError } = await supabase.rpc("adjust_points_manual", {
+      p_user: id,
+      p_delta: amount,
+      p_admin: adminUser.id,
+      p_note: reason.trim(),
+    });
 
-    if (newBalance < 0) {
+    if (rpcError || typeof newBalance !== "number") {
+      // RPC RAISEs when the deduction would drive the balance negative or
+      // active lots cannot cover it (ledger/balance mismatch).
+      console.warn("adjust_points_manual failed:", rpcError?.message);
+      const insufficient = /negative|mismatch/.test(rpcError?.message ?? "");
       return NextResponse.json(
-        { error: "Insufficient points balance" },
-        { status: 400 }
-      );
-    }
-
-    // Update user points balance
-    const { error: updateError } = await supabase
-      .from("user_profiles")
-      .update({ points_balance: newBalance })
-      .eq("id", id);
-
-    if (updateError) {
-      return NextResponse.json(
-        { error: "Failed to update points balance" },
-        { status: 500 }
-      );
-    }
-
-    // Create point transaction record
-    const { error: transactionError } = await supabase
-      .from("point_transactions")
-      .insert({
-        user_id: id,
-        points: amount,
-        type: type,
-        description: reason,
-        balance_after: newBalance,
-      });
-
-    if (transactionError) {
-      // Rollback points update if transaction creation fails
-      await supabase
-        .from("user_profiles")
-        .update({ points_balance: currentBalance })
-        .eq("id", id);
-
-      return NextResponse.json(
-        { error: "Failed to create transaction record" },
-        { status: 500 }
+        { error: insufficient ? "Insufficient points balance" : "Failed to adjust points" },
+        { status: insufficient ? 400 : 500 }
       );
     }
 
@@ -113,7 +94,7 @@ export async function POST(
     await notifyPointChange(user.line_user_id, {
       kind: kindMap[type],
       pointsDelta: amount,
-      newBalance: newBalance,
+      newBalance,
     });
 
     return NextResponse.json({
@@ -121,6 +102,7 @@ export async function POST(
       new_balance: newBalance,
     });
   } catch (error) {
+    console.error("Adjust points error:", error);
     return NextResponse.json(
       { error: "Failed to adjust points" },
       { status: 500 }

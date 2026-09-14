@@ -204,6 +204,30 @@ export type Database = {
         }
         Relationships: []
       }
+      balance_reconcile_log: {
+        Row: {
+          checked_users: number
+          details: Json
+          id: string
+          mismatch_count: number
+          run_at: string
+        }
+        Insert: {
+          checked_users: number
+          details?: Json
+          id?: string
+          mismatch_count: number
+          run_at?: string
+        }
+        Update: {
+          checked_users?: number
+          details?: Json
+          id?: string
+          mismatch_count?: number
+          run_at?: string
+        }
+        Relationships: []
+      }
       line_quota_cache: {
         Row: {
           consumed: number | null
@@ -257,6 +281,41 @@ export type Database = {
           type?: string
         }
         Relationships: []
+      }
+      notification_log: {
+        Row: {
+          id: string
+          kind: string
+          payload: Json | null
+          sent_at: string
+          user_id: string
+          window_key: string
+        }
+        Insert: {
+          id?: string
+          kind: string
+          payload?: Json | null
+          sent_at?: string
+          user_id: string
+          window_key: string
+        }
+        Update: {
+          id?: string
+          kind?: string
+          payload?: Json | null
+          sent_at?: string
+          user_id?: string
+          window_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       point_batch_ledger: {
         Row: {
@@ -594,6 +653,39 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      redemption_lots: {
+        Row: {
+          lot_id: string
+          points: number
+          redemption_id: string
+        }
+        Insert: {
+          lot_id: string
+          points: number
+          redemption_id: string
+        }
+        Update: {
+          lot_id?: string
+          points?: number
+          redemption_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "redemption_lots_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "point_batch_ledger"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "redemption_lots_redemption_id_fkey"
+            columns: ["redemption_id"]
+            isOneToOne: false
+            referencedRelation: "redemptions"
             referencedColumns: ["id"]
           },
         ]
@@ -953,7 +1045,20 @@ export type Database = {
         Args: { p_admin: string; p_batch_id: string }
         Returns: number
       }
+      cancel_redemption: {
+        Args: { p_admin: string; p_note: string; p_redemption: string }
+        Returns: number
+      }
       expire_ledger_batches: { Args: { p_as_of: string }; Returns: number }
+      reconcile_balances: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          user_id: string
+          points_balance: number
+          ledger_remaining: number
+          drift: number
+        }[]
+      }
       redeem_reward: {
         Args: { p_qty: number; p_reward: string; p_user: string }
         Returns: string

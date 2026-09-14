@@ -1,5 +1,5 @@
 /**
- * ตรวจว่า migration 013–020 ขึ้นครบบน Supabase หรือยัง
+ * ตรวจว่า migration 013–022 ขึ้นครบบน Supabase หรือยัง
  *
  *   node scripts/verify-schema.js
  *
@@ -89,6 +89,13 @@ async function main() {
   // --- 019: committed_by ---
   record(await columnExists('point_batches', 'committed_by'), '019 · point_batches.committed_by')
 
+  // --- 021: redemption_lots (RPC cancel_redemption ตรวจใน SQL Editor) ---
+  record(await tableExists('redemption_lots'), '021 · ตาราง redemption_lots มีอยู่')
+
+  // --- 022: notification_log + balance_reconcile_log (RPC reconcile_balances ตรวจใน SQL Editor) ---
+  record(await tableExists('notification_log'), '022 · ตาราง notification_log มีอยู่')
+  record(await tableExists('balance_reconcile_log'), '022 · ตาราง balance_reconcile_log มีอยู่')
+
   // --- สรุป ---
   const failed = results.filter((r) => !r.ok)
   console.log(
@@ -100,6 +107,8 @@ async function main() {
       "   • constraint point_campaigns_no_overlap (EXCLUDE)\n" +
       "   • index pbl_bill_no_active_idx (unique bill_no)\n" +
       "   • signature award_points_from_batch ต้องเป็น (uuid, uuid) เท่านั้น\n" +
+      "   • function cancel_redemption(uuid, uuid, text) มีอยู่ (021)\n" +
+      "   • function reconcile_balances() มีอยู่ (022)\n" +
       '   ดู block VERIFICATION ท้ายไฟล์ supabase/_apply_013_020.sql'
   )
   process.exit(failed.length ? 1 : 0)
