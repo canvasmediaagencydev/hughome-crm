@@ -54,7 +54,7 @@ Server-only keys are validated server-side only, so they cannot leak into the cl
 
 | | |
 |---|---|
-| Supabase project ref | `zoaxqouayhjkyterzzdt` |
+| Supabase project ref | `vltzkxmblmrvsmaookhl` — project `hughome-pilot`, Supabase account `canvasmediaagency@gmail.com`, region ap-northeast-1 (Tokyo), created 2026-09-14 |
 | `app_config.tenant_code` | `pilot` |
 | `NEXT_PUBLIC_TENANT_CODE` (local) | `pilot` — matches |
 | `NOTIFICATIONS_ENABLED` (local) | `false` — LINE push is off |
@@ -85,22 +85,52 @@ exactly `pilot` — otherwise the entire site starts erroring.
 This decision is **open**. It was proposed as a commit message once and was not implemented, because
 implementing it was not what the commit actually contained.
 
+## Why the pilot project was recreated (2026-09-14)
+
+The original pilot `zoaxqouayhjkyterzzdt` (created 2026-07-27) could not be found in any Supabase
+account the team can log into, and DDL run in the SQL editor that appeared to target it never became
+visible through its REST API (PostgREST kept serving the 20 pre-existing tables). The most likely
+cause, seen on the new-project form, is the **"Automatically expose new tables"** setting — when off,
+tables created after project creation are not granted to the Data API roles. With no dashboard access
+that could not be fixed, so a fresh project was created with that setting **on**, `_apply_all.sql`
+(001–022) applied in three chunks, the demo seed run, the admin recreated, and the three Supabase env
+values swapped in `.env.local` and on Vercel (production + preview, via `vercel env`).
+
+Data from the old project was **not** migrated (only demo customers, one internal test user, and a
+handful of test redemptions lived there). Reward images must be re-uploaded. The old project should
+be deleted once its owner account is found.
+
 ## Cron
 
-`vercel.json` currently registers:
+`vercel.json` (Sprint 7, matches `MIGRATION_PLAN.md` §6.3 paths). Schedules are **UTC** on Vercel.
 
 ```json
-{ "path": "/api/cron/birthday-greetings",     "schedule": "0 2 * * *"  }
-{ "path": "/api/cron/points-expiry-reminder", "schedule": "0 2 * * *"  }
-{ "path": "/api/cron/expire-points",          "schedule": "30 17 * * *" }
+{ "path": "/api/cron/expire-points-monthly", "schedule": "0 18 * * *" }   // 01:00 Bangkok, daily
+{ "path": "/api/cron/points-expiry-warning", "schedule": "0 2 1 * *"  }   // 09:00 Bangkok, 1st of month
+{ "path": "/api/cron/birthday-greetings",    "schedule": "0 2 * * *"  }   // 09:00 Bangkok, daily
+{ "path": "/api/cron/reconcile-balances",    "schedule": "0 3 * * *"  }   // 10:00 Bangkok, daily
 ```
 
-`expire-points` and `points-expiry-reminder` are **no-ops** awaiting Sprint 7.
+Every cron checks `verifyCronRequest()` (`Authorization: Bearer $CRON_SECRET`) before touching the
+database or LINE. `scripts/verify-cron-auth.js <base-url>` proves all four return 401 unauthenticated.
 
-> **Conflict.** `MIGRATION_PLAN.md` §6.3 specifies different paths and schedules:
-> `/api/cron/expire-points-monthly` (`0 1 1 * *`), `/api/cron/points-expiry-warning` (`0 2 1 * *`),
-> `/api/cron/birthday-greetings` (`0 2 * * *`), `/api/cron/reconcile-balances` (`0 3 * * *`).
-> `vercel.json` has not been updated; that is listed as Sprint 7 work.
+| Cron | Does | Money |
+|---|---|---|
+| `expire-points-monthly` | RPC `expire_ledger_batches(today)` — lots with `expires_at < today` → `points_remaining = 0`, balance down, `point_transactions` `expired`; then LINE "แต้มหมดอายุแล้ว" per affected user, deduped per day | RPC only |
+| `points-expiry-warning` | lots expiring within 3 months → one LINE warning per user, deduped per `(user, lot expires_at)` so a lot is warned once | read-only |
+| `birthday-greetings` | LINE greeting, deduped per `(user, year)` | read-only |
+| `reconcile-balances` | RPC `reconcile_balances()`; writes `balance_reconcile_log`; on drift logs `console.error` and returns **500** so Vercel marks the run failed. Never auto-fixes | read-only |
+
+> `expire-points-monthly` is scheduled **daily**, not on the 1st as the plan's name suggests. `expires_at`
+> is "last day of earned month + 365 days", which lands mid-month whenever the span crosses a
+> 29 February. Waiting for the 1st would leave those lots in `points_balance` but excluded from
+> `redeem_reward`'s FIFO, and a redemption larger than the active lots would fail with
+> `ledger/balance mismatch`. The RPC is idempotent, so a daily run is a no-op on most days.
+
+LINE pushes are fire-and-forget: a failed push is counted in the response (`push_failed`) and not
+logged to `notification_log`, so the next run retries it; it never fails the cron.
+
+Old routes `/api/cron/expire-points` and `/api/cron/points-expiry-reminder` were deleted in Sprint 7.
 
 ## Local setup
 
@@ -119,7 +149,7 @@ Requires an interactive Supabase login, which an agent shell cannot do
 
 ```bash
 npx supabase login
-npx supabase gen types typescript --project-id zoaxqouayhjkyterzzdt > /tmp/t.ts && mv /tmp/t.ts database.types.ts
+npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts && mv /tmp/t.ts database.types.ts
 npx tsc --noEmit
 ```
 

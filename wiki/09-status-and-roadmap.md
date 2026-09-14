@@ -9,9 +9,9 @@ are marked as such.
 | | |
 |---|---|
 | Branch / deploy | `pilot-phase1` → https://pilot-phase1.vercel.app, commit `e3d83aa` |
-| Supabase | pilot `zoaxqouayhjkyterzzdt`, `tenant_code = pilot` |
-| Migrations | `001`–`020`, all applied |
-| Sprints complete | 0, 1, 2, 2.1, 3, 3.1, pre-4, 4, 5 (partial) |
+| Supabase | pilot `vltzkxmblmrvsmaookhl`, `tenant_code = pilot` |
+| Migrations | `001`–`022` all applied (fresh pilot project 2026-09-14) |
+| Sprints complete | 0, 1, 2, 2.1, 3, 3.1, pre-4, 4, 5 (partial), 6, 7 |
 | Demo data | `docs/demo/` (10 rows · 687 points) · `verify-demo-ready.js` 19/19 |
 
 ### Demo data — resolved 2026-08-31
@@ -66,14 +66,40 @@ Self-check: **29/29**.
 `src/lib/excel/build-template.js` so the CLI script and the API route share one implementation.
 Added the `batch_award` LINE notification kind.
 
+### 2026-09-13 — money-path fix + Sprint 6
+Migration `021`: `redemption_lots`, `redeem_reward` v2, `cancel_redemption` RPC. The two routes that
+bypassed RPC (`redemptions/[id]/cancel`, `users/[id]/points`) now call `cancel_redemption` /
+`adjust_points_manual`. One-off `supabase/fixes/2026-09-13_reconcile_cancel_drift.sql` repairs the
+pre-existing balance/ledger drift.
+
+### Sprint 6 — campaign UI
+`GET/POST /api/admin/campaigns`, `GET/PATCH/DELETE /api/admin/campaigns/:id`, `/admin/campaigns`
+page, nav item. Overlap is checked client-side, server-side (409 naming the conflicting campaign
+and its range), and by the DB (`23P01` translated to the same message). `DELETE` is refused with a
+Thai message when `point_batch_ledger` references the campaign (`23503`); deactivate instead.
+`campaigns.manage` gates POST/PATCH/DELETE, so `accounting` (view only) gets 403.
+Offline self-check `scripts/test-campaign-rules.mjs`: **18/18**. Clicked through on local dev against the
+pilot DB 2026-09-13: create/overlap/edge/toggle/edit/delete all behave; API probes gave 409/400/404/401
+as designed; `accounting` gets 403 on POST/PATCH/DELETE and sees a read-only page. Not yet exercised:
+`23503` refusal on delete (needs a committed batch referencing the campaign) and a DB-level `23P01`
+race (pre-check always catches it first).
+
+### Sprint 7 — step-wise expiry + cron + LINE push
+Migration `022` (`notification_log`, `balance_reconcile_log`, `reconcile_balances()`). Four crons at the
+§6.3 paths (`vercel.json` rewritten; old `expire-points` / `points-expiry-reminder` routes deleted).
+Expiry executes only through `expire_ledger_batches`; warnings 1–3 months ahead deduped per lot expiry
+date; birthday deduped per year; reconcile is read-only and fails the run (500) on drift. LINE quota
+cached in `line_quota_cache` via `GET /api/admin/quota` (15 min). Customer dashboard shows
+"แต้ม X จะหมดอายุ [เดือน]" from the nearest lot. `scripts/verify-cron-auth.js` **15/15** on local.
+`scripts/e2e-points-invariant.js --yes` **36/36** and `e2e-batch-flow.js` **23/23** on the new pilot (2026-09-14). FIFO on redeem was
+already in `redeem_reward` since `010`. See `wiki/07` for the daily-vs-monthly expiry schedule decision.
+
 ## Remaining
 
 | Sprint | Work |
 |---|---|
 | 5 (leftover) | `POST /api/admin/batches/:id/review` (manager records a spot-check), `GET /api/admin/batches/:id` (batch detail) |
-| 6 | Campaign UI — `/api/admin/campaigns` CRUD and `/admin/campaigns`. Must translate Postgres `23P01` into readable Thai naming the conflicting campaign, and gate on `campaigns.manage` so `accounting` cannot set multipliers |
-| 7 | Step-wise expiry cron, LINE push (points in, expiry warning, birthday), LINE quota cache, FIFO redemption, daily balance reconcile that logs and alerts but never auto-fixes. Also update `vercel.json` to the §6.3 cron paths |
-| 8 | Telegram / LINE group notify, redemption 4 statuses + QR, cancel with points returned, clean up the legacy `processing` / `shipped` status values |
+| 8 | Telegram / LINE group notify, redemption 4 statuses + QR (points-returning cancel already done via `cancel_redemption`), clean up the legacy `processing` / `shipped` status values |
 | 9 | Customer UI (5-tab bottom nav, `/call`, `/facebook`), admin polish, weekly reports with bill number and salesperson columns, demo data |
 
 ## Locked decisions
@@ -98,17 +124,25 @@ Each of these is a decision that was made explicitly and should not be revisited
 
 ### Operational
 - Rotate the admin password and the LINE / Supabase keys that were pasted into a chat transcript
-- Delete pilot test data (one user holding 400 points, sample rewards)
+- Old pilot project `zoaxqouayhjkyterzzdt` still exists somewhere (owner account unknown) — find and delete
+- Reward images: all three rewards on the new pilot have no image yet (`/admin/rewards`)
+- Vercel account shows **Payment failed / pay open invoices** — deploys and crons stop if unpaid
 - Real SMS provider — OTP currently works for a single test number
 - Two rewards have no image: `เสื้อยืด Hughome`, `บัตรกำนัล 500 บาท` (upload at `/admin/rewards`)
 - Remaining placeholders: shop phone number, Telegram bot/group (Sprint 8)
 
 ### Technical
+- **Fixed in code 2026-09-13, migration `021` applied:** the two routes that moved money with a direct
+  `UPDATE` (`redemptions/[id]/cancel`, `users/[id]/points`) now call `cancel_redemption` /
+  `adjust_points_manual`. Existing drift on the pilot (test customer balance 400 vs ledger 300) is
+  *not* repaired by the migration — run `supabase/fixes/2026-09-13_reconcile_cancel_drift.sql`
+  (one-off, after `021`; refuses to run unless exactly one user has drift)
 - `tenant-guard` is soft — `instrumentation.ts` catches its throw and only logs
 - `exceljs` advisories (`archiver` → `glob` → `minimatch` → `brace-expansion`, and `uuid` v3/v5/v6),
   on the zip write path rather than the untrusted read path
 - `/api/upload` returns 500 instead of 401 for a non-admin
-- `vercel.json` cron paths do not match `MIGRATION_PLAN.md` §6.3; two crons are no-ops
+- `supabase/fixes/2026-09-13_reconcile_cancel_drift.sql` is now moot — the drifted user lived in the
+  abandoned project; the new pilot reconciles 0 mismatches. Kept as the pattern for future repairs
 - Legacy `processing` / `shipped` still present in the redemption status type
 - Stale receipt/OCR references remain in `src/app/admin/page.tsx`,
   `src/components/StatusBadge.tsx`, dashboard metrics routes, `TESTING_GUIDE.md`,
@@ -149,7 +183,8 @@ After committing, void the batch before re-uploading the same file — `file_sha
 
 Any bug found here is cheaper than any Sprint 6 feature.
 
-**2. Then Sprint 6 — campaign UI.**
+Add to the click-through: `/admin/campaigns` — create an overlapping campaign (expect a Thai
+message naming the conflict), an edge-touching one (expect success), toggle one off, try to delete
+the ×2 July campaign (expect refusal — demo ledger rows reference it).
 
-Smallest remaining sprint and demo-visible. Campaigns can currently only be created through the SQL
-Editor, so the back office is incomplete without it.
+**2. Push the Sprint 6/7 work, rehearse on the new deploy, then Sprint 8.**

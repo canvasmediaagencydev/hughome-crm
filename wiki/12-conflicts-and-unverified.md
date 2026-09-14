@@ -15,17 +15,13 @@ Sprint 3.
 **Not rewritten.** Rewriting them would require deciding what the current manual-test checklist
 should be, which is a scope decision, not a documentation fix. **Do not trust these two files.**
 
-### 2. `vercel.json` cron paths do not match `MIGRATION_PLAN.md` §6.3
+### 2. `vercel.json` cron paths — **resolved in Sprint 7 (2026-09-13)**
 
-| `vercel.json` (actual) | §6.3 (planned) |
-|---|---|
-| `/api/cron/birthday-greetings` `0 2 * * *` | `/api/cron/birthday-greetings` `0 2 * * *` |
-| `/api/cron/points-expiry-reminder` `0 2 * * *` | `/api/cron/points-expiry-warning` `0 2 1 * *` |
-| `/api/cron/expire-points` `30 17 * * *` | `/api/cron/expire-points-monthly` `0 1 1 * *` |
-| — | `/api/cron/reconcile-balances` `0 3 * * *` |
-
-The two mismatched crons are no-ops. `PHASE1_STATUS.md` lists updating `vercel.json` as Sprint 7
-work, so this is a known gap rather than an unnoticed contradiction.
+`vercel.json` now uses the four §6.3 paths. One deliberate deviation remains and is documented in
+`wiki/07-environment-and-deployment.md`: `/api/cron/expire-points-monthly` is scheduled **daily**
+(`0 18 * * *` UTC = 01:00 Bangkok) rather than on the 1st, because `expires_at` can fall mid-month
+after a leap day and a lot that has expired but not been swept breaks `redeem_reward`'s FIFO. The RPC
+is idempotent, so the daily run is harmless. `MIGRATION_PLAN.md` §6.3 still says `0 1 1 * *`.
 
 ### 3. `GEMINI_API_KEY` still listed in `.env.example`
 

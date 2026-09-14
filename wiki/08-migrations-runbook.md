@@ -35,6 +35,8 @@ Detail lives in `supabase/README.md`. This page is the summary and the traps.
 | 018 | `permissions_campaigns_salesreps.sql` | `promos.*` → `campaigns.*` + `salesreps.*` → 29 total |
 | 019 | `batch_committed_by.sql` | `point_batches.committed_by` + paired-with-`committed_at` CHECK |
 | 020 | `rpc_award_v3_commit_actor.sql` | `award_points_from_batch(batch, admin)`; **drops** the 1-arg version |
+| 021 | `redemption_lots_cancel_rpc.sql` | `redemption_lots` (which lots a redemption deducted from) · `redeem_reward` v2 records them · new `cancel_redemption(redemption, admin, note)` — refunds into the original lots + stock. Applied to the pilot 2026-09-13. |
+| 022 | `notification_log_reconcile.sql` | `notification_log` (LINE push dedupe) · `balance_reconcile_log` · read-only RPC `reconcile_balances()`. **Written 2026-09-13, not yet applied.** |
 
 Every one has a matching down-script in `supabase/migrations/rollback/`.
 
@@ -71,7 +73,13 @@ Running the eight files **one at a time** succeeded with no errors.
 
 ## Rollback order
 
-`020 → 019 → 018 → 017 → 016 → 015 → 014 → 013`
+`022 → 021 → 020 → 019 → 018 → 017 → 016 → 015 → 014 → 013`
+
+- Rolling back `022` drops `notification_log` — the expiry-warning cron will re-send warnings for lots
+  already warned. `balance_reconcile_log` history is lost.
+- Rolling back `021` drops `redemption_lots` — the record of which lots each redemption deducted from
+  is lost permanently, and `POST /api/admin/redemptions/:id/cancel` calls an RPC that no longer
+  exists until the route is reverted too.
 
 - Rolling back `020` **requires** rolling back `019` immediately after. The v2 function sets
   `committed_at` without `committed_by`, which violates the `019` CHECK — stopping halfway makes
@@ -96,6 +104,10 @@ SELECT pg_get_function_identity_arguments(p.oid)
   FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
  WHERE n.nspname = 'public' AND p.proname = 'award_points_from_batch';            -- expect 'uuid, uuid', 1 row
 SELECT count(*) FROM admin_permissions;                                          -- expect 29
+SELECT proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'public' AND p.proname = 'cancel_redemption';                 -- expect 1 row (021)
+SELECT proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+ WHERE n.nspname = 'public' AND p.proname = 'reconcile_balances';                -- expect 1 row (022)
 ```
 
 The function-signature check matters: two rows would mean the `DROP FUNCTION` in `020` did not take

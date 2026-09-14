@@ -63,10 +63,10 @@ If you find a doc or comment mentioning receipts/OCR, it is stale — trust the 
 | | |
 |---|---|
 | Branch | `pilot-phase1` → Vercel production https://pilot-phase1.vercel.app |
-| Supabase | pilot project `zoaxqouayhjkyterzzdt`, `app_config.tenant_code = 'pilot'` |
-| Migrations | `001`–`020`, all applied to pilot |
-| Sprints done | 0 – 5 (Sprint 5 minus `POST /:id/review` and `GET /:id`) |
-| Sprints left | 6 (campaign UI) · 7 (expiry cron + LINE push) · 8 (notify + redemption statuses + QR) · 9 (user UI + reports + demo data) |
+| Supabase | pilot project `vltzkxmblmrvsmaookhl` (`hughome-pilot`, org of `canvasmediaagency@gmail.com`, Tokyo), `app_config.tenant_code = 'pilot'` · replaced `zoaxqouayhjkyterzzdt` on 2026-09-14 — see `wiki/07` |
+| Migrations | `001`–`022`, all applied to pilot (fresh project 2026-09-14) |
+| Sprints done | 0 – 7 (Sprint 5 minus `POST /:id/review` and `GET /:id`) |
+| Sprints left | 8 (notify + redemption statuses + QR) · 9 (user UI + reports + demo data) |
 
 Living status: **`wiki/08-status-and-roadmap.md`** and `docs/PHASE1_STATUS.md`.
 Sprint-by-sprint work prompts: `docs/PROMPTS.md`.
@@ -85,7 +85,7 @@ These come from `docs/PROMPTS.md` and have been enforced all along.
 - **Never touch `.env.local`.** It holds live pilot credentials.
 - **Never run a migration or write to Supabase without asking first.** Write the `.sql` file, hand it
   over to be pasted into the SQL Editor.
-- **Never edit migrations `001`–`020`.** They are applied to the pilot database. New change = new file.
+- **Never edit an applied migration** (`001`–`022`). New change = new file.
 - **Never `npm install` / `uninstall` without asking.**
 - **Never `git commit` or `git push` unless explicitly told to.**
 - **Never put a real phone number or a real person's name in the repo.**
@@ -117,12 +117,16 @@ npx tsc --noEmit                 # typecheck — run before claiming done
 
 # verification scripts (no test framework in this project)
 node scripts/test-parse-sales-batch.js   # Excel parser self-check, no DB needed
+node scripts/test-campaign-rules.mjs     # campaign overlap/validation self-check, no DB needed
 node scripts/verify-schema.js            # is the DB schema what the code expects
 node scripts/verify-types.js             # does database.types.ts match the live DB
 node scripts/verify-demo-batch.js        # demo file vs hand-computed points
 node scripts/verify-demo-ready.js        # is the pilot DB ready to demo (reads live DB)
 node scripts/e2e-batch-flow.js           # ⚠️ WRITES to the DB — creates its own throwaway
                                          #    customer, then deletes everything it made
+node scripts/e2e-points-invariant.js --yes  # ⚠️ WRITES — balance == SUM(ledger) after adjust/redeem/
+                                         #    expire/cancel; runs expire_ledger_batches(today) for real
+node scripts/verify-cron-auth.js <base-url> # every cron + /api/admin/quota returns 401 unauthenticated
 
 # generators
 node scripts/build-apply-all.js --tenant pilot          # rebuild supabase/_apply_all.sql
@@ -135,7 +139,7 @@ Regenerating DB types needs a Supabase login (interactive, cannot be done from a
 
 ```bash
 npx supabase login
-npx supabase gen types typescript --project-id zoaxqouayhjkyterzzdt > /tmp/t.ts && mv /tmp/t.ts database.types.ts
+npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts && mv /tmp/t.ts database.types.ts
 ```
 
 > Never write `... > database.types.ts` directly. The shell truncates the file *before* the command
@@ -152,6 +156,9 @@ npx supabase gen types typescript --project-id zoaxqouayhjkyterzzdt > /tmp/t.ts 
 | `src/lib/excel/parse-sales-batch.ts` | The parser. Pure — takes a Buffer plus lookups, returns rows. No DB access, so it is testable offline. |
 | `src/lib/excel/build-template.js` | Template builder, CommonJS so both the CLI script and the API route use one implementation. |
 | `src/app/api/admin/batches/*` | upload (preview) · commit · void · list · template |
+| `src/app/api/cron/*` | 4 crons per `MIGRATION_PLAN.md` §6.3; all gated by `verifyCronRequest`; money moves only via RPC; `reconcile-balances` is read-only and returns 500 on drift so Vercel flags the run |
+| `src/lib/notification-log.ts`, `src/lib/line-quota.ts` | LINE push dedupe (`notification_log`) · LINE quota cache (15 min) |
+| `src/app/api/admin/campaigns/*`, `src/lib/campaigns.ts` | campaign CRUD; overlap pre-check + `23P01` translation naming the conflicting campaign; `campaigns.manage` gate |
 | `src/config/env.ts`, `src/config/tenant.ts` | Boot-time env validation and tenant config. No defaults by design. |
 | `src/config/tenant-guard.ts` | Checks the connected DB belongs to this tenant. Currently **soft** — see debt list. |
 | `src/lib/phone.ts` | Canonical Thai phone normalization. Identity is the local 10-digit form. |
@@ -170,7 +177,6 @@ npx supabase gen types typescript --project-id zoaxqouayhjkyterzzdt > /tmp/t.ts 
   v3/v5/v6). Both sit on the zip **write** path, not the untrusted-file **read** path — but that is
   not the same as "no vulnerabilities".
 - `/api/upload` returns 500 instead of 401 for a non-admin (cosmetic).
-- Old crons (`expire-points`, `points-expiry-reminder`) are no-ops awaiting Sprint 7.
 - Redemption status type still carries legacy `processing` / `shipped` (Sprint 8).
 - Stale leftovers still mention receipts in `src/app/admin/page.tsx`, `src/components/StatusBadge.tsx`,
   dashboard metrics routes, and `TESTING_GUIDE.md` / `ADMIN_RBAC_TASKS.md`.
