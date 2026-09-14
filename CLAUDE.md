@@ -62,7 +62,7 @@ If you find a doc or comment mentioning receipts/OCR, it is stale — trust the 
 
 | | |
 |---|---|
-| Branch | `pilot-phase1` → Vercel production https://pilot-phase1.vercel.app (Sprint 6–7 live since 2026-09-14; Vercel account on Pro) |
+| Branch | `pilot-phase1` → Vercel production https://pilot-phase1.vercel.app (Sprint 6–8 pushed 2026-09-14 as `784603a`; Vercel account on Pro) |
 | Supabase | pilot project `vltzkxmblmrvsmaookhl` (`hughome-pilot`, org of `canvasmediaagency@gmail.com`, Tokyo), `app_config.tenant_code = 'pilot'` · replaced `zoaxqouayhjkyterzzdt` on 2026-09-14 — see `wiki/07` |
 | Migrations | `001`–`023`, all applied to pilot (`023` applied 2026-09-14 via SQL Editor — Sprint 8: pickup_code in `redeem_reward`, `notification_channels.last_sent_at/updated_at`) |
 | Sprints done | 0 – 8 (Sprint 5 minus `POST /:id/review` and `GET /:id`) · Sprint 8 code done 2026-09-14, `023` applied, needs `NOTIFY_TOKEN_KEY` on Vercel + `wiki/13` §7b click-through |

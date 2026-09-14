@@ -8,7 +8,7 @@ are marked as such.
 
 | | |
 |---|---|
-| Branch / deploy | `pilot-phase1` → https://pilot-phase1.vercel.app, commit `31433cc` (Sprint 6–7 live, 2026-09-14) |
+| Branch / deploy | `pilot-phase1` → https://pilot-phase1.vercel.app, commit `784603a` (Sprint 6–8 pushed 2026-09-14) |
 | Supabase | pilot `vltzkxmblmrvsmaookhl`, `tenant_code = pilot` |
 | Migrations | `001`–`023` all applied (`023` on 2026-09-14) |
 | Sprints complete | 0, 1, 2, 2.1, 3, 3.1, pre-4, 4, 5 (partial), 6, 7 · 8 code-complete 2026-09-14 (not deployed, not clicked) |
