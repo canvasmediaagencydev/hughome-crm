@@ -62,13 +62,13 @@ If you find a doc or comment mentioning receipts/OCR, it is stale — trust the 
 
 | | |
 |---|---|
-| Branch | `pilot-phase1` → Vercel production https://pilot-phase1.vercel.app |
+| Branch | `pilot-phase1` → Vercel production https://pilot-phase1.vercel.app (Sprint 6–7 live since 2026-09-14; Vercel account on Pro) |
 | Supabase | pilot project `vltzkxmblmrvsmaookhl` (`hughome-pilot`, org of `canvasmediaagency@gmail.com`, Tokyo), `app_config.tenant_code = 'pilot'` · replaced `zoaxqouayhjkyterzzdt` on 2026-09-14 — see `wiki/07` |
 | Migrations | `001`–`022`, all applied to pilot (fresh project 2026-09-14) |
 | Sprints done | 0 – 7 (Sprint 5 minus `POST /:id/review` and `GET /:id`) |
 | Sprints left | 8 (notify + redemption statuses + QR) · 9 (user UI + reports + demo data) |
 
-Living status: **`wiki/08-status-and-roadmap.md`** and `docs/PHASE1_STATUS.md`.
+Living status: **`wiki/09-status-and-roadmap.md`** and `docs/PHASE1_STATUS.md`.
 Sprint-by-sprint work prompts: `docs/PROMPTS.md`.
 Full design rationale: `MIGRATION_PLAN.md`.
 
@@ -177,13 +177,15 @@ npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts 
   v3/v5/v6). Both sit on the zip **write** path, not the untrusted-file **read** path — but that is
   not the same as "no vulnerabilities".
 - `/api/upload` returns 500 instead of 401 for a non-admin (cosmetic).
-- Redemption status type still carries legacy `processing` / `shipped` (Sprint 8).
+- Redemption status type still carries legacy `processing` / `shipped` (Sprint 8). Cancel already goes through `cancel_redemption` (021).
+- The original pilot project `zoaxqouayhjkyterzzdt` is orphaned (no known owner account) — see `wiki/07`. Never point anything at it again.
+- On a fresh Supabase project keep **"Automatically expose new tables"** on, or new tables never reach PostgREST.
 - Stale leftovers still mention receipts in `src/app/admin/page.tsx`, `src/components/StatusBadge.tsx`,
   dashboard metrics routes, and `TESTING_GUIDE.md` / `ADMIN_RBAC_TASKS.md`.
 - A fresh Phase 2 database will `CREATE promo_codes` in `005` and `DROP` it in `015`. Harmless noise,
   kept so the migration history stays honest.
-- Operational: rotate the admin password and the LINE/Supabase keys that were pasted into chat;
-  delete pilot test data; wire a real SMS provider (OTP currently works for one test number only).
+- Operational: the new pilot admin has no working password until set via `auth.admin.updateUserById`;
+  reward images missing; wire a real SMS provider (OTP currently works for one test number only).
 
 ---
 

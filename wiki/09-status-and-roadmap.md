@@ -123,6 +123,9 @@ Each of these is a decision that was made explicitly and should not be revisited
 ## Open debt
 
 ### Operational
+- **Admin login on the new pilot has never succeeded** (`auth.users.last_sign_in_at` is null as of
+  2026-09-14): set the password with `auth.admin.updateUserById` (service role) — the app has no
+  password-reset page, so the recovery email cannot be used
 - Rotate the admin password and the LINE / Supabase keys that were pasted into a chat transcript
 - Old pilot project `zoaxqouayhjkyterzzdt` still exists somewhere (owner account unknown) — find and delete
 - Reward images: all three rewards on the new pilot have no image yet (`/admin/rewards`)
@@ -153,38 +156,33 @@ Each of these is a decision that was made explicitly and should not be revisited
   kept so history stays honest; squash only when Phase 2 starts
 - `/docs` is git-ignored, so `PHASE1_STATUS.md`, `PROMPTS.md`, and the demo assets are not in git
 
-### Verified vs not verified
+### Verified vs not verified (2026-09-14, new pilot `vltzkxmblmrvsmaookhl`)
 
 | | |
 |---|---|
 | Parser self-check | ✅ 29/29 |
+| Campaign overlap/validation rules | ✅ 18/18 |
 | Demo file vs hand-computed points | ✅ 17/17 |
-| Seed vs demo file, read from the live database | ✅ 19/19 (re-verified 2026-08-31) |
-| End-to-end money path on the pilot database | ✅ 23/23 |
-| Schema on the pilot | ✅ 13/13 plus behavioural constraint checks |
+| Seed vs demo file, read from the live database | ✅ 19/19 |
+| Schema on the pilot (`verify-schema.js`, 001–022) | ✅ 16/16 · `verify-types.js` 23 tables / 192 columns match |
+| Batch money path (`e2e-batch-flow.js`: award, duplicate bill, void, re-award) | ✅ 23/23 |
+| Points invariant (`e2e-points-invariant.js`: adjust, FIFO redeem past an expired lot, expire, cancel, overdraw) | ✅ 36/36 |
 | `tsc --noEmit`, `npm run build` | ✅ |
-| Deployed routes reachable, APIs return 401 unauthenticated | ✅ |
-| **Full flow through a browser with a real login** | ❌ **never done** |
-
-The last row is the important one. Roughly 40 files of new code have been proven at the database and
-parser layers, and the HTTP layer has only been smoke-tested.
+| Production: every cron 401 unauthenticated, old crons 404 (`verify-cron-auth.js`) | ✅ 15/15 |
+| Production: all 4 crons run once with the real secret (reconcile 8 users, 0 drift) | ✅ |
+| Browser flow on the **old** pilot, 2026-09-13 (auth, sales reps, wrong/right week, 687, double-commit, balances, history, void, re-upload) | ✅ — found and fixed the previewed-duplicate 409 and the notes 500 |
+| Browser flow on the **new** pilot with Sprint 6–7 code | ⏳ blocked on the admin password (see Open debt) |
+| LINE push actually arriving on a phone (batch award, expiry, birthday) | ❌ not yet on the new pilot — no real LINE customer registered |
 
 ## Next recommended step
 
-**1. Click through the whole flow in a browser on the deployed pilot. No code.**
+**1. Finish the browser rehearsal on the new pilot** (`wiki/13`): set the admin password (the
+recreated auth user has never signed in), then click through batches → campaigns → user detail →
+redemption cancel (now via `cancel_redemption`) → manual adjust (now creates a ledger lot). Register
+one real LINE customer through LIFF so the push side can be seen on a phone.
 
-It is the only untested layer, and the demo depends on it. Log in as admin →
-`/admin/sales-reps` (4 seeded reps) → `/admin/batches` → download the template → upload
-`docs/demo/demo-ยอดขาย-2026-07-20_2026-07-26.xlsx` with week `2026-07-20` → `2026-07-26`.
-Expect 8 green, 1 yellow, 1 red, 687 points. Confirm, check balances at `/admin/users`, then check
-the history row shows both "uploaded by" and "points-in by".
+**2. Demo prep:** reward images, shop phone, decide how the customer-side demo is shown (OTP works
+for one test number only).
 
-After committing, void the batch before re-uploading the same file — `file_sha256` blocks duplicates.
-
-Any bug found here is cheaper than any Sprint 6 feature.
-
-Add to the click-through: `/admin/campaigns` — create an overlapping campaign (expect a Thai
-message naming the conflict), an edge-touching one (expect success), toggle one off, try to delete
-the ×2 July campaign (expect refusal — demo ledger rows reference it).
-
-**2. Push the Sprint 6/7 work, rehearse on the new deploy, then Sprint 8.**
+**3. Then Sprint 8** — Telegram/LINE group notify, redemption 4 statuses + QR, remove the legacy
+`processing` / `shipped` values.
