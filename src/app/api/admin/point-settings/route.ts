@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { requirePermission } from "@/lib/admin-auth";
+import { requireAdmin, requirePermission } from "@/lib/admin-auth";
 import { PERMISSIONS } from "@/types/admin";
 import { Tables, TablesInsert, TablesUpdate } from "../../../../../database.types";
 
@@ -11,6 +11,8 @@ type PointSettingUpdate = TablesUpdate<"point_settings">;
 export async function GET() {
   try {
     // สำหรับ GET settings.edit permission ไม่ต้องการ (ทุกคนที่เป็น admin ดูได้)
+    await requireAdmin();
+
     const supabase = createServerSupabaseClient();
 
     const { data: settings, error } = await supabase

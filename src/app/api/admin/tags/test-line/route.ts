@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
+import { requirePermission } from "@/lib/admin-auth";
+import { PERMISSIONS } from "@/types/admin";
 
 export async function GET() {
   try {
+    await requirePermission(PERMISSIONS.TAGS_MANAGE);
+
     const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
     if (!token) {
       return NextResponse.json({ error: "LINE_CHANNEL_ACCESS_TOKEN not set" }, { status: 500 });
@@ -26,7 +30,6 @@ export async function GET() {
     return NextResponse.json({
       status: res.status,
       ok: res.ok,
-      tokenPrefix: token.substring(0, 20) + "...",
       lineResponse: body,
     });
   } catch (error) {

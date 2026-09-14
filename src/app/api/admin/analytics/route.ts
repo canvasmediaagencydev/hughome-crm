@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { format, subDays, startOfDay, endOfDay, parseISO, eachDayOfInterval } from "date-fns";
+import { requirePermission } from "@/lib/admin-auth";
+import { PERMISSIONS } from "@/types/admin";
 
 // New model: no receipts. The daily time-series now sources from real tables:
 //   "receipts" series → committed batches per day (point_batches)
@@ -8,6 +10,8 @@ import { format, subDays, startOfDay, endOfDay, parseISO, eachDayOfInterval } fr
 // Values are 0 until real data exists (correct).
 export async function GET(request: NextRequest) {
   try {
+    await requirePermission(PERMISSIONS.DASHBOARD_VIEW);
+
     const supabase = createServerSupabaseClient();
     const { searchParams } = new URL(request.url);
     const days = parseInt(searchParams.get("days") || "30");
