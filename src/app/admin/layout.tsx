@@ -22,6 +22,7 @@ import {
   Tag,
   FileSpreadsheet,
   UserSquare2,
+  Percent,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -149,6 +150,13 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       icon: UserSquare2,
       current: pathname.startsWith('/admin/sales-reps'),
       show: hasPermission(PERMISSIONS.SALESREPS_VIEW),
+    },
+    {
+      name: 'แคมเปญตัวคูณ',
+      href: '/admin/campaigns',
+      icon: Percent,
+      current: pathname.startsWith('/admin/campaigns'),
+      show: hasPermission(PERMISSIONS.CAMPAIGNS_VIEW),
     },
     {
       name: 'จัดการรางวัล',
