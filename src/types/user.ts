@@ -27,11 +27,18 @@ export interface User {
   tags?: Tag[]
 }
 
+/** lot ที่จะหมดอายุเร็วที่สุด (Sprint 7) — null = ไม่มีแต้มค้าง */
+export interface NextExpiry {
+  points: number
+  expires_at: string // 'YYYY-MM-DD'
+}
+
 export interface UserData {
   first_name: string
   last_name: string
   picture_url: string | null
   points_balance: number
+  next_expiry?: NextExpiry | null
   displayName?: string
   pictureUrl?: string
   role?: string

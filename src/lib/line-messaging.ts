@@ -365,15 +365,18 @@ function buildBirthdayFlex(displayName: string | null): LineMessage {
   };
 }
 
+/** @returns true เมื่อ push ผ่าน (หรือปิด notification ไว้) · false เมื่อ LINE ปฏิเสธ — ผู้เรียกใช้ตัดสินใจ log/retry */
 export async function notifyBirthday(
   lineUserId: string | null | undefined,
   displayName: string | null
-): Promise<void> {
-  if (!lineUserId) return;
+): Promise<boolean> {
+  if (!lineUserId) return false;
   try {
     await pushMessage(lineUserId, [buildBirthdayFlex(displayName)]);
+    return true;
   } catch (err) {
     console.error("[LINE] notifyBirthday failed:", err);
+    return false;
   }
 }
 
@@ -392,21 +395,31 @@ function formatThaiDate(d: Date): string {
 }
 
 interface ExpiryWarningInput {
-  pointsBalance: number;
+  /** แต้มที่จะหมดอายุในรอบนี้ (ผลรวมของ lot ที่ยังไม่เคยเตือน) */
+  pointsExpiring: number;
+  /** วันหมดอายุที่ใกล้ที่สุดในกลุ่มนั้น */
   expireAt: Date;
   daysLeft: number;
+  /** แต้มคงเหลือทั้งหมดตอนนี้ */
+  pointsBalance: number;
+}
+
+function expiryLeadText(daysLeft: number): string {
+  if (daysLeft <= 0) return "หมดอายุวันนี้ รีบใช้แต้มก่อนหมดอายุนะคะ";
+  if (daysLeft < 14) return `เหลือเวลาอีก ${daysLeft} วัน รีบแลกของรางวัลกันได้เลย`;
+  if (daysLeft < 45) return "เหลือเวลาอีกประมาณ 1 เดือน แลกของรางวัลได้เลยที่หน้าร้าน";
+  if (daysLeft < 75) return "เหลือเวลาอีกประมาณ 2 เดือน วางแผนแลกของรางวัลได้เลย";
+  return "เหลือเวลาอีกประมาณ 3 เดือน วางแผนแลกของรางวัลได้เลย";
 }
 
 function buildExpiryWarningFlex(input: ExpiryWarningInput): LineMessage {
   const dateText = formatThaiDate(input.expireAt);
-  const urgent = input.daysLeft <= 3;
+  const urgent = input.daysLeft < 14;
   const color = urgent ? "#DC2626" : "#F59E0B";
 
   return {
     type: "flex",
-    altText: `⏰ แต้มจะหมดอายุใน ${input.daysLeft} วัน (${formatPoints(
-      input.pointsBalance
-    )} แต้ม)`,
+    altText: `⏰ แต้ม ${formatPoints(input.pointsExpiring)} แต้มจะหมดอายุ ${dateText}`,
     contents: {
       type: "bubble",
       size: "kilo",
@@ -436,17 +449,17 @@ function buildExpiryWarningFlex(input: ExpiryWarningInput): LineMessage {
             contents: [
               {
                 type: "text",
-                text: "แต้มคงเหลือ",
+                text: "แต้มที่จะหมดอายุ",
                 size: "sm",
                 color: "#6B7280",
                 flex: 0,
               },
               {
                 type: "text",
-                text: `${formatPoints(input.pointsBalance)} แต้ม`,
+                text: `${formatPoints(input.pointsExpiring)} แต้ม`,
                 size: "lg",
                 weight: "bold",
-                color: "#111827",
+                color: color,
                 align: "end",
               },
             ],
@@ -457,7 +470,7 @@ function buildExpiryWarningFlex(input: ExpiryWarningInput): LineMessage {
             contents: [
               {
                 type: "text",
-                text: "จะหมดอายุ",
+                text: "หมดอายุวันที่",
                 size: "sm",
                 color: "#6B7280",
                 flex: 0,
@@ -467,7 +480,28 @@ function buildExpiryWarningFlex(input: ExpiryWarningInput): LineMessage {
                 text: dateText,
                 size: "md",
                 weight: "bold",
-                color: color,
+                color: "#111827",
+                align: "end",
+              },
+            ],
+            margin: "md",
+          },
+          {
+            type: "box",
+            layout: "horizontal",
+            contents: [
+              {
+                type: "text",
+                text: "แต้มคงเหลือทั้งหมด",
+                size: "sm",
+                color: "#6B7280",
+                flex: 0,
+              },
+              {
+                type: "text",
+                text: `${formatPoints(input.pointsBalance)} แต้ม`,
+                size: "md",
+                color: "#111827",
                 align: "end",
               },
             ],
@@ -475,10 +509,7 @@ function buildExpiryWarningFlex(input: ExpiryWarningInput): LineMessage {
           },
           {
             type: "text",
-            text:
-              input.daysLeft === 1
-                ? "เหลือเวลาอีก 1 วันสุดท้าย รีบใช้แต้มก่อนหมดอายุนะคะ"
-                : `เหลือเวลาอีก ${input.daysLeft} วัน รีบแลกของรางวัลกันได้เลย`,
+            text: expiryLeadText(input.daysLeft),
             size: "sm",
             color: "#374151",
             wrap: true,
@@ -490,25 +521,30 @@ function buildExpiryWarningFlex(input: ExpiryWarningInput): LineMessage {
   };
 }
 
+/** @returns true เมื่อ push ผ่าน · false เมื่อล้ม (ผู้เรียกไม่ควรบันทึกว่าส่งแล้ว) */
 export async function notifyExpiryWarning(
   lineUserId: string | null | undefined,
   input: ExpiryWarningInput
-): Promise<void> {
-  if (!lineUserId) return;
+): Promise<boolean> {
+  if (!lineUserId) return false;
   try {
     await pushMessage(lineUserId, [buildExpiryWarningFlex(input)]);
+    return true;
   } catch (err) {
     console.error("[LINE] notifyExpiryWarning failed:", err);
+    return false;
   }
 }
 
 interface ExpiryExecutedInput {
   expiredPoints: number;
-  nextExpireAt: Date;
+  newBalance: number;
+  /** lot ถัดไปที่จะหมดอายุ (null = ไม่มีแต้มค้างแล้ว) */
+  nextExpireAt: Date | null;
 }
 
 function buildExpiryExecutedFlex(input: ExpiryExecutedInput): LineMessage {
-  const dateText = formatThaiDate(input.nextExpireAt);
+  const nextText = input.nextExpireAt ? formatThaiDate(input.nextExpireAt) : "—";
   return {
     type: "flex",
     altText: `แต้ม ${formatPoints(input.expiredPoints)} แต้มหมดอายุแล้ว`,
@@ -562,14 +598,14 @@ function buildExpiryExecutedFlex(input: ExpiryExecutedInput): LineMessage {
             contents: [
               {
                 type: "text",
-                text: "รอบถัดไป",
+                text: "แต้มคงเหลือ",
                 size: "sm",
                 color: "#6B7280",
                 flex: 0,
               },
               {
                 type: "text",
-                text: dateText,
+                text: `${formatPoints(input.newBalance)} แต้ม`,
                 size: "md",
                 weight: "bold",
                 color: "#111827",
@@ -579,8 +615,29 @@ function buildExpiryExecutedFlex(input: ExpiryExecutedInput): LineMessage {
             margin: "md",
           },
           {
+            type: "box",
+            layout: "horizontal",
+            contents: [
+              {
+                type: "text",
+                text: "หมดอายุรอบถัดไป",
+                size: "sm",
+                color: "#6B7280",
+                flex: 0,
+              },
+              {
+                type: "text",
+                text: nextText,
+                size: "md",
+                color: "#111827",
+                align: "end",
+              },
+            ],
+            margin: "md",
+          },
+          {
             type: "text",
-            text: "เริ่มสะสมแต้มใหม่ได้เลย แต้มจะหมดอายุอีกครั้งในวันครบรอบสมัครปีถัดไป",
+            text: "แต้มจากการซื้อแต่ละเดือนมีอายุ 1 ปีนับจากสิ้นเดือนที่ซื้อ ใช้ก่อนหมดอายุนะคะ",
             size: "xs",
             color: "#9CA3AF",
             wrap: true,
@@ -592,14 +649,17 @@ function buildExpiryExecutedFlex(input: ExpiryExecutedInput): LineMessage {
   };
 }
 
+/** @returns true เมื่อ push ผ่าน · false เมื่อล้ม */
 export async function notifyExpiryExecuted(
   lineUserId: string | null | undefined,
   input: ExpiryExecutedInput
-): Promise<void> {
-  if (!lineUserId) return;
+): Promise<boolean> {
+  if (!lineUserId) return false;
   try {
     await pushMessage(lineUserId, [buildExpiryExecutedFlex(input)]);
+    return true;
   } catch (err) {
     console.error("[LINE] notifyExpiryExecuted failed:", err);
+    return false;
   }
 }

@@ -19,6 +19,7 @@ export function useUserSession(): UseUserSessionResult {
     last_name: user.last_name || user.displayName?.split(' ')[1] || '',
     picture_url: user.picture_url || user.pictureUrl,
     points_balance: user.points_balance || 0,
+    next_expiry: user.next_expiry ?? null,
     displayName: user.displayName || user.display_name || `${user.first_name || ''} ${user.last_name || ''}`.trim(),
     pictureUrl: user.pictureUrl || user.picture_url,
     role: user.role || user.user_role

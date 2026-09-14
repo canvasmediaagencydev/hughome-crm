@@ -13,6 +13,7 @@ interface CachedUserSession {
     birthday: string | null
     is_onboarded: boolean
     points_balance: number
+    next_expiry?: { points: number; expires_at: string } | null
   }
   timestamp: number
   lastValidated: number

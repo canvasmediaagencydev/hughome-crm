@@ -106,7 +106,8 @@ async function main() {
   if (repErr) throw new Error('สร้าง sales_rep ไม่ได้: ' + repErr.message)
   created.reps.push(rep.id)
 
-  const phone = '0800000001'
+  // เบอร์สุ่มไม่ชนลูกค้าสาธิต (seed ใช้ 0800000001–08) · ลบทิ้งตอนจบ
+  const phone = '09' + String(Date.now()).slice(-8)
   const { data: user, error: userErr } = await sb
     .from('user_profiles')
     .insert({
@@ -124,15 +125,16 @@ async function main() {
   check('ลูกค้าทดสอบเริ่มต้นที่ 0 แต้ม', user.points_balance === 0, String(user.points_balance))
 
   // ---------- parse ----------
-  // วันที่ซื้อ = มิถุนายน (คนละเดือนกับตอน commit) → พิสูจน์ว่า earned_month ยึดวันที่ซื้อ
-  console.log('\n[1] parse ไฟล์ (ซื้อ มิ.ย. · commit ก.ค.)')
+  // วันที่ซื้อ = พฤษภาคม (คนละเดือนกับตอน commit) → พิสูจน์ว่า earned_month ยึดวันที่ซื้อ
+  // ใช้เดือนที่ไม่มีแคมเปญใน seed (มิ.ย. มี ×1.5) — สคริปต์นี้ส่ง activeCampaigns ว่าง จึงต้องเป็น ×1 จริง
+  console.log('\n[1] parse ไฟล์ (ซื้อ พ.ค. · commit วันนี้)')
   const BILL = 'E2E-BILL-001'
   const buf = await makeSheet([
-    ['15/06/2026', BILL, phone, 'ลูกค้าทดสอบ', 5000, 500, `${rep.code}${SPEC.salesRepSeparator}${rep.full_name}`, 'e2e'],
+    ['15/05/2026', BILL, phone, 'ลูกค้าทดสอบ', 5000, 500, `${rep.code}${SPEC.salesRepSeparator}${rep.full_name}`, 'e2e'],
   ])
   const ctx = {
-    weekStart: '2026-06-15',
-    weekEnd: '2026-06-21',
+    weekStart: '2026-05-11',
+    weekEnd: '2026-05-17',
     bahtPerPoint: 100,
     salesReps: [rep],
     activeCampaigns: [],
@@ -185,13 +187,13 @@ async function main() {
     .select('*')
     .eq('source_batch_id', batch1)
     .single()
-  check('earned_month = 2026-06-01 (เดือนที่ซื้อ ไม่ใช่เดือนที่ commit)',
-    lot.data?.earned_month === '2026-06-01', String(lot.data?.earned_month))
-  check('expires_at = 2027-06-30 (สิ้นเดือน มิ.ย. + 365)',
-    lot.data?.expires_at === '2027-06-30', String(lot.data?.expires_at))
+  check('earned_month = 2026-05-01 (เดือนที่ซื้อ ไม่ใช่เดือนที่ commit)',
+    lot.data?.earned_month === '2026-05-01', String(lot.data?.earned_month))
+  check('expires_at = 2027-05-31 (สิ้นเดือน พ.ค. + 365)',
+    lot.data?.expires_at === '2027-05-31', String(lot.data?.expires_at))
   check('เก็บ bill_no', lot.data?.bill_no === BILL, String(lot.data?.bill_no))
   check('เก็บ sales_rep_id', lot.data?.sales_rep_id === rep.id, String(lot.data?.sales_rep_id))
-  check('เก็บ purchase_date', lot.data?.purchase_date === '2026-06-15', String(lot.data?.purchase_date))
+  check('เก็บ purchase_date', lot.data?.purchase_date === '2026-05-15', String(lot.data?.purchase_date))
   check('voided = false', lot.data?.voided === false, String(lot.data?.voided))
 
   const bat = await sb.from('point_batches').select('status, committed_by, committed_at').eq('id', batch1).single()

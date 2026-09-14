@@ -1,13 +1,17 @@
 import { memo } from 'react'
 import { IoMdRefresh } from "react-icons/io"
+import { formatThaiMonth } from '@/lib/bangkok-date'
+import type { NextExpiry } from '@/types/user'
 
 interface StatusCardProps {
   points: number
+  /** lot ที่จะหมดอายุเร็วที่สุด — undefined = ยังไม่โหลด · null = ไม่มีแต้มค้าง */
+  nextExpiry?: NextExpiry | null
   isRefreshing?: boolean
   onRefresh?: () => void
 }
 
-export const StatusCard = memo(({ points, isRefreshing, onRefresh }: StatusCardProps) => (
+export const StatusCard = memo(({ points, nextExpiry, isRefreshing, onRefresh }: StatusCardProps) => (
   <div className="px-6 mt-4">
     <div className="relative bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 rounded-3xl p-6 shadow-xl border border-gray-700/50 overflow-hidden">
       {/* Premium background pattern */}
@@ -42,6 +46,11 @@ export const StatusCard = memo(({ points, isRefreshing, onRefresh }: StatusCardP
             </span>
             <span className="text-amber-400 font-semibold text-lg">แต้ม</span>
           </div>
+          {nextExpiry && nextExpiry.points > 0 && (
+            <p className="mt-2 text-xs text-amber-200/90">
+              ⏰ แต้ม {nextExpiry.points.toLocaleString()} แต้ม จะหมดอายุ {formatThaiMonth(nextExpiry.expires_at)}
+            </p>
+          )}
         </div>
 
         <div className="mb-4">

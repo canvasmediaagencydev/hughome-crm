@@ -72,6 +72,7 @@ function DashboardPage() {
       {/* Status Card */}
       <StatusCard
         points={userData.points_balance}
+        nextExpiry={userData.next_expiry ?? null}
         isRefreshing={isRefreshing}
         onRefresh={refreshUserData}
       />
