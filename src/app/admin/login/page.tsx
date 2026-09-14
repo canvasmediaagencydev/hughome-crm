@@ -1,18 +1,19 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { axiosAdmin } from '@/lib/axios-admin'
 import { toast } from 'sonner'
 
-export default function AdminLogin() {
+function AdminLoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,9 +45,10 @@ export default function AdminLogin() {
             return
           }
 
-          // ทุกอย่างผ่าน - redirect ไปหน้า admin
+          // ทุกอย่างผ่าน - กลับไปหน้าที่ตั้งใจจะเข้า (?next=…) เฉพาะ path ใต้ /admin · ไม่งั้นไป /admin
           toast.success('เข้าสู่ระบบสำเร็จ')
-          router.push('/admin')
+          const next = searchParams.get('next')
+          router.push(next && next.startsWith('/admin') && !next.startsWith('//') ? next : '/admin')
         } catch (err: any) {
           console.error('Error verifying admin:', err)
 
@@ -214,5 +216,14 @@ export default function AdminLogin() {
         </div>
       </div>
     </div>
+  )
+}
+
+// useSearchParams ต้องอยู่ใต้ Suspense ไม่งั้น next build บ่นตอน prerender
+export default function AdminLogin() {
+  return (
+    <Suspense fallback={null}>
+      <AdminLoginForm />
+    </Suspense>
   )
 }

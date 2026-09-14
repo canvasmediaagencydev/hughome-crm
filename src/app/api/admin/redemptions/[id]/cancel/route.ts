@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { requirePermission } from "@/lib/admin-auth";
 import { PERMISSIONS } from "@/types/admin";
+import { adminAuthError } from "@/lib/admin-http";
 
 /**
  * POST /api/admin/redemptions/:id/cancel — ยกเลิกใบแลก คืนแต้ม+สต็อก
@@ -54,9 +55,11 @@ export async function POST(
       newBalance,
     });
   } catch (error) {
+    const auth = adminAuthError(error);
+    if (auth) return auth;
     console.error("Cancel redemption error:", error);
     return NextResponse.json(
-      { error: "Failed to cancel redemption" },
+      { error: "ยกเลิกการแลกรางวัลไม่สำเร็จ" },
       { status: 500 }
     );
   }

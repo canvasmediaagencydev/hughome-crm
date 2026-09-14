@@ -1,5 +1,5 @@
 /**
- * ตรวจว่า migration 013–022 ขึ้นครบบน Supabase หรือยัง
+ * ตรวจว่า migration 013–023 ขึ้นครบบน Supabase หรือยัง
  *
  *   node scripts/verify-schema.js
  *
@@ -96,6 +96,10 @@ async function main() {
   record(await tableExists('notification_log'), '022 · ตาราง notification_log มีอยู่')
   record(await tableExists('balance_reconcile_log'), '022 · ตาราง balance_reconcile_log มีอยู่')
 
+  // --- 023: notification_channels columns (RPC redeem_reward v3 / generate_pickup_code ตรวจใน SQL Editor) ---
+  record(await columnExists('notification_channels', 'last_sent_at'), '023 · notification_channels.last_sent_at')
+  record(await columnExists('notification_channels', 'updated_at'), '023 · notification_channels.updated_at')
+
   // --- สรุป ---
   const failed = results.filter((r) => !r.ok)
   console.log(
@@ -109,6 +113,7 @@ async function main() {
       "   • signature award_points_from_batch ต้องเป็น (uuid, uuid) เท่านั้น\n" +
       "   • function cancel_redemption(uuid, uuid, text) มีอยู่ (021)\n" +
       "   • function reconcile_balances() มีอยู่ (022)\n" +
+      "   • function generate_pickup_code() + index redemptions_pickup_code_key (023)\n" +
       '   ดู block VERIFICATION ท้ายไฟล์ supabase/_apply_013_020.sql'
   )
   process.exit(failed.length ? 1 : 0)

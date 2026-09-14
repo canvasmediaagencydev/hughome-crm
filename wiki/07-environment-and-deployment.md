@@ -36,6 +36,10 @@ LINE_CHANNEL_ACCESS_TOKEN        from the Messaging API channel — a different 
 SESSION_SECRET
 CRON_SECRET
 NOTIFICATIONS_ENABLED            kill switch for LINE push
+NOTIFY_TOKEN_KEY                 Sprint 8 — 64 hex (openssl rand -hex 32); encrypts the Telegram bot
+                                 token in notification_channels. Optional at boot; saving or sending a
+                                 Telegram channel without it throws (no plaintext fallback). Changing
+                                 the key makes every stored token unreadable — re-enter them.
 NEXT_PUBLIC_TENANT_CODE
 NEXT_PUBLIC_TENANT_NAME
 NEXT_PUBLIC_TENANT_SEGMENT

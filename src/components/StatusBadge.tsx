@@ -1,8 +1,7 @@
 import { memo } from 'react'
+import { REDEMPTION_STATUS_LABEL, isRedemptionStatus, type RedemptionStatus } from '@/lib/redemption-status'
 
-// NOTE: receipt status removed (OCR flow gone). Redemption statuses are still
-// the old set here; they get updated to the 4-status model in Sprint 8.
-type RedemptionStatus = 'requested' | 'processing' | 'shipped' | 'cancelled'
+// Redemption statuses = 4 ขั้น + ยกเลิก (Sprint 8) — ค่าและ label อยู่ที่ src/lib/redemption-status.ts
 type RoleType = 'contractor' | 'homeowner' | null
 
 interface StatusBadgeProps {
@@ -10,15 +9,20 @@ interface StatusBadgeProps {
   type?: 'redemption'
 }
 
+const REDEMPTION_COLOR: Record<RedemptionStatus, string> = {
+  requested: 'bg-amber-50 text-amber-600 border-amber-200',
+  approved: 'bg-blue-50 text-blue-600 border-blue-200',
+  ready: 'bg-emerald-50 text-emerald-600 border-emerald-200',
+  delivered: 'bg-slate-100 text-slate-600 border-slate-200',
+  cancelled: 'bg-rose-50 text-rose-600 border-rose-200',
+}
+
 export const StatusBadge = memo(({ status }: StatusBadgeProps) => {
   const getRedemptionConfig = (status: string) => {
-    const configs: Record<RedemptionStatus, { text: string; color: string }> = {
-      requested: { text: 'รับสินค้าที่ร้าน', color: 'bg-amber-50 text-amber-600 border-amber-200' },
-      processing: { text: 'กำลังจัดเตรียม', color: 'bg-blue-50 text-blue-600 border-blue-200' },
-      shipped: { text: 'จัดส่งแล้ว', color: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
-      cancelled: { text: 'ยกเลิก', color: 'bg-rose-50 text-rose-600 border-rose-200' }
+    if (isRedemptionStatus(status)) {
+      return { text: REDEMPTION_STATUS_LABEL[status], color: REDEMPTION_COLOR[status] }
     }
-    return configs[status as RedemptionStatus] || configs.requested
+    return { text: status, color: 'bg-slate-50 text-slate-500 border-slate-200' }
   }
 
   const config = getRedemptionConfig(status)

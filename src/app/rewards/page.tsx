@@ -21,6 +21,9 @@ import { HiOutlineShoppingBag, HiOutlineBuildingStorefront } from 'react-icons/h
 import BottomNavigation from '@/components/BottomNavigation'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { StatusBadge } from '@/components/StatusBadge'
+import { PickupQrDialog } from '@/components/PickupQrDialog'
+import { HiOutlineQrcode } from 'react-icons/hi'
+import { REDEMPTION_STATUS_CUSTOMER_HINT, isCancellable, isRedemptionStatus, type RedemptionStatus } from '@/lib/redemption-status'
 import { EmptyState } from '@/components/EmptyState'
 
 type Reward = Tables<'rewards'> & {
@@ -50,6 +53,8 @@ function RewardsContent() {
   const [submitting, setSubmitting] = useState(false)
   const [userPoints, setUserPoints] = useState(0)
   const [userId, setUserId] = useState<string>('')
+  // QR รับของ (Sprint 8) — เปิดหลังแลกสำเร็จ และจากปุ่มในประวัติ
+  const [qrTarget, setQrTarget] = useState<{ code: string | null; rewardName: string; status: RedemptionStatus } | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -150,6 +155,8 @@ function RewardsContent() {
         setShowRedeemDialog(false)
         fetchRewards()
         fetchRedemptions(userId)
+        setActiveTab('history')
+        setQrTarget({ code: data.pickupCode ?? null, rewardName: selectedReward.name, status: 'requested' })
       } else {
         toast.error(data.error || 'ไม่สามารถแลกรางวัลได้')
       }
@@ -507,6 +514,29 @@ function RewardsContent() {
                         </div>
                       </div>
                     </div>
+                    {isRedemptionStatus(redemption.status) && (
+                      <div className="mt-3 flex items-center justify-between gap-2 border-t border-gray-100 pt-2.5">
+                        <p className="text-[11px] text-gray-500">
+                          {REDEMPTION_STATUS_CUSTOMER_HINT[redemption.status]}
+                        </p>
+                        {isCancellable(redemption.status) && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setQrTarget({
+                                code: redemption.pickup_code,
+                                rewardName: redemption.rewards?.name ?? 'ของรางวัล',
+                                status: redemption.status as RedemptionStatus,
+                              })
+                            }
+                            className="inline-flex flex-shrink-0 items-center gap-1 rounded-lg bg-gray-900 px-2.5 py-1.5 text-[11px] font-semibold text-white"
+                          >
+                            <HiOutlineQrcode className="h-3.5 w-3.5" />
+                            {redemption.pickup_code ?? 'QR รับของ'}
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -516,6 +546,16 @@ function RewardsContent() {
       )}
 
       <BottomNavigation currentPage="rewards" />
+
+      {qrTarget && (
+        <PickupQrDialog
+          open
+          onOpenChange={(o) => !o && setQrTarget(null)}
+          pickupCode={qrTarget.code}
+          rewardName={qrTarget.rewardName}
+          status={qrTarget.status}
+        />
+      )}
 
       {/* Redeem Confirmation Dialog */}
       <Dialog open={showRedeemDialog} onOpenChange={setShowRedeemDialog}>

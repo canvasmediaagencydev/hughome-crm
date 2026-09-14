@@ -8,10 +8,10 @@ are marked as such.
 
 | | |
 |---|---|
-| Branch / deploy | `pilot-phase1` → https://pilot-phase1.vercel.app, commit `ceaa90f` (Sprint 6–7 live, 2026-09-14) |
+| Branch / deploy | `pilot-phase1` → https://pilot-phase1.vercel.app, commit `31433cc` (Sprint 6–7 live, 2026-09-14) |
 | Supabase | pilot `vltzkxmblmrvsmaookhl`, `tenant_code = pilot` |
-| Migrations | `001`–`022` all applied (fresh pilot project 2026-09-14) |
-| Sprints complete | 0, 1, 2, 2.1, 3, 3.1, pre-4, 4, 5 (partial), 6, 7 |
+| Migrations | `001`–`023` all applied (`023` on 2026-09-14) |
+| Sprints complete | 0, 1, 2, 2.1, 3, 3.1, pre-4, 4, 5 (partial), 6, 7 · 8 code-complete 2026-09-14 (not deployed, not clicked) |
 | Demo data | `docs/demo/` (10 rows · 687 points) · `verify-demo-ready.js` 19/19 |
 
 ### Demo data — resolved 2026-08-31
@@ -94,12 +94,42 @@ cached in `line_quota_cache` via `GET /api/admin/quota` (15 min). Customer dashb
 `scripts/e2e-points-invariant.js --yes` **36/36** and `e2e-batch-flow.js` **23/23** on the new pilot (2026-09-14). FIFO on redeem was
 already in `redeem_reward` since `010`. See `wiki/07` for the daily-vs-monthly expiry schedule decision.
 
+### Sprint 8 — team notify + 4-status redemptions + QR (code done 2026-09-14)
+Migration `023` (applied 2026-09-14, `verify-schema.js` 18/18, `e2e-points-invariant.js` 36/36 on v3): `generate_pickup_code()`, `redeem_reward` v3 issues an 8-char pickup
+code inside the redeem transaction, unique partial index on `redemptions.pickup_code`,
+`notification_channels.last_sent_at` / `updated_at`. The `redemption_status` enum already had the five
+target values since `001`; the legacy `processing` / `shipped` strings are gone from the TypeScript side
+(`src/lib/redemption-status.ts` is the single source: labels, `NEXT_STATUS`, `CANCELLABLE`).
+
+Routes: `PATCH /api/admin/redemptions/:id/status` (one step forward only, `.eq('status', from)` guard →
+409 on a race; `approved`/`ready` need `redemptions.process`, `delivered` needs `redemptions.deliver`),
+`GET /api/admin/redemptions/lookup?code=` (QR scan), `GET/POST /api/admin/notifications`,
+`PATCH/DELETE /:id`, `POST /:id/test`. The old `/:id/complete` route is deleted. Cancel still goes through
+`cancel_redemption` (021) and now returns 401 instead of 500 unauthenticated.
+
+Team notify: `src/lib/team-notify.ts` — Telegram Bot API `sendMessage` (token AES-256-GCM in the DB,
+key `NOTIFY_TOKEN_KEY`, `GET` masks to `123456789:••••••••xxxx`) or LINE Messaging API push to a
+`groupId` with the OA token. Fired from `POST /api/rewards/redeem` via Next `after()` so the customer
+response is never delayed; failures land in `notification_channels.last_error`, never fail the redemption.
+5 s timeout per channel. Message: tenant, customer name, phone, reward ×qty, points, pickup code, admin link.
+
+UI: `/admin/redemptions` rewritten (5 status tabs, step buttons, cancel with reason, pickup code shown,
+delivered/approved timestamps), `/admin/redemptions/scan` (opens from the QR URL, or type the code;
+delivers only from `ready`, offers the next step otherwise), `/admin/notifications` (add / toggle / re-key /
+delete / test), nav item "แจ้งเตือนทีม" (`notifications.manage`), `/admin/login?next=` round-trip so a
+scanned QR lands back on the scan page after login. Customer: QR dialog after redeem and from the history
+tab (`src/components/PickupQrDialog.tsx`), status hint under each redemption.
+
+Offline self-check `scripts/test-sprint8-rules.mjs`: **22/22**. `tsc` + `npm run build` clean. All new admin
+routes answer 401 unauthenticated on local dev. **Not yet exercised in a browser** — the admin password is
+not available to the agent; the click-through is `wiki/13` §7b.
+
 ## Remaining
 
 | Sprint | Work |
 |---|---|
 | 5 (leftover) | `POST /api/admin/batches/:id/review` (manager records a spot-check), `GET /api/admin/batches/:id` (batch detail) |
-| 8 | Telegram / LINE group notify, redemption 4 statuses + QR (points-returning cancel already done via `cancel_redemption`), clean up the legacy `processing` / `shipped` status values |
+| 8 (wrap-up) | set `NOTIFY_TOKEN_KEY` on Vercel + `.env.local` · deploy · click through `wiki/13` §7b |
 | 9 | Customer UI (5-tab bottom nav, `/call`, `/facebook`), admin polish, weekly reports with bill number and salesperson columns, demo data |
 
 ## Locked decisions
@@ -123,9 +153,16 @@ Each of these is a decision that was made explicitly and should not be revisited
 ## Open debt
 
 ### Operational
-- **Admin login on the new pilot has never succeeded** (`auth.users.last_sign_in_at` is null as of
-  2026-09-14): set the password with `auth.admin.updateUserById` (service role) — the app has no
-  password-reset page, so the recovery email cannot be used
+- Admin login on the new pilot works (password set 2026-09-14, not in the repo). The app still has no
+  password-reset page, so a lost password needs `auth.admin.updateUserById` (service role)
+- **Supabase Auth on the pilot is flaky** — `GET /auth/v1/user` returned 504 twice in 23 s during the
+  2026-09-14 rehearsal (the project is on the free tier). Every admin API goes through
+  `requirePermission` → `auth.getUser()`, so one slow answer becomes a 500 on the route and, via
+  `useAdminAuth` (`/api/admin/me`, retry 1), a bounce to `/admin/login` while still signed in.
+  Consider a paid plan before the customer demo
+- **Test leftovers on the pilot from the 2026-09-14 rehearsal, not yet removed:** one `point_batches`
+  row in status `previewed` (re-upload after void, step 6.6) and sales rep `S99` (inactive).
+  Clean-up SQL is in `wiki/13` §9; `verify-demo-ready.js` must return 19/19 afterwards
 - Rotate the admin password and the LINE / Supabase keys that were pasted into a chat transcript
 - Old pilot project `zoaxqouayhjkyterzzdt` still exists somewhere (owner account unknown) — find and delete
 - Reward images: all three rewards on the new pilot have no image yet (`/admin/rewards`)
@@ -143,10 +180,23 @@ Each of these is a decision that was made explicitly and should not be revisited
 - `tenant-guard` is soft — `instrumentation.ts` catches its throw and only logs
 - `exceljs` advisories (`archiver` → `glob` → `minimatch` → `brace-expansion`, and `uuid` v3/v5/v6),
   on the zip write path rather than the untrusted read path
-- `/api/upload` returns 500 instead of 401 for a non-admin
+- `/api/upload`, `/api/admin/users`, `/api/admin/redemptions` return 500 instead of 401 unauthenticated —
+  their catch-all does not special-case `Unauthorized` the way `batches/route.ts` does. The same
+  catch-all is what turned the Supabase Auth 504 into "Failed to adjust points" (500) on
+  `users/[id]/points`
+- **Found in the 2026-09-14 browser rehearsal (`wiki/13`), none money-related:**
+  - a `previewed` batch has no commit/void action in the history table after a page reload — the
+    only way to commit it is to upload the same file again (the upload replaces the old preview)
+  - batch history shows the void reason but not who voided (`voided_by_name` is fetched, not rendered)
+  - the commit toast says "แจ้ง LINE n คน" for every attempted push, including failures
+    (`notifyPointChange` swallows errors); on demo customers with fake LINE ids all 8 pushes failed
+  - wrong password on `/admin/login` shows the raw Supabase text "Invalid login credentials"
+  - upload with an empty week is not blocked client-side; the server reply is developer-worded
+  - point history strings are English ("Batch award · bill …", "Batch voided: …")
 - `supabase/fixes/2026-09-13_reconcile_cancel_drift.sql` is now moot — the drifted user lived in the
   abandoned project; the new pilot reconciles 0 mismatches. Kept as the pattern for future repairs
-- Legacy `processing` / `shipped` still present in the redemption status type
+- `notifications.manage` is held by `super_admin` and `manager` only (012); `reward_manager` cannot see
+  `/admin/notifications` — fine for the pilot, revisit if the store wants reward staff to manage the group
 - Stale receipt/OCR references remain in `src/app/admin/page.tsx`,
   `src/components/StatusBadge.tsx`, dashboard metrics routes, `TESTING_GUIDE.md`,
   `ADMIN_RBAC_TASKS.md`, and `GEMINI_API_KEY` in `.env.example`
@@ -171,18 +221,24 @@ Each of these is a decision that was made explicitly and should not be revisited
 | Production: every cron 401 unauthenticated, old crons 404 (`verify-cron-auth.js`) | ✅ 15/15 |
 | Production: all 4 crons run once with the real secret (reconcile 8 users, 0 drift) | ✅ |
 | Browser flow on the **old** pilot, 2026-09-13 (auth, sales reps, wrong/right week, 687, double-commit, balances, history, void, re-upload) | ✅ — found and fixed the previewed-duplicate 409 and the notes 500 |
-| Browser flow on the **new** pilot with Sprint 6–7 code | ⏳ blocked on the admin password (see Open debt) |
+| Browser flow on the **new** pilot with Sprint 6–7 code, 2026-09-14 (`wiki/13` §1–6, 8.3: auth redirect, sales reps, template, wrong/right week, 687, double-commit, balances, history, void → 0, re-upload after void, manual ±50 via RPC) | ✅ money path clean — findings listed under Open debt · full log in `docs/TEST_RUN_2026-09-14.md` (git-ignored) |
+| Customer side on the new pilot (`wiki/13` §7, and §8.1–8.2 which need a redemption) | ❌ needs a phone + LIFF + the OTP test number |
 | LINE push actually arriving on a phone (batch award, expiry, birthday) | ❌ not yet on the new pilot — no real LINE customer registered |
 
 ## Next recommended step
 
-**1. Finish the browser rehearsal on the new pilot** (`wiki/13`): set the admin password (the
-recreated auth user has never signed in), then click through batches → campaigns → user detail →
-redemption cancel (now via `cancel_redemption`) → manual adjust (now creates a ledger lot). Register
-one real LINE customer through LIFF so the push side can be seen on a phone.
+**1. Finish the customer side of the rehearsal** (`wiki/13` §7 + §8.1–8.2, needs a phone): register
+one real LINE customer through LIFF, redeem, cancel from `/admin/redemptions`, and confirm the push
+arrives. Then run the clean-up SQL in `wiki/13` §9 and re-check `verify-demo-ready.js` 19/19.
+
+**1b. Before the demo, fix the two rehearsal findings that hurt a live demo:** the Supabase Auth
+504 → 500/bounce-to-login (map auth failures to 503 with a Thai "try again" message, and consider a
+paid Supabase plan), and the `previewed` batch with no commit button after reload.
 
 **2. Demo prep:** reward images, shop phone, decide how the customer-side demo is shown (OTP works
 for one test number only).
 
-**3. Then Sprint 8** — Telegram/LINE group notify, redemption 4 statuses + QR, remove the legacy
-`processing` / `shipped` values.
+**3. Sprint 8 wrap-up (code written, `023` applied):** add `NOTIFY_TOKEN_KEY` (64 hex) to Vercel and
+`.env.local`, deploy, then click `wiki/13` §7b with a real Telegram group.
+
+**4. Then Sprint 9** — customer 5-tab nav, `/call`, `/facebook`, weekly report with bill/salesperson columns.

@@ -3,13 +3,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { axiosAdmin } from '@/lib/axios-admin'
 import debounce from 'lodash.debounce'
+import type { RedemptionStatus } from '@/lib/redemption-status'
 
 export interface Redemption {
   id: string
   created_at: string
   points_used: number
   quantity: number
-  status: 'requested' | 'processing' | 'shipped' | 'cancelled' // TODO Sprint 8: 4-status model
+  status: RedemptionStatus
+  pickup_code: string | null
   admin_notes: string | null
   processed_at: string | null
   rewards: {
@@ -62,9 +64,11 @@ interface CompleteRedemptionParams {
   notes?: string
 }
 
+// requested → approved (ขั้นแรกของ 4 สถานะ · PATCH :id/status)
 async function completeRedemption(params: CompleteRedemptionParams) {
-  const response = await axiosAdmin.put(`/api/admin/redemptions/${params.id}/complete`, {
-    admin_notes: params.notes || ''
+  const response = await axiosAdmin.patch(`/api/admin/redemptions/${params.id}/status`, {
+    status: 'approved',
+    adminNotes: params.notes || ''
   })
   return response.data
 }
@@ -75,8 +79,8 @@ interface CancelRedemptionParams {
 }
 
 async function cancelRedemption(params: CancelRedemptionParams) {
-  const response = await axiosAdmin.put(`/api/admin/redemptions/${params.id}/cancel`, {
-    admin_notes: params.notes || ''
+  const response = await axiosAdmin.post(`/api/admin/redemptions/${params.id}/cancel`, {
+    adminNotes: params.notes || ''
   })
   return response.data
 }

@@ -75,6 +75,15 @@ const serverSchema = z.object({
   // Optional / future.
   GEMINI_API_KEY: z.string().optional(),
   NOTIFICATIONS_ENABLED: z.string().optional(),
+
+  // Sprint 8 — คีย์เข้ารหัส Telegram bot token ใน notification_channels (AES-256-GCM, §9.5).
+  // 64 hex = 32 bytes · สร้าง: openssl rand -hex 32
+  // optional ตอน boot เพื่อไม่ให้ instance ที่ยังไม่ใช้ Telegram ล้ม — แต่ตอน "ใช้" (บันทึก/ส่ง
+  // channel ที่มี token) ถ้าไม่มีจะ throw ทันที ไม่มี fallback (src/lib/secret-box.ts)
+  NOTIFY_TOKEN_KEY: z
+    .string()
+    .regex(/^[0-9a-fA-F]{64}$/, 'NOTIFY_TOKEN_KEY must be 64 hex characters (openssl rand -hex 32)')
+    .optional(),
 })
 
 export type ClientEnv = z.infer<typeof clientSchema>

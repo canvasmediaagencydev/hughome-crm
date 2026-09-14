@@ -23,6 +23,7 @@ import {
   FileSpreadsheet,
   UserSquare2,
   Percent,
+  Bell,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -49,7 +50,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     // Only redirect if we're done loading AND not authenticated
     // This prevents redirect loops during initial auth check
     if (!loading && !isAuthenticated && pathname !== '/admin/login') {
-      router.push('/admin/login')
+      // จำหน้าที่ตั้งใจจะเข้า (เช่น /admin/redemptions/scan?code=… จากการสแกน QR) ไว้กลับมาหลัง login
+      const here = `${pathname}${typeof window === 'undefined' ? '' : window.location.search}`
+      router.push(`/admin/login?next=${encodeURIComponent(here)}`)
     }
   }, [isAuthenticated, loading, router, pathname])
 
@@ -171,6 +174,13 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       icon: Package,
       current: pathname.startsWith('/admin/redemptions'),
       show: hasPermission(PERMISSIONS.REDEMPTIONS_VIEW),
+    },
+    {
+      name: 'แจ้งเตือนทีม',
+      href: '/admin/notifications',
+      icon: Bell,
+      current: pathname.startsWith('/admin/notifications'),
+      show: hasPermission(PERMISSIONS.NOTIFICATIONS_MANAGE) || isSuperAdmin,
     },
     {
       name: 'Tags',

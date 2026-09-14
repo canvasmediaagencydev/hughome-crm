@@ -256,9 +256,11 @@ export type Database = {
           id: string
           is_active: boolean
           last_error: string | null
+          last_sent_at: string | null
           target_id: string
           token: string | null
           type: string
+          updated_at: string
         }
         Insert: {
           created_at?: string
@@ -266,9 +268,11 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_error?: string | null
+          last_sent_at?: string | null
           target_id: string
           token?: string | null
           type: string
+          updated_at?: string
         }
         Update: {
           created_at?: string
@@ -276,9 +280,11 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_error?: string | null
+          last_sent_at?: string | null
           target_id?: string
           token?: string | null
           type?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1050,6 +1056,7 @@ export type Database = {
         Returns: number
       }
       expire_ledger_batches: { Args: { p_as_of: string }; Returns: number }
+      generate_pickup_code: { Args: Record<PropertyKey, never>; Returns: string }
       reconcile_balances: {
         Args: Record<PropertyKey, never>
         Returns: {
