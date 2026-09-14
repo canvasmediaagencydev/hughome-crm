@@ -4,7 +4,7 @@ Detail lives in `supabase/README.md`. This page is the summary and the traps.
 
 ## Iron rules
 
-1. **Never edit `001`–`020`.** They are applied to the pilot database. A change means a new file.
+1. **Never edit `001`–`022`.** They are applied to the pilot database. A change means a new file.
 2. **Never change the schema through the Supabase Dashboard.** Dashboard edits are the number one
    cause of drift when Phase 2 arrives.
 3. **`seed_demo_data.sql` is run by hand only**, and lives in `supabase/seed/` so

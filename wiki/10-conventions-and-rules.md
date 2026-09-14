@@ -7,7 +7,7 @@ From `docs/PROMPTS.md`, applied throughout the project.
 - **No fallback or default for any config or env value.** Throw instead.
 - **Never touch `.env.local`.** It holds live pilot credentials.
 - **Never run a migration or write to Supabase without asking.** Write the `.sql`, hand it over.
-- **Never edit migrations `001`–`020`.** They are applied. A change means a new file.
+- **Never edit migrations `001`–`022`.** They are applied. A change means a new file.
 - **Never `npm install` / `uninstall` without asking.**
 - **Never `git commit` or `git push` unless told to.**
 - **No real phone numbers or real people's names in the repository.**

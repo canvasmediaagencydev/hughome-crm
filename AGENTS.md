@@ -11,7 +11,7 @@
   `src/types` — shared UI, data hooks, clients, boot configuration, contracts.
 - `src/lib/excel/` — the Excel column spec, parser, and template builder.
   `sales-columns.json` is the single source of truth for the sheet; never redeclare headers.
-- `supabase/migrations/` — `001`–`020` up, `rollback/` down.
+- `supabase/migrations/` — `001`–`022` up, `rollback/` down.
   `supabase/seed/` — manual-only seed data, deliberately outside the migration path.
 - `scripts/` — generators and verification scripts.
 - `wiki/` — committed documentation. `docs/` — working notes, **git-ignored**.

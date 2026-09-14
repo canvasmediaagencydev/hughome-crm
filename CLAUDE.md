@@ -162,7 +162,7 @@ npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts 
 | `src/config/env.ts`, `src/config/tenant.ts` | Boot-time env validation and tenant config. No defaults by design. |
 | `src/config/tenant-guard.ts` | Checks the connected DB belongs to this tenant. Currently **soft** — see debt list. |
 | `src/lib/phone.ts` | Canonical Thai phone normalization. Identity is the local 10-digit form. |
-| `supabase/migrations/` | `001`–`020` up, `rollback/` down. |
+| `supabase/migrations/` | `001`–`022` up, `rollback/` down. |
 | `supabase/seed/seed_demo_data.sql` | Demo data. **Outside** the migration path on purpose. |
 | `database.types.ts` | Generated Supabase types. Verify with `scripts/verify-types.js`. |
 

@@ -40,7 +40,7 @@ Note that `LINE_CHANNEL_ID` comes from the LINE **Login** channel while
 
 ### Database
 
-Migrations live in `supabase/migrations/` (`001`–`020`) with matching down-scripts in
+Migrations live in `supabase/migrations/` (`001`–`022`) with matching down-scripts in
 `rollback/`. Apply them by pasting `supabase/_apply_all.sql` into the Supabase SQL Editor
 (fresh database) or `supabase/_apply_013_020.sql` (a database that already has `001`–`012`).
 
