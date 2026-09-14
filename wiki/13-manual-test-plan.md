@@ -148,7 +148,10 @@ curl -s -o /dev/null -w "%{http_code}\n" https://pilot-phase1.vercel.app/api/adm
 
 ### 7b. Sprint 8 — 4 สถานะ + QR + แจ้งทีม (10 นาที) · เขียน 2026-09-14 ยังไม่ได้คลิก
 
-ก่อนเริ่ม: `023` apply แล้ว (14 ก.ย. 2026) · ตั้ง `NOTIFY_TOKEN_KEY` บน Vercel (เฉพาะถ้าจะใช้ Telegram)
+ก่อนเริ่ม: `023` apply แล้ว (14 ก.ย. 2026) · ตั้ง `NOTIFY_TOKEN_KEY` บน Vercel (เฉพาะถ้าจะใช้ Telegram) ·
+**`NOTIFICATIONS_ENABLED` บน Vercel production เป็น `false`** — LINE group / LINE push ทุกชนิดจะ "สำเร็จ" แต่ไม่มีอะไรส่งจริง
+จนกว่าจะตั้ง `true` แล้ว redeploy · ชั้น API ของ §7b ผ่านแล้วบน prod ด้วย `node scripts/e2e-sprint8-http.js --yes` (50/51) —
+ขั้นที่เหลือคือ UI + มือถือจริง
 
 | # | ทำ | คาดหวัง |
 |---|---|---|

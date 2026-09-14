@@ -120,16 +120,25 @@ delete / test), nav item "แจ้งเตือนทีม" (`notifications.
 scanned QR lands back on the scan page after login. Customer: QR dialog after redeem and from the history
 tab (`src/components/PickupQrDialog.tsx`), status hint under each redemption.
 
-Offline self-check `scripts/test-sprint8-rules.mjs`: **22/22**. `tsc` + `npm run build` clean. All new admin
-routes answer 401 unauthenticated on local dev. **Not yet exercised in a browser** — the admin password is
-not available to the agent; the click-through is `wiki/13` §7b.
+Offline self-check `scripts/test-sprint8-rules.mjs`: **22/22**. `tsc` + `npm run build` clean. Deployed as
+`784603a` and exercised on **production** through HTTP with `scripts/e2e-sprint8-http.js`: **50/51** —
+401 on every new route, pickup code format, lookup (lower-case ok / 0 rejected / unknown 404), every
+illegal transition 409, `cancelled` via status 400, approve→ready→deliver with actor columns, cancel on
+delivered refused, cancel at approved and at ready refunds to the same lot + stock + refund row,
+invariant `balance == SUM(ledger)` after every step, channel validation, token masking, PATCH/DELETE. The
+one failure was a transient 403 from the Supabase auth flake (re-run 5× → 404 as designed). Not covered:
+the browser UI and `POST /api/rewards/redeem` → `notifyTeam` (needs a LIFF session) — `wiki/13` §7b.
+
+**Found while testing:** `NOTIFICATIONS_ENABLED` on Vercel production is `false` — a LINE-group test push to a
+garbage groupId returned 200, which only happens when `pushMessage` skips. LINE push on prod has been a no-op
+(batch award, expiry, birthday, and now team notify). Set it to `true` before the demo if pushes should arrive.
 
 ## Remaining
 
 | Sprint | Work |
 |---|---|
 | 5 (leftover) | `POST /api/admin/batches/:id/review` (manager records a spot-check), `GET /api/admin/batches/:id` (batch detail) |
-| 8 (wrap-up) | set `NOTIFY_TOKEN_KEY` on Vercel + `.env.local` · deploy · click through `wiki/13` §7b |
+| 8 (wrap-up) | set `NOTIFY_TOKEN_KEY` on Vercel + `.env.local` · set `NOTIFICATIONS_ENABLED=true` on prod · click through `wiki/13` §7b (UI + LIFF redeem → group message) |
 | 9 | Customer UI (5-tab bottom nav, `/call`, `/facebook`), admin polish, weekly reports with bill number and salesperson columns, demo data |
 
 ## Locked decisions
@@ -223,7 +232,8 @@ Each of these is a decision that was made explicitly and should not be revisited
 | Browser flow on the **old** pilot, 2026-09-13 (auth, sales reps, wrong/right week, 687, double-commit, balances, history, void, re-upload) | ✅ — found and fixed the previewed-duplicate 409 and the notes 500 |
 | Browser flow on the **new** pilot with Sprint 6–7 code, 2026-09-14 (`wiki/13` §1–6, 8.3: auth redirect, sales reps, template, wrong/right week, 687, double-commit, balances, history, void → 0, re-upload after void, manual ±50 via RPC) | ✅ money path clean — findings listed under Open debt · full log in `docs/TEST_RUN_2026-09-14.md` (git-ignored) |
 | Customer side on the new pilot (`wiki/13` §7, and §8.1–8.2 which need a redemption) | ❌ needs a phone + LIFF + the OTP test number |
-| LINE push actually arriving on a phone (batch award, expiry, birthday) | ❌ not yet on the new pilot — no real LINE customer registered |
+| LINE push actually arriving on a phone (batch award, expiry, birthday) | ❌ **cannot arrive** — `NOTIFICATIONS_ENABLED=false` on Vercel production (found 2026-09-14) |
+| Sprint 8 admin API on production (`e2e-sprint8-http.js`) | ✅ 50/51 (1 transient auth 403) |
 
 ## Next recommended step
 

@@ -129,6 +129,9 @@ node scripts/e2e-batch-flow.js           # ⚠️ WRITES to the DB — creates i
 node scripts/e2e-points-invariant.js --yes  # ⚠️ WRITES — balance == SUM(ledger) after adjust/redeem/
                                          #    expire/cancel; runs expire_ledger_batches(today) for real
 node scripts/verify-cron-auth.js <base-url> # every cron + /api/admin/quota returns 401 unauthenticated
+node scripts/e2e-sprint8-http.js --yes [base-url] # ⚠️ WRITES + hits prod admin API with a magic-link admin
+                                         #    token — 4 statuses, QR lookup, cancel, notification channels;
+                                         #    cleans up its own customer/reward/channels
 
 # generators
 node scripts/build-apply-all.js --tenant pilot          # rebuild supabase/_apply_all.sql
@@ -191,6 +194,11 @@ npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts 
 - A `previewed` batch has no commit/void button in the history table after reload — re-upload the same
   file (the upload replaces the old preview; sha256 only blocks `committed` files).
 - Batch history omits who voided; commit toast counts attempted LINE pushes, not delivered ones.
+- **`NOTIFICATIONS_ENABLED` on Vercel production is `false`** (proved 2026-09-14: a LINE group push to a garbage
+  groupId returned 200 — only possible when `pushMessage` skips). Every LINE push on prod (batch award, expiry,
+  birthday, LINE-group team notify) is a silent no-op until it is set to `true` and redeployed.
+- The Supabase auth flake also shows up as a transient **403** (`verifyAdminSession` read fails → "Not an admin"),
+  not only 500 — seen once in 51 prod calls on 2026-09-14.
 - `NOTIFY_TOKEN_KEY` is *optional at boot* (so an instance without Telegram still runs) but any attempt
   to save or send a Telegram channel without it throws — no plaintext fallback.
 - The original pilot project `zoaxqouayhjkyterzzdt` is orphaned (no known owner account) — see `wiki/07`. Never point anything at it again.
