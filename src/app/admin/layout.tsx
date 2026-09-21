@@ -23,6 +23,7 @@ import {
   FileSpreadsheet,
   UserSquare2,
   Percent,
+  IdCard,
   Bell,
 } from 'lucide-react'
 import Link from 'next/link'
@@ -139,6 +140,13 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       icon: Users,
       current: pathname.startsWith('/admin/users'),
       show: hasPermission(PERMISSIONS.USERS_VIEW),
+    },
+    {
+      name: 'นำเข้ารหัสลูกค้า',
+      href: '/admin/customer-codes',
+      icon: IdCard,
+      current: pathname.startsWith('/admin/customer-codes'),
+      show: hasPermission(PERMISSIONS.USERS_EDIT),
     },
     {
       name: 'อัปโหลดยอดขาย',

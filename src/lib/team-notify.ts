@@ -1,10 +1,11 @@
 /**
- * team-notify — แจ้งทีมร้านเข้า Telegram / LINE group (MIGRATION_PLAN.md §4.2, §9.5 · Sprint 8)
+ * team-notify — แจ้งทีมร้าน (MIGRATION_PLAN.md §4.2, §9.5 · Sprint 8 → Sprint 10)
  *
- * LINE Notify ปิดบริการ 31 มี.ค. 2025 → ใช้ 2 ช่องทางนี้แทน
- *   telegram   : Bot API sendMessage · token (เข้ารหัสใน DB) + chat id ของกลุ่ม
- *   line_group : Messaging API push ด้วย LINE_CHANNEL_ACCESS_TOKEN ของ OA · target = groupId
- *                (bot ต้องอยู่ในกลุ่ม) · ไม่ใช้ token ต่อ channel
+ *   email      : Resend API (Sprint 10 · ช่องทางที่ลูกค้าเลือก 2026-09-21) · target = อีเมลผู้รับ
+ *                key จาก env RESEND_API_KEY + ผู้ส่ง NOTIFY_EMAIL_FROM · ไม่มี token ต่อ channel
+ *   telegram   : Bot API sendMessage · token (เข้ารหัสใน DB) + chat id ของกลุ่ม — ถอดจาก UI แล้ว (Q6)
+ *                code path เก็บไว้ให้แถวเก่าส่งต่อได้ ไม่สร้างใหม่
+ *   line_group : Messaging API push ด้วย LINE_CHANNEL_ACCESS_TOKEN ของ OA · target = groupId — ถอดจาก UI แล้ว
  *
  * กติกา:
  *   - notify ล้มต้องไม่ทำให้การแลกของล้มตาม → เก็บลง notification_channels.last_error แล้วจบ
@@ -13,14 +14,17 @@
  */
 import { pushMessage } from '@/lib/line-messaging'
 import { decryptSecret } from '@/lib/secret-box'
+import { serverEnv } from '@/config/env'
 import type { createServerSupabaseClient } from '@/lib/supabase-server'
 import type { Tables } from '../../database.types'
 
 type Supabase = ReturnType<typeof createServerSupabaseClient>
 export type NotificationChannel = Tables<'notification_channels'>
 
-export const CHANNEL_TYPES = ['telegram', 'line_group'] as const
+export const CHANNEL_TYPES = ['email', 'telegram', 'line_group'] as const
 export type ChannelType = (typeof CHANNEL_TYPES)[number]
+/** ประเภทที่สร้างใหม่ได้จาก UI/API (Q6: อีเมลเท่านั้น · telegram/line_group เหลือแค่แถวเก่า) */
+export const CREATABLE_CHANNEL_TYPES = ['email'] as const
 
 export const TEAM_EVENTS = ['redemption.created', 'batch.submitted'] as const
 export type TeamEvent = (typeof TEAM_EVENTS)[number]
@@ -55,7 +59,35 @@ async function sendLineGroup(groupId: string, text: string): Promise<void> {
   await pushMessage(groupId, [{ type: 'text', text }])
 }
 
+/** บรรทัดแรกของข้อความ = หัวข้ออีเมล (ตัดอีโมจิ/วงเล็บสาขาออก) */
+function subjectFromText(text: string): string {
+  const first = text.split('\n')[0] ?? ''
+  return first.replace(/^[^\p{L}\p{N}\[]+/u, '').trim().slice(0, 120) || 'Hug Point'
+}
+
+async function sendEmail(to: string, text: string): Promise<void> {
+  const apiKey = serverEnv.RESEND_API_KEY
+  const from = serverEnv.NOTIFY_EMAIL_FROM
+  if (!apiKey) throw new Error('RESEND_API_KEY ไม่ได้ตั้งค่า — ตั้งใน env ก่อนใช้ channel อีเมล')
+  if (!from) throw new Error('NOTIFY_EMAIL_FROM ไม่ได้ตั้งค่า — เช่น "Hug Point <onboarding@resend.dev>"')
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from, to: [to], subject: subjectFromText(text), text }),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  })
+  if (!res.ok) {
+    // body ของ Resend ไม่มี API key — เอา message มาได้
+    const body = (await res.json().catch(() => null)) as { message?: string; name?: string } | null
+    throw new Error(`Resend ${res.status}: ${body?.message ?? body?.name ?? 'send failed'}`)
+  }
+}
+
 export async function sendToChannel(channel: NotificationChannel, text: string): Promise<void> {
+  if (channel.type === 'email') {
+    await sendEmail(channel.target_id, text)
+    return
+  }
   if (channel.type === 'telegram') {
     if (!channel.token) throw new Error('Telegram channel ไม่มี token')
     await sendTelegram(decryptSecret(channel.token), channel.target_id, text)

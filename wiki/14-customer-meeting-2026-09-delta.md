@@ -166,17 +166,17 @@ Numbered so they can be answered by number.
 
 | # | Question | Blocks |
 |---|---|---|
-| Q1 | `customer_code` format for **new** customers: `HUG-YYYYMM-####` (brief) or continue the old system's scheme? Old IDs are imported as-is either way | N1 |
-| Q2 | Duplicate-detection key: phone + date + net amount? Include bill number (then it is already covered)? Warning or hard reject? | N4 |
-| Q3 | Who may void / roll back: Approver only, or also `super_admin`? Also from `pending_approval`? | N3, N6 |
+| Q1 | `customer_code` format for **new** customers: `HUG-YYYYMM-####` (brief) or continue the old system's scheme? Old IDs are imported as-is either way · **✅ answered 2026-09-21:** codes are **numeric, exported from the old system** and used to find/match the registered phone — nothing is generated. Built: `/admin/customer-codes` import (xlsx: code, phone → match by phone, dry-run then apply), `src/lib/customer-code.ts` accepts digits (old formats still pass) | N1 |
+| Q2 | Duplicate-detection key: phone + date + net amount? Include bill number (then it is already covered)? Warning or hard reject? · **✅ answered 2026-09-21: warning**, scoped to the uploaded file/week — exactly what 9R shipped (`duplicate_amount`) | N4 |
+| Q3 | Who may void / roll back: Approver only, or also `super_admin`? Also from `pending_approval`? · **✅ answered 2026-09-21: Rollback = super_admin only.** Migration `026` removes `batches.void` from `manager`; the void route now requires `batches.approve` for a `pending_approval` reject and `batches.void` for a `committed` rollback | N3, N6 |
 | Q4 | **Confirm in writing:** expiry base = upload/approval date, superseding the purchase-date rule. State the consequence: a late upload extends validity · **✅ ยืนยัน 2026-09-21** (relayed by the project owner) → migration `025`, `wiki/04` "Points formula" | §3 expiry |
 | Q5 | Excel v2: approve the spec change now (before any real sheet is issued)? `ยอดลดหนี้` optional? Code-vs-phone mismatch handling? · **✅ อนุมัติ 2026-09-21** → `sales-columns.json` v2 (9 columns), `ยอดลดหนี้` kept optional, mismatch = preview warning with the phone as key (the sub-points were not answered separately; these are the recommended defaults from §3 and can be flipped) | §3 Excel |
-| Q6 | Is LINE **group** push (Messaging API, still operational) to be removed, or only LINE Notify (never used)? | C1 |
-| Q7 | Notify the **customer** on points-in: on or off? (`NOTIFICATIONS_ENABLED` is `false` on production today — every customer push is already a no-op) | Sprint 7 pushes |
+| Q6 | Is LINE **group** push (Messaging API, still operational) to be removed, or only LINE Notify (never used)? · **✅ answered 2026-09-21: team notifications go by email.** Telegram and LINE group removed from the UI (rows already in the DB still deliver; no new ones can be created); `email` channel type added (`026`, Resend) | C1 |
+| Q7 | Notify the **customer** on points-in: on or off? (`NOTIFICATIONS_ENABLED` is `false` on production today — every customer push is already a no-op) · **✅ answered 2026-09-21: off** — points enter weekly, not in real time, so no customer push. `NOTIFICATIONS_ENABLED` stays `false` | Sprint 7 pushes |
 | Q8 | Points-threshold alert: which number, and who receives it (customer or team)? | digests |
 | Q9 | 300 / 500-baht campaign rule: a minimum spend to qualify for a multiplier, or something else? | campaigns |
 | Q10 | The numbers 185 / 184 / 183 / 18.3 / 7.9 from the meeting — what are they? Not usable as requirements until named | — |
-| Q11 | Email provider and sender domain; Thai or English templates | §3 notify |
+| Q11 | Email provider and sender domain; Thai or English templates · **✅ answered 2026-09-21 (partial):** Resend, Thai text; internal test recipient is the agency mailbox; sender domain still open (test with `onboarding@resend.dev`) | §3 notify |
 | Q12 | Does the manager still want a post-approval spot-check (`batches.review`), or does approval replace it? | Sprint 5 leftover |
 
 ## 5. What this does to the sprint plan

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { normalizeCustomerCode, isValidCustomerCode, CUSTOMER_CODE_FORMAT_HINT } from "@/lib/customer-code";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { requirePermission } from "@/lib/admin-auth";
 import { PERMISSIONS } from "@/types/admin";
@@ -103,15 +104,13 @@ export async function PATCH(
     const updates: { customer_code?: string | null; birthday?: string | null } = {};
 
     if (Object.prototype.hasOwnProperty.call(body, "customer_code")) {
-      // Validate format: either "XX-digits" (e.g. AR-10297) or "digits+letters-digits" (e.g. 50ลส-1030)
-      const normalized = customer_code === "" ? null : customer_code;
-      if (normalized !== null) {
-        if (!/^([A-Za-z]{2}-\d+|\d+[A-Za-zก-๙]+-\d+)$/.test(normalized)) {
-          return NextResponse.json(
-            { error: "รูปแบบรหัสไม่ถูกต้อง ต้องเป็น เช่น AR-10297 หรือ 50ลส-1030" },
-            { status: 400 }
-          );
-        }
+      // Q1 (2026-09-21): รหัสเป็นตัวเลขจากระบบเดิม · รูปแบบเก่ายังรับ (src/lib/customer-code.ts)
+      const normalized = normalizeCustomerCode(customer_code);
+      if (normalized !== null && !isValidCustomerCode(normalized)) {
+        return NextResponse.json(
+          { error: `รูปแบบรหัสไม่ถูกต้อง — ${CUSTOMER_CODE_FORMAT_HINT}` },
+          { status: 400 }
+        );
       }
       updates.customer_code = normalized;
     }

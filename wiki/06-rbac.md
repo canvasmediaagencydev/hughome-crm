@@ -52,7 +52,7 @@ There are no `receipts.*` permissions. That flow is deleted.
 | Role | Permissions |
 |---|---|
 | `super_admin` | everything |
-| `manager` | `dashboard.view`, `reports.view`, `batches.view/approve/review/void`, `redemptions.*`, `users.view`, `campaigns.view`, `salesreps.view` — the **Approver** |
+| `manager` | `dashboard.view`, `reports.view`, `batches.view/approve/review`, `redemptions.*`, `users.view`, `campaigns.view`, `salesreps.view` — the **Approver**. `batches.void` **removed in 026** (Q3: Rollback is super_admin only); rejecting a pending batch still works through `batches.approve` |
 | `accounting` | `batches.view/upload`, `campaigns.view`, `salesreps.view/manage`, `users.view` — `batches.commit` **removed in 024**: accounting submits, the approver releases points |
 | `sales_staff` | `sales.entry`, `users.view` — reserved; real salespeople have no login |
 | `reward_manager` | `rewards.*`, `redemptions.view/process/deliver` |

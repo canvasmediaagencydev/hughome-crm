@@ -71,10 +71,10 @@ If you find a doc or comment mentioning receipts/OCR, it is stale — trust the 
 |---|---|
 | Branch | `pilot-phase1` → Vercel production https://pilot-phase1.vercel.app (Sprint 6–8 pushed 2026-09-14 as `784603a`; Vercel account on Pro) |
 | Supabase | pilot project `vltzkxmblmrvsmaookhl` (`hughome-pilot`, org of `canvasmediaagency@gmail.com`, Tokyo), `app_config.tenant_code = 'pilot'` · replaced `zoaxqouayhjkyterzzdt` on 2026-09-14 — see `wiki/07` |
-| Migrations | `001`–`025` all applied to pilot (`024` + `025` on 2026-09-21 via SQL Editor; `verify-schema.js` 22/22, `verify-types.js` clean, `e2e-batch-flow.js` 35/35) |
-| Sprints done | 0 – 8 · **9R code + DB done 2026-09-21** (uncommitted, not deployed) · Sprint 5 leftover `GET /:id` done in 9R, `POST /:id/review` on hold (Q12) |
+| Migrations | `001`–`026` all applied to pilot (`024`–`026` on 2026-09-21 via SQL Editor; `verify-schema.js` 23/23, `verify-types.js` clean, `e2e-batch-flow.js` 35/35) |
+| Sprints done | 0 – 8 · 9R deployed `ec5e79f` 2026-09-21 · **Sprint 10 part 1 same day**: email team notify (Resend), Telegram/LINE-group creation removed, customer-code import, Rollback = super_admin only · Sprint 5 leftover `POST /:id/review` on hold (Q12) |
 | Sprints left | 9R finish (apply, e2e, `wiki/13` §10–11, push) · 10–11 — see `wiki/09` Remaining · open questions Q1 Q2 Q3 Q6–Q12 in `wiki/14` §4 |
-| Customer requirements | **`wiki/14-customer-meeting-2026-09-delta.md`** — Q4 (expiry base) **confirmed** and Q5 (Excel v2) **approved** 2026-09-21, both built; Q1 Q2 Q3 Q6–Q12 still open and the code takes the defaults named there |
+| Customer requirements | **`wiki/14-customer-meeting-2026-09-delta.md`** — answered and built 2026-09-21: Q1 (numeric codes imported from the old system), Q2 (duplicate = warning), Q3 (Rollback = super_admin), Q4 (expiry from approval date), Q5 (Excel v2), Q6 (email instead of Telegram/LINE group), Q7 (no customer push). Still open: Q8 Q9 Q10 Q11-sender-domain Q12 |
 | Rehearsal | `wiki/13` §1–6 + 8.3 clicked on production 2026-09-14 — money path clean; §7 (phone/LIFF) and clean-up §9 still open. Findings: `wiki/09` Open debt |
 
 Living status: **`wiki/09-status-and-roadmap.md`** and `docs/PHASE1_STATUS.md`.
@@ -94,7 +94,7 @@ These come from `docs/PROMPTS.md` and have been enforced all along.
 - **Never touch `.env.local`.** It holds live pilot credentials.
 - **Never run a migration or write to Supabase without asking first.** Write the `.sql` file, hand it
   over to be pasted into the SQL Editor.
-- **Never edit an applied migration** (`001`–`025`). New change = new file.
+- **Never edit an applied migration** (`001`–`026`). New change = new file.
 - **Never `npm install` / `uninstall` without asking.**
 - **Never `git commit` or `git push` unless explicitly told to.**
 - **Never put a real phone number or a real person's name in the repo.**
@@ -182,9 +182,10 @@ npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts 
 | `src/app/api/cron/*` | 4 crons per `MIGRATION_PLAN.md` §6.3; all gated by `verifyCronRequest`; money moves only via RPC; `reconcile-balances` is read-only and returns 500 on drift so Vercel flags the run |
 | `src/lib/notification-log.ts`, `src/lib/line-quota.ts` | LINE push dedupe (`notification_log`) · LINE quota cache (15 min) |
 | `src/lib/redemption-status.ts` | The 4-status model (`requested → approved → ready → delivered`, `cancelled`), labels, `NEXT_STATUS`, pickup-code format. Client- and server-safe. |
-| `src/lib/team-notify.ts`, `src/lib/secret-box.ts` | Telegram / LINE-group push on `redemption.created` (never fails the redemption; errors go to `notification_channels.last_error`) · AES-256-GCM for the Telegram bot token (`NOTIFY_TOKEN_KEY`) |
+| `src/lib/team-notify.ts`, `src/lib/secret-box.ts` | Team notify on `redemption.created` / `batch.submitted` — **email via Resend** (`RESEND_API_KEY`, `NOTIFY_EMAIL_FROM`; Sprint 10, Q6) is the only creatable channel; legacy Telegram / LINE-group rows still deliver. Never fails the caller; errors go to `notification_channels.last_error` · AES-256-GCM for legacy Telegram tokens (`NOTIFY_TOKEN_KEY`) |
 | `src/app/api/admin/redemptions/*` | list · `[id]/status` (PATCH, one step forward, race-safe) · `[id]/cancel` (RPC) · `lookup?code=` (QR scan) |
 | `src/app/api/admin/notifications/*` | channel CRUD + `[id]/test`; GET always masks the token |
+| `src/app/api/admin/users/import-codes`, `src/lib/customer-code.ts`, `/admin/customer-codes` | Q1: numeric customer codes from the old system, imported by xlsx (code, phone) — match by phone, dry-run then apply |
 | `src/app/api/admin/campaigns/*`, `src/lib/campaigns.ts` | campaign CRUD; overlap pre-check + `23P01` translation naming the conflicting campaign; `campaigns.manage` gate |
 | `src/config/env.ts`, `src/config/tenant.ts` | Boot-time env validation and tenant config. No defaults by design. |
 | `src/config/tenant-guard.ts` | Checks the connected DB belongs to this tenant. Currently **soft** — see debt list. |
@@ -212,9 +213,9 @@ npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts 
 - A `previewed` batch has no commit/void button in the history table after reload — re-upload the same
   file (the upload replaces the old preview; sha256 only blocks `committed` files).
 - Batch history omits who voided; commit toast counts attempted LINE pushes, not delivered ones.
-- **`NOTIFICATIONS_ENABLED` on Vercel production is `false`** (proved 2026-09-14: a LINE group push to a garbage
-  groupId returned 200 — only possible when `pushMessage` skips). Every LINE push on prod (batch award, expiry,
-  birthday, LINE-group team notify) is a silent no-op until it is set to `true` and redeployed.
+- **`NOTIFICATIONS_ENABLED` on Vercel production is `false` — by decision (Q7, 2026-09-21):** points enter weekly,
+  so no customer LINE push. Every LINE push (batch award, expiry, birthday) is a no-op on purpose. Team notify
+  goes by email instead.
 - The Supabase auth flake also shows up as a transient **403** (`verifyAdminSession` read fails → "Not an admin"),
   not only 500 — seen once in 51 prod calls on 2026-09-14.
 - `NOTIFY_TOKEN_KEY` is *optional at boot* (so an instance without Telegram still runs) but any attempt
@@ -224,8 +225,9 @@ npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts 
 - Stale leftovers still mention receipts in `src/app/api/admin/analytics/route.ts`,
   `src/app/admin/roles/page.tsx`, `src/lib/line-messaging.ts`, and `TESTING_GUIDE.md` /
   `ADMIN_RBAC_TASKS.md` (dashboard routes, hook, tiles and `StatusBadge` were cleaned in 9R).
-- `notification_channels` rows created before 9R subscribe only to `redemption.created`; tick
-  `batch.submitted` on `/admin/notifications` or the "batch pending approval" message goes nowhere.
+- Email channel needs `RESEND_API_KEY` + `NOTIFY_EMAIL_FROM` on Vercel and `.env.local` (not set yet — the
+  internal test channel `canvasmediaagency@gmail.com` exists in the DB and will log `last_error` until then).
+  With `onboarding@resend.dev` Resend only delivers to the address that owns the Resend account.
 - `NEXT_PUBLIC_TENANT_PHONE` / `NEXT_PUBLIC_TENANT_FB_URL` are placeholders on the pilot; `/call` and
   `/facebook` display them verbatim.
 - A fresh Phase 2 database will `CREATE promo_codes` in `005` and `DROP` it in `015`. Harmless noise,

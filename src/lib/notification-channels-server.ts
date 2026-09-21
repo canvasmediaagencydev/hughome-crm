@@ -5,7 +5,7 @@
  *   เข้ารหัสก่อนเก็บ (secret-box) · GET คืนแค่ mask · ไม่ log
  */
 import { encryptSecret, decryptSecret, maskSecret } from '@/lib/secret-box'
-import { CHANNEL_TYPES, TEAM_EVENTS, isChannelType, isTeamEvent, type NotificationChannel } from '@/lib/team-notify'
+import { CREATABLE_CHANNEL_TYPES, TEAM_EVENTS, isTeamEvent, type NotificationChannel } from '@/lib/team-notify'
 
 /** รูปที่ส่งออกให้ client — ไม่มี token จริง */
 export interface PublicChannel {
@@ -48,6 +48,7 @@ export function toPublic(ch: NotificationChannel): PublicChannel {
 
 // Telegram bot token: `<bot id>:<35 ตัว>` · chat id ของกลุ่ม: ตัวเลข มักติดลบ (-100...)
 const TELEGRAM_TOKEN_RE = /^\d{6,12}:[A-Za-z0-9_-]{30,50}$/
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 const TELEGRAM_CHAT_RE = /^-?\d{4,20}$/
 // LINE groupId ขึ้นต้น C + 32 hex
 const LINE_GROUP_RE = /^C[0-9a-f]{32}$/
@@ -65,10 +66,16 @@ export interface ChannelInsert {
 /** ตรวจ body ของ POST — คืนแถวพร้อม insert (token เข้ารหัสแล้ว) */
 export function validateCreate(body: Record<string, unknown>): Result<ChannelInsert> {
   const type = body.type
-  if (!isChannelType(type)) return { ok: false, error: `type ต้องเป็น ${CHANNEL_TYPES.join(' | ')}` }
+  // Q6 (2026-09-21): สร้างใหม่ได้เฉพาะอีเมล — telegram/line_group ยังส่งได้ถ้ามีแถวเก่า แต่ไม่รับสร้าง
+  if (typeof type !== 'string' || !(CREATABLE_CHANNEL_TYPES as readonly string[]).includes(type)) {
+    return { ok: false, error: `type ต้องเป็น ${CREATABLE_CHANNEL_TYPES.join(' | ')}` }
+  }
 
-  const target = String(body.target_id ?? '').trim()
-  if (!target) return { ok: false, error: type === 'telegram' ? 'กรุณาใส่ chat id ของกลุ่ม' : 'กรุณาใส่ groupId ของ LINE' }
+  const target = String(body.target_id ?? '').trim().toLowerCase()
+  if (!target) return { ok: false, error: 'กรุณาใส่อีเมลผู้รับ' }
+  if (type === 'email' && !EMAIL_RE.test(target)) {
+    return { ok: false, error: 'อีเมลไม่ถูกรูปแบบ' }
+  }
   if (type === 'telegram' && !TELEGRAM_CHAT_RE.test(target)) {
     return { ok: false, error: 'chat id ของ Telegram ต้องเป็นตัวเลข (กลุ่มมักขึ้นต้นด้วย -100)' }
   }
@@ -80,6 +87,7 @@ export function validateCreate(body: Record<string, unknown>): Result<ChannelIns
   if (!eventsRes.ok) return eventsRes
 
   let token: string | null = null
+  if (body.token) return { ok: false, error: 'channel อีเมลไม่ใช้ token (API key อยู่ใน env RESEND_API_KEY)' }
   if (type === 'telegram') {
     const raw = String(body.token ?? '').trim()
     if (!TELEGRAM_TOKEN_RE.test(raw)) {

@@ -109,6 +109,14 @@ async function main() {
   const pendingProbe = await count('point_batches', '&status=eq.pending_approval')
   record(!pendingProbe.error, '024 · enum batch_status รับค่า pending_approval', pendingProbe.error)
 
+  // --- 026: email channel + Rollback เฉพาะ super_admin (CHECK constraint ตรวจใน SQL Editor) ---
+  const mgrVoid = await fetch(
+    `${url}/rest/v1/admin_role_permissions?select=role_id,admin_roles!inner(name),admin_permissions!inner(permission_key)&admin_roles.name=eq.manager&admin_permissions.permission_key=eq.batches.void`,
+    { headers: { ...headers, Prefer: 'count=exact', Range: '0-0' } }
+  )
+  const mgrVoidCount = Number((mgrVoid.headers.get('content-range') ?? '/x').split('/')[1])
+  record(mgrVoidCount === 0, '026 · manager ไม่มี batches.void แล้ว (Rollback = super_admin)', `ได้ ${Number.isNaN(mgrVoidCount) ? mgrVoid.status : mgrVoidCount}`)
+
   // --- สรุป ---
   const failed = results.filter((r) => !r.ok)
   console.log(

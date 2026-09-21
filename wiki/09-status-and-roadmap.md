@@ -10,7 +10,7 @@ are marked as such.
 |---|---|
 | Branch / deploy | `pilot-phase1` → https://pilot-phase1.vercel.app, commit `784603a` (Sprint 6–8 pushed 2026-09-14) |
 | Supabase | pilot `vltzkxmblmrvsmaookhl`, `tenant_code = pilot` |
-| Migrations | `001`–`025` applied (`024` + `025` on 2026-09-21 through the SQL Editor) |
+| Migrations | `001`–`026` applied (`024`–`026` on 2026-09-21 through the SQL Editor) |
 | Sprints complete | 0, 1, 2, 2.1, 3, 3.1, pre-4, 4, 5 (partial), 6, 7, 8 · **9R code + DB complete 2026-09-21** (uncommitted, not deployed) |
 | Demo data | `docs/demo/` (10 rows · 687 points) · `verify-demo-ready.js` 19/19 |
 
@@ -193,6 +193,27 @@ Built from `docs/PROMPTS.md` "Sprint 9R" after the 2026-09-21 meeting (`wiki/14`
   duplicate 45, `expires_at` = approval day + 365, rollback, reject without ledger, invariant),
   `e2e-points-invariant.js` **36/36**.
 
+### Sprint 10 part 1 — email notify, code import, Rollback scope (2026-09-21, same evening)
+
+Answers received from the customer (via the project owner) after 9R shipped: Q1 numeric codes from the old
+system · Q2 duplicate = warning · Q3 Rollback = super_admin only · Q6 email instead of Telegram/LINE group ·
+Q7 no customer push (weekly cut-off) · Q11 Resend, internal test mailbox = the agency address.
+
+- **Migration `026`** (applied): `notification_channels.type` CHECK gains `'email'`; `batches.void` removed
+  from `manager`. `verify-schema.js` **23/23**.
+- **Email channel:** `src/lib/team-notify.ts` `sendEmail` → Resend REST (`RESEND_API_KEY`, `NOTIFY_EMAIL_FROM`,
+  both optional at boot, throw on use). `CREATABLE_CHANNEL_TYPES = ['email']` — API and `/admin/notifications`
+  create email only; legacy Telegram/LINE-group rows still list, test, deliver, delete. One internal test
+  channel (`canvasmediaagency@gmail.com`, both events) inserted in the pilot DB.
+- **Void route** checks the batch first: `pending_approval` reject needs `batches.approve`, `committed`
+  rollback needs `batches.void`. UI buttons follow.
+- **Customer-code import:** `POST /api/admin/users/import-codes` (xlsx A=code B=phone, dry-run by default,
+  `apply=1`, `overwrite=1`), page `/admin/customer-codes`, nav "นำเข้ารหัสลูกค้า" (`users.edit`).
+  `src/lib/customer-code.ts` — digits accepted, old `AR-10297` / `50ลส-1030` shapes still pass; the
+  manual PATCH uses the same rule.
+- Pilot DB clean-up done (rep `S99`, previewed demo batch) → `verify-demo-ready.js` **19/19** (voided demo
+  batches no longer count). Test admin with `accounting` + `manager` roles created for the internal run.
+
 ## Remaining
 
 > **2026-09-21 — the customer's latest meeting changed the plan below.** The full delta, its code
@@ -204,11 +225,11 @@ Built from `docs/PROMPTS.md` "Sprint 9R" after the 2026-09-21 meeting (`wiki/14`
 
 | Sprint | Work |
 |---|---|
-| 9R (finish) | commit + push, click `wiki/13` §10–§11 on production, tick `batch.submitted` on the existing notify channels, fill `NEXT_PUBLIC_TENANT_PHONE` / `NEXT_PUBLIC_TENANT_FB_URL` with real values, run `supabase gen types` once logged in (types already match) |
+| 9R / 10 (finish) | set `RESEND_API_KEY` + `NOTIFY_EMAIL_FROM` on Vercel and `.env.local` once the Resend account exists · SMS provider for OTP (blocker for real sign-ups) · click `wiki/13` §10–§11 on production with the test admin · fill `NEXT_PUBLIC_TENANT_PHONE` / `NEXT_PUBLIC_TENANT_FB_URL` · reward images · `supabase gen types` once logged in (types already match) |
 | 5 (leftover) | `POST /:id/review` **on hold** — approval before points now exists; Q12 decides whether a post-approval spot-check is still wanted. `GET /:id` is done (9R) |
 | 8 (wrap-up) | set `NOTIFY_TOKEN_KEY` on Vercel + `.env.local` · set `NOTIFICATIONS_ENABLED=true` on prod (⚠️ Q7 first — the customer may not want customer pushes at all) · click through `wiki/13` §7b |
-| 9R skipped — waiting on a question | ⚠️ **Q1** auto-generate `customer_code` at onboarding + backfill (code shows "ยังไม่กำหนดรหัส" until then) · ⚠️ **Q2** duplicate key / hard-reject — implemented as warning on phone+date+net, one flag flips it · ⚠️ **Q3** who may void — still `manager` + `super_admin` (`batches.void`) · ⚠️ **Q6/Q11** email + bell — Sprint 10 · ⚠️ **Q12** post-approval spot-check |
-| 10 | **Email + in-app bell** for the team (`admin_notifications`, `notification_schedules`, email provider + dedicated sender, digest cron) (⚠️ Q6, Q11) · **campaign image** square-only upload · Thai wording for point-history strings |
+| still waiting on a question | ⚠️ **Q8** points-threshold alert · ⚠️ **Q9** 300/500-baht rule · ⚠️ **Q10** meeting numbers · ⚠️ **Q11** sender domain (who owns the shop domain's DNS) · ⚠️ **Q12** post-approval spot-check |
+| 10 (rest) | in-app bell (`admin_notifications`) + digests (`notification_schedules`, fifth cron) · dedicated sender domain (Q11) · **campaign image** square-only upload · Thai wording for point-history strings |
 | 11 | custom dashboard widgets · bell polish (bulk mark-read, filters) · Phase 2 data migration plan (real branch, ~700 customers, old IDs) |
 
 ## Locked decisions
@@ -283,8 +304,8 @@ Each of these is a decision that was made explicitly and should not be revisited
   `GEMINI_API_KEY` in `.env.example`
 - `verify-demo-ready.js` currently 17/19 on the pilot because of the two rehearsal leftovers above
   (rep `S99`, one `previewed` demo batch) — not a code problem; clean-up SQL in `wiki/13` §9
-- Existing `notification_channels` rows only subscribe to `redemption.created`; `batch.submitted` must
-  be ticked on `/admin/notifications` or the submit notification goes nowhere (new channels get both)
+- Email delivery is untested end-to-end until `RESEND_API_KEY` / `NOTIFY_EMAIL_FROM` are set; the test
+  channel will show `last_error` "RESEND_API_KEY ไม่ได้ตั้งค่า" until then
 - `TENANT.phone` / `TENANT.facebookUrl` are still placeholders in `.env.local` and on Vercel — `/call`
   and `/facebook` show them verbatim
 - `database.types.ts` was hand-edited; `supabase gen types` has never been run against `013`–`020`.

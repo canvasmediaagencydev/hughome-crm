@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * /admin/notifications — ช่องแจ้งทีมร้าน (Telegram / LINE group) · Sprint 8
+ * /admin/notifications — อีเมลแจ้งทีมร้าน · Sprint 8 (Telegram/LINE group) → Sprint 10 (อีเมล · Q6)
  *
  * แลกของสำเร็จ → ยิงเข้าทุก channel ที่เปิดอยู่ทันที · ปุ่ม "ทดสอบส่ง" ยิงข้อความจริงเข้ากลุ่ม
  * token ของ Telegram แสดงแค่ mask — กรอกใหม่ได้ อ่านค่าเดิมไม่ได้ (§9.5)
@@ -29,7 +29,7 @@ import { axiosAdmin } from '@/lib/axios-admin'
 
 interface Channel {
   id: string
-  type: 'telegram' | 'line_group'
+  type: 'email' | 'telegram' | 'line_group'
   target_id: string
   events: string[]
   is_active: boolean
@@ -39,9 +39,11 @@ interface Channel {
   token_masked: string | null
 }
 
+// Q6 (2026-09-21): สร้างใหม่ได้เฉพาะอีเมล · telegram/line_group เหลือแค่แถวเก่า (ยังส่ง/ลบได้)
 const TYPE_LABEL: Record<Channel['type'], string> = {
-  telegram: 'Telegram',
-  line_group: 'LINE group',
+  email: 'อีเมล',
+  telegram: 'Telegram (เลิกใช้)',
+  line_group: 'LINE group (เลิกใช้)',
 }
 
 /** ต้องตรงกับ TEAM_EVENTS ใน src/lib/team-notify.ts */
@@ -73,7 +75,7 @@ export default function NotificationsPage() {
   const [tokenTarget, setTokenTarget] = useState<Channel | null>(null)
   const [newToken, setNewToken] = useState('')
   const [form, setForm] = useState<{ type: Channel['type']; token: string; target_id: string }>({
-    type: 'telegram',
+    type: 'email',
     token: '',
     target_id: '',
   })
@@ -100,8 +102,8 @@ export default function NotificationsPage() {
       const body: Record<string, unknown> = { type: form.type, target_id: form.target_id.trim() }
       if (form.type === 'telegram') body.token = form.token.trim()
       await axiosAdmin.post('/api/admin/notifications', body)
-      toast.success(`เพิ่ม ${TYPE_LABEL[form.type]} แล้ว — กด "ทดสอบส่ง" เพื่อเช็คว่าถึงกลุ่ม`)
-      setForm({ type: 'telegram', token: '', target_id: '' })
+      toast.success(`เพิ่ม ${TYPE_LABEL[form.type]} แล้ว — กด "ทดสอบส่ง" เพื่อเช็คว่าอีเมลถึง`)
+      setForm({ type: 'email', token: '', target_id: '' })
       setOpen(false)
       load()
     } catch (e) {
@@ -139,7 +141,7 @@ export default function NotificationsPage() {
     setTestingId(ch.id)
     try {
       await axiosAdmin.post(`/api/admin/notifications/${ch.id}/test`)
-      toast.success(`ส่งข้อความทดสอบเข้า ${TYPE_LABEL[ch.type]} แล้ว — ไปดูในกลุ่ม`)
+      toast.success(`ส่งข้อความทดสอบเข้า ${TYPE_LABEL[ch.type]} ${ch.target_id} แล้ว — ไปเช็คกล่องจดหมาย`)
     } catch (e) {
       toast.error(errorMessage(e, 'ส่งทดสอบไม่สำเร็จ'))
     } finally {
@@ -149,7 +151,7 @@ export default function NotificationsPage() {
   }
 
   const remove = async (ch: Channel) => {
-    if (!window.confirm(`ลบ ${TYPE_LABEL[ch.type]} (${ch.target_id})? การแจ้งเตือนเข้ากลุ่มนี้จะหยุดทันที`)) return
+    if (!window.confirm(`ลบ ${TYPE_LABEL[ch.type]} (${ch.target_id})? การแจ้งเตือนไปปลายทางนี้จะหยุดทันที`)) return
     try {
       await axiosAdmin.delete(`/api/admin/notifications/${ch.id}`)
       toast.success('ลบ channel แล้ว')
@@ -196,7 +198,7 @@ export default function NotificationsPage() {
             <Bell className="h-6 w-6" /> แจ้งเตือนทีมร้าน
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            ลูกค้ากดแลกของ → ข้อความเด้งเข้ากลุ่ม Telegram / LINE ทันที (ชื่อ เบอร์ ของรางวัล แต้ม ลิงก์จัดการ)
+            ลูกค้ากดแลกของ / บัญชีส่งชุดยอดขาย → อีเมลถึงทีมทันที (ชื่อ เบอร์ ของรางวัล แต้ม ลิงก์จัดการ)
           </p>
         </div>
         <Button onClick={() => setOpen(true)}>
@@ -207,7 +209,7 @@ export default function NotificationsPage() {
       {activeCount === 0 && !loading && (
         <Card className="border-amber-300 bg-amber-50">
           <CardContent className="py-4 text-sm text-amber-900">
-            ⚠️ ยังไม่มี channel ที่เปิดอยู่ — ทีมร้านจะไม่รู้ว่ามีคนกดแลกของ จนกว่าจะเปิดหน้า &quot;คำขอแลกรางวัล&quot; เอง
+            ⚠️ ยังไม่มีอีเมลรับแจ้งที่เปิดอยู่ — ทีมร้านจะไม่รู้ว่ามีคนกดแลกของหรือมีชุดรอผู้อนุมัติ จนกว่าจะเปิดหน้าเหล่านั้นเอง
           </CardContent>
         </Card>
       )}
@@ -218,8 +220,8 @@ export default function NotificationsPage() {
             ทั้งหมด {channels.length} · เปิดอยู่ {activeCount}
           </CardTitle>
           <CardDescription>
-            Telegram: สร้าง bot กับ @BotFather แล้วดึง bot เข้ากลุ่ม · chat id ของกลุ่มดูจาก @userinfobot หรือ getUpdates
-            (มักขึ้นต้น -100) · LINE group: ดึง OA เข้ากลุ่ม แล้วเอา groupId จาก webhook event
+            แจ้งทีมผ่านอีเมล (ส่งด้วย Resend — ต้องตั้ง RESEND_API_KEY และ NOTIFY_EMAIL_FROM ใน env) · ใส่อีเมลได้หลายคน คนละ channel ·
+            ติ๊กเลือกว่าแต่ละคนรับเรื่องอะไร
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -319,48 +321,22 @@ export default function NotificationsPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>เพิ่ม channel แจ้งเตือน</DialogTitle>
-            <DialogDescription>ทุก channel ที่เปิดอยู่จะได้รับข้อความเมื่อมีคนกดแลกของ</DialogDescription>
+            <DialogTitle>เพิ่มอีเมลรับแจ้ง</DialogTitle>
+            <DialogDescription>อีเมลนี้จะได้รับข้อความเมื่อมีคนกดแลกของ และเมื่อมีชุดยอดขายรอผู้อนุมัติ (ปรับได้หลังเพิ่ม)</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>ประเภท</Label>
-              <div className="mt-1 flex gap-2">
-                {(['telegram', 'line_group'] as const).map((t) => (
-                  <Button
-                    key={t}
-                    type="button"
-                    variant={form.type === t ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setForm({ ...form, type: t })}
-                  >
-                    {TYPE_LABEL[t]}
-                  </Button>
-                ))}
-              </div>
-            </div>
-            {form.type === 'telegram' && (
-              <div>
-                <Label htmlFor="token">Bot token</Label>
-                <Input
-                  id="token"
-                  type="password"
-                  autoComplete="off"
-                  placeholder="123456789:AAF…"
-                  value={form.token}
-                  onChange={(e) => setForm({ ...form, token: e.target.value })}
-                />
-                <p className="mt-1 text-xs text-slate-500">เก็บแบบเข้ารหัส — หลังบันทึกจะเห็นแค่ 4 ตัวท้าย</p>
-              </div>
-            )}
-            <div>
-              <Label htmlFor="target">{form.type === 'telegram' ? 'Chat id ของกลุ่ม' : 'groupId ของ LINE'}</Label>
+              <Label htmlFor="target">อีเมลผู้รับ</Label>
               <Input
                 id="target"
-                placeholder={form.type === 'telegram' ? '-1001234567890' : 'Cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'}
+                type="email"
+                placeholder="name@example.com"
                 value={form.target_id}
                 onChange={(e) => setForm({ ...form, target_id: e.target.value })}
               />
+              <p className="mt-1 text-xs text-slate-500">
+                ระหว่างทดสอบด้วย onboarding@resend.dev จะส่งถึงเฉพาะอีเมลที่ใช้สมัคร Resend เท่านั้น
+              </p>
             </div>
           </div>
           <DialogFooter>
@@ -369,7 +345,7 @@ export default function NotificationsPage() {
             </Button>
             <Button
               onClick={create}
-              disabled={saving || !form.target_id.trim() || (form.type === 'telegram' && !form.token.trim())}
+              disabled={saving || !form.target_id.trim()}
             >
               {saving ? 'กำลังบันทึก…' : 'เพิ่ม'}
             </Button>

@@ -166,6 +166,7 @@ export default function BatchesPage() {
   const can = (p: string) => hasPermission(p) || isSuperAdmin
   const canUpload = can(PERMISSIONS.BATCHES_UPLOAD)
   const canApprove = can(PERMISSIONS.BATCHES_APPROVE)
+  /** Rollback ชุดที่แต้มเข้าแล้ว — Q3: super_admin เท่านั้น (026 ถอด batches.void จาก manager) · ปฏิเสธชุดที่รอใช้ canApprove */
   const canVoid = can(PERMISSIONS.BATCHES_VOID)
 
   const [batches, setBatches] = useState<BatchRow[]>([])
@@ -477,7 +478,7 @@ export default function BatchesPage() {
                   {busy ? 'กำลังให้แต้ม…' : `อนุมัติ (แต้มเข้า) — ${preview.summary.total_points.toLocaleString()} แต้ม`}
                 </Button>
               )}
-              {preview.status === 'pending_approval' && canVoid && previewBatchRow && (
+              {preview.status === 'pending_approval' && canApprove && previewBatchRow && (
                 <Button variant="outline" onClick={() => openVoid(previewBatchRow)} disabled={busy}>
                   <XCircle className="mr-1 h-4 w-4" /> ปฏิเสธ
                 </Button>
@@ -575,7 +576,7 @@ export default function BatchesPage() {
                               <Send className="mr-1 h-3.5 w-3.5" /> ส่งให้ผู้อนุมัติ
                             </Button>
                           )}
-                          {b.status === 'pending_approval' && canVoid && (
+                          {b.status === 'pending_approval' && canApprove && (
                             <Button size="sm" variant="outline" onClick={() => openVoid(b)}>
                               <XCircle className="mr-1 h-3.5 w-3.5" /> ปฏิเสธ
                             </Button>

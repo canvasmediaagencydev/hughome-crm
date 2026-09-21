@@ -1,22 +1,47 @@
 /**
- * POST /api/admin/batches/:id/void — "ยกเลิกทั้งชุด (Rollback)"
+ * POST /api/admin/batches/:id/void — "ยกเลิกทั้งชุด (Rollback)" / "ปฏิเสธ"
  *
- *   committed        → voided  คืนแต้มทุกคนในชุด ปลดล็อกเลขบิล
- *   pending_approval → voided  ผู้อนุมัติ "ปฏิเสธ" ก่อนแต้มเข้า (ไม่มี ledger ให้คืน · 024)
+ *   committed        → voided  คืนแต้มทุกคนในชุด ปลดล็อกเลขบิล      · ต้องมี batches.void (Q3: super_admin เท่านั้น · 026)
+ *   pending_approval → voided  ผู้อนุมัติ "ปฏิเสธ" ก่อนแต้มเข้า (ไม่มี ledger) · ต้องมี batches.approve (ผู้อนุมัติ)
+ *
+ * สิทธิ์ขึ้นกับสถานะ จึงต้องอ่านสถานะก่อนเช็ค permission (แบบเดียวกับ redemptions/[id]/status)
  *
  * ทำผ่าน RPC void_batch เท่านั้น (คืนแต้ม + มาร์ค voided ทุกแถวในทรานแซกชันเดียว)
  * การมาร์ค voided=true คือสิ่งที่ปลดล็อกเลขบิลให้คีย์ใหม่ได้ — ห้ามเขียน logic นี้ซ้ำที่นี่
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { requirePermission } from '@/lib/admin-auth'
+import { checkPermission, isSuperAdmin, requireAdmin } from '@/lib/admin-auth'
 import { PERMISSIONS } from '@/types/admin'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const admin = await requirePermission(PERMISSIONS.BATCHES_VOID)
+    // auth ก่อน validate (คนนอกต้องได้ 401 ไม่ใช่ 400) · permission เช็คหลังรู้สถานะ
+    const admin = await requireAdmin()
     const { id } = await params
     const supabase = createServerSupabaseClient()
+
+    const { data: batch, error: loadErr } = await supabase.from('point_batches').select('id, status').eq('id', id).maybeSingle()
+    if (loadErr) {
+      console.error('[batches/void] load failed:', loadErr)
+      return NextResponse.json({ error: 'อ่านข้อมูล batch ไม่สำเร็จ' }, { status: 500 })
+    }
+    if (!batch) return NextResponse.json({ error: 'ไม่พบ batch นี้' }, { status: 404 })
+
+    // ปฏิเสธชุดที่รอ = งานผู้อนุมัติ · Rollback ชุดที่แต้มเข้าแล้ว = admin สูงสุดเท่านั้น (Q3)
+    const needed = batch.status === 'pending_approval' ? PERMISSIONS.BATCHES_APPROVE : PERMISSIONS.BATCHES_VOID
+    const [allowed, superAdmin] = await Promise.all([checkPermission(admin.id, needed), isSuperAdmin(admin.id)])
+    if (!allowed && !superAdmin) {
+      return NextResponse.json(
+        {
+          error:
+            batch.status === 'pending_approval'
+              ? 'Forbidden — ปฏิเสธชุดได้เฉพาะผู้อนุมัติ'
+              : 'Forbidden — ยกเลิกทั้งชุด (Rollback) ได้เฉพาะ admin สูงสุด',
+        },
+        { status: 403 }
+      )
+    }
 
     const body = await request.json().catch(() => ({}))
     const reason = String(body.reason ?? '').trim()

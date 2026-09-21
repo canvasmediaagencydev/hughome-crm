@@ -84,6 +84,14 @@ const serverSchema = z.object({
     .string()
     .regex(/^[0-9a-fA-F]{64}$/, 'NOTIFY_TOKEN_KEY must be 64 hex characters (openssl rand -hex 32)')
     .optional(),
+
+  // Sprint 10 — แจ้งทีมผ่านอีเมล (Resend · https://resend.com/api-keys) — ลูกค้าเลือกอีเมลแทน Telegram/LINE group
+  // optional ตอน boot แบบเดียวกับ NOTIFY_TOKEN_KEY: instance ที่ยังไม่มี channel email ต้องรันได้
+  // แต่ตอน "ส่ง" ถ้าขาดตัวใดตัวหนึ่งจะ throw ลง last_error ไม่มี fallback (src/lib/team-notify.ts)
+  // NOTIFY_EMAIL_FROM: ผู้ส่ง เช่น "Hug Point <noreply@hughome.co>" — โดเมนต้อง verify ใน Resend
+  //   ระหว่างทดสอบใช้ "onboarding@resend.dev" ได้ แต่ Resend จะส่งให้เฉพาะอีเมลที่สมัครบัญชีเท่านั้น
+  RESEND_API_KEY: z.string().regex(/^re_[A-Za-z0-9_]+$/, 'RESEND_API_KEY must start with re_').optional(),
+  NOTIFY_EMAIL_FROM: z.string().min(3).optional(),
 })
 
 export type ClientEnv = z.infer<typeof clientSchema>

@@ -103,8 +103,9 @@ async function main() {
   check('ยังไม่มีเลขบิล DM-2607-* ถูกใช้', used.length === 0,
     used.length ? 'ถูกใช้แล้ว: ' + used.map((u) => u.bill_no).join(',') : '')
 
-  const sha = (await sb.from('point_batches').select('id, file_name, status').like('file_name', 'demo-%')).data ?? []
-  check('ยังไม่เคยอัปโหลดไฟล์ demo', sha.length === 0,
+  // ชุด voided เป็นประวัติที่ต้องเก็บ (ledger อ้างถึง) และไม่กัน sha256 ซ้ำ — นับเฉพาะชุดที่ยังไม่ voided
+  const sha = (await sb.from('point_batches').select('id, file_name, status').like('file_name', 'demo-%').neq('status', 'voided')).data ?? []
+  check('ไม่มีไฟล์ demo ค้างในสถานะที่กันอัปโหลดซ้ำ (previewed/pending/committed)', sha.length === 0,
     sha.length ? sha.map((b) => `${b.file_name}(${b.status})`).join(',') : '')
 
   // ---------------- 4. parse ด้วยข้อมูลจาก DB จริง ----------------
