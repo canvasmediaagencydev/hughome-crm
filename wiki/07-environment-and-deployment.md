@@ -104,6 +104,13 @@ Data from the old project was **not** migrated (only demo customers, one interna
 handful of test redemptions lived there). Reward images must be re-uploaded. The old project should
 be deleted once its owner account is found.
 
+## Storage buckets (not in the migration path)
+
+`rewards` — public bucket for reward images (`/api/upload` writes to it; PNG/JPEG/WebP, 5 MB). It is
+**not** created by any migration: on the new pilot project it did not exist until 2026-09-21, when it was
+created through the Storage API (`createBucket('rewards', { public: true })`) and the three mockup images
+from `docs/demo/reward-mockups/` were uploaded under `mockup/`. A fresh Phase 2 project needs the same step.
+
 ## Cron
 
 `vercel.json` (Sprint 7, matches `MIGRATION_PLAN.md` §6.3 paths). Schedules are **UTC** on Vercel.

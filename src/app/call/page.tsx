@@ -13,7 +13,8 @@ import { TENANT } from '@/config/tenant'
 function displayPhone(phone: string): string {
   const digits = phone.replace(/\D/g, '')
   if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
-  if (digits.length === 9) return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`
+  // เบอร์บ้าน 9 หลัก (052 000 369) → 052-000-369
+  if (digits.length === 9) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
   return phone
 }
 
