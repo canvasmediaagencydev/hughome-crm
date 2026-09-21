@@ -44,6 +44,13 @@ const TYPE_LABEL: Record<Channel['type'], string> = {
   line_group: 'LINE group',
 }
 
+/** ต้องตรงกับ TEAM_EVENTS ใน src/lib/team-notify.ts */
+const EVENT_LABEL: Record<string, string> = {
+  'redemption.created': 'มีคำขอแลกรางวัลใหม่',
+  'batch.submitted': 'มีชุดยอดขายรอผู้อนุมัติ',
+}
+const ALL_EVENTS = Object.keys(EVENT_LABEL)
+
 function errorMessage(e: unknown, fallback: string): string {
   const err = e as { response?: { data?: { error?: string } } }
   return err.response?.data?.error ?? fallback
@@ -101,6 +108,20 @@ export default function NotificationsPage() {
       toast.error(errorMessage(e, 'เพิ่ม channel ไม่สำเร็จ'))
     } finally {
       setSaving(false)
+    }
+  }
+
+  const toggleEvent = async (ch: Channel, event: string) => {
+    const next = ch.events.includes(event) ? ch.events.filter((e) => e !== event) : [...ch.events, event]
+    if (next.length === 0) {
+      toast.error('ต้องเลือกอย่างน้อย 1 เหตุการณ์ — ถ้าไม่ต้องการแจ้ง ให้ปิด channel แทน')
+      return
+    }
+    try {
+      await axiosAdmin.patch(`/api/admin/notifications/${ch.id}`, { events: next })
+      load()
+    } catch (e) {
+      toast.error(errorMessage(e, 'แก้ไขเหตุการณ์ไม่สำเร็จ'))
     }
   }
 
@@ -214,6 +235,7 @@ export default function NotificationsPage() {
                     <th className="py-2 pr-4 font-medium">ประเภท</th>
                     <th className="py-2 pr-4 font-medium">ปลายทาง</th>
                     <th className="py-2 pr-4 font-medium">token</th>
+                    <th className="py-2 pr-4 font-medium">แจ้งเมื่อ</th>
                     <th className="py-2 pr-4 font-medium">ส่งล่าสุด</th>
                     <th className="py-2 pr-4 font-medium">สถานะ</th>
                     <th className="py-2 font-medium"></th>
@@ -245,6 +267,21 @@ export default function NotificationsPage() {
                         ) : (
                           <span className="text-slate-400">ใช้ token ของ OA</span>
                         )}
+                      </td>
+                      <td className="py-3 pr-4 text-xs">
+                        <div className="space-y-1">
+                          {ALL_EVENTS.map((ev) => (
+                            <label key={ev} className="flex cursor-pointer items-center gap-2">
+                              <input
+                                type="checkbox"
+                                className="h-3.5 w-3.5"
+                                checked={ch.events.includes(ev)}
+                                onChange={() => toggleEvent(ch, ev)}
+                              />
+                              <span className={ch.events.includes(ev) ? 'text-slate-800' : 'text-slate-400'}>{EVENT_LABEL[ev]}</span>
+                            </label>
+                          ))}
+                        </div>
                       </td>
                       <td className="py-3 pr-4 text-xs text-slate-500">
                         {fmt(ch.last_sent_at)}

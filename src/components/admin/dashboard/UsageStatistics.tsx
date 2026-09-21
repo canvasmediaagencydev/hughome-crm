@@ -6,22 +6,35 @@ interface UsageStatisticsProps {
   loading: boolean
 }
 
+/** สถิติในช่วงที่เลือก (Sprint 9R A6) — ตัวเลขชุดเดียวกับการ์ดหน้าแรก จัดเป็นตาราง */
 export function UsageStatistics({ metrics, loading }: UsageStatisticsProps) {
-  // Receipt-based stats removed (OCR flow gone). Points/batch stats are added
-  // when the admin dashboard is rebuilt in Sprint 9.
+  const n = (v: number) => (loading ? '-' : v.toLocaleString())
+  const rows: [string, string][] = [
+    ['ชุดที่รอผู้อนุมัติ (ตอนนี้)', n(metrics.pendingApprovalBatches)],
+    ['ชุดที่อนุมัติในช่วง', n(metrics.batchesCommittedInRange)],
+    ['แต้มออกในช่วง', n(metrics.pointsIssuedInRange)],
+    ['แต้มแลกในช่วง', n(metrics.pointsRedeemedInRange)],
+    ['ลูกค้าใหม่ในช่วง', n(metrics.newUsersInRange)],
+    ['คำขอแลกที่รอดำเนินการ (ตอนนี้)', n(metrics.pendingRedemptions)],
+  ]
   return (
     <Card className="bg-white rounded-lg border border-slate-200 shadow-sm">
       <CardHeader>
         <CardTitle className="text-slate-900">สถิติการใช้งาน</CardTitle>
+        {metrics.range.from && (
+          <p className="text-xs text-slate-500">
+            ช่วง {metrics.range.from} → {metrics.range.to}
+          </p>
+        )}
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-slate-600">ผู้สมัครเดือนนี้</span>
-            <span className="font-medium text-slate-900">
-              {loading ? '-' : metrics.monthlyActiveUsers.toLocaleString()}
-            </span>
-          </div>
+          {rows.map(([label, value]) => (
+            <div key={label} className="flex justify-between items-center">
+              <span className="text-sm text-slate-600">{label}</span>
+              <span className="font-medium text-slate-900 tabular-nums">{value}</span>
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>

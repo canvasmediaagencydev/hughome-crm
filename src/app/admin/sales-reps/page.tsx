@@ -39,7 +39,7 @@ export default function SalesRepsPage() {
       const { data } = await axiosAdmin.get<SalesRep[]>('/api/admin/sales-reps')
       setReps(data)
     } catch {
-      toast.error('ดึงรายชื่อพนักงานขายไม่สำเร็จ')
+      toast.error('ดึงรายชื่อ Maker ไม่สำเร็จ')
     } finally {
       setLoading(false)
     }
@@ -59,7 +59,7 @@ export default function SalesRepsPage() {
       load()
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } } }
-      toast.error(err.response?.data?.error ?? 'เพิ่มพนักงานขายไม่สำเร็จ')
+      toast.error(err.response?.data?.error ?? 'เพิ่ม Maker ไม่สำเร็จ')
     } finally {
       setSaving(false)
     }
@@ -94,7 +94,7 @@ export default function SalesRepsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900">
-            <UserSquare2 className="h-6 w-6" /> พนักงานขาย
+            <UserSquare2 className="h-6 w-6" /> Maker (พนักงานผู้คีย์ยอดขาย)
           </h1>
           <p className="mt-1 text-sm text-slate-500">
             รายชื่อที่นี่คือตัวเลือกใน dropdown ของไฟล์ Excel · ลาออกให้ปิดใช้งาน ไม่มีปุ่มลบ
@@ -103,7 +103,7 @@ export default function SalesRepsPage() {
         </div>
         {canManage && (
           <Button onClick={() => setOpen(true)}>
-            <Plus className="mr-1 h-4 w-4" /> เพิ่มพนักงานขาย
+            <Plus className="mr-1 h-4 w-4" /> เพิ่ม Maker
           </Button>
         )}
       </div>
@@ -111,8 +111,8 @@ export default function SalesRepsPage() {
       {activeCount === 0 && !loading && (
         <Card className="border-amber-300 bg-amber-50">
           <CardContent className="py-4 text-sm text-amber-900">
-            ⚠️ ยังไม่มีพนักงานขายที่เปิดใช้งาน — ดาวน์โหลด template ไม่ได้ และทุกแถวในไฟล์ที่อัปโหลดจะถูกตีเป็น
-            &quot;ไม่พบพนักงานขาย&quot;
+            ⚠️ ยังไม่มี Maker ที่เปิดใช้งาน — ดาวน์โหลด template ไม่ได้ และทุกแถวในไฟล์ที่อัปโหลดจะถูกตีเป็น
+            &quot;ไม่พบ Maker&quot;
           </CardContent>
         </Card>
       )}
@@ -128,7 +128,7 @@ export default function SalesRepsPage() {
           {loading ? (
             <p className="py-8 text-center text-slate-400">กำลังโหลด…</p>
           ) : reps.length === 0 ? (
-            <p className="py-8 text-center text-slate-400">ยังไม่มีพนักงานขาย</p>
+            <p className="py-8 text-center text-slate-400">ยังไม่มี Maker</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -169,7 +169,7 @@ export default function SalesRepsPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>เพิ่มพนักงานขาย</DialogTitle>
+            <DialogTitle>เพิ่ม Maker</DialogTitle>
             <DialogDescription>
               ชื่อจะไปโผล่ใน dropdown ของ template รอบถัดไปที่ดาวน์โหลด
             </DialogDescription>

@@ -125,11 +125,13 @@ database or LINE. `scripts/verify-cron-auth.js <base-url>` proves all four retur
 | `birthday-greetings` | LINE greeting, deduped per `(user, year)` | read-only |
 | `reconcile-balances` | RPC `reconcile_balances()`; writes `balance_reconcile_log`; on drift logs `console.error` and returns **500** so Vercel marks the run failed. Never auto-fixes | read-only |
 
-> `expire-points-monthly` is scheduled **daily**, not on the 1st as the plan's name suggests. `expires_at`
-> is "last day of earned month + 365 days", which lands mid-month whenever the span crosses a
-> 29 February. Waiting for the 1st would leave those lots in `points_balance` but excluded from
-> `redeem_reward`'s FIFO, and a redemption larger than the active lots would fail with
-> `ledger/balance mismatch`. The RPC is idempotent, so a daily run is a no-op on most days.
+> `expire-points-monthly` is scheduled **daily**, not on the 1st as the plan's name suggests. Since
+> migration `025` (Q4, 2026-09-21) `expires_at` is "approval date + 365 days" — an arbitrary day of the
+> month for every lot — so the daily run is now essential, not a safety margin. (Before `025` it was
+> "last day of earned month + 365", which only landed mid-month across a 29 February.) Waiting for the
+> 1st would leave expired lots in `points_balance` but excluded from `redeem_reward`'s FIFO, and a
+> redemption larger than the active lots would fail with `ledger/balance mismatch`. The RPC is
+> idempotent.
 
 LINE pushes are fire-and-forget: a failed push is counted in the response (`push_failed`) and not
 logged to `notification_log`, so the next run retries it; it never fails the cron.

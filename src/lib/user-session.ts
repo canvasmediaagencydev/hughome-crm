@@ -14,6 +14,9 @@ interface CachedUserSession {
     is_onboarded: boolean
     points_balance: number
     next_expiry?: { points: number; expires_at: string } | null
+    /** Sprint 9R A1 — null = ยังไม่กำหนดรหัส */
+    customer_code?: string | null
+    created_at?: string | null
   }
   timestamp: number
   lastValidated: number

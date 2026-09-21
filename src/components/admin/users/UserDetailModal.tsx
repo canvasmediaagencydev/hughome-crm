@@ -204,7 +204,7 @@ export function UserDetailModal({
                   {localCustomerCode ? (
                     <p className="text-sm text-slate-500 font-mono">{localCustomerCode}</p>
                   ) : (
-                    <p className="text-sm text-slate-400 italic">ยังไม่มีรหัส</p>
+                    <p className="text-sm text-slate-400 italic">ยังไม่กำหนดรหัส</p>
                   )}
                   {canEditUsers && (
                     <button

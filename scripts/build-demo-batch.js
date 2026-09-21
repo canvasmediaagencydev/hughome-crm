@@ -3,7 +3,7 @@
  *
  *   node scripts/build-demo-batch.js
  *
- * ข้อมูลต้องตรงกับ supabase/seed/seed_demo_data.sql (พนักงาน 4 คน · ลูกค้า 8 คน · แคมเปญ x2)
+ * ข้อมูลต้องตรงกับ supabase/seed/seed_demo_data.sql (Maker 4 คน · ลูกค้า 8 คน · แคมเปญ x2)
  * ถ้าแก้ seed ต้องแก้ไฟล์นี้ให้ตรงกันแล้ว generate ใหม่
  *
  * ใช้ builder ตัวเดียวกับ template จริง (src/lib/excel/build-template.js)
@@ -35,7 +35,7 @@ const d = (iso) => {
   return new Date(Date.UTC(y, m - 1, day)) // UTC เสมอ — parser อ่านด้วย getUTC*
 }
 
-// วันที่ | เลขบิล | เบอร์ | ชื่อ | ยอดซื้อ | ลดหนี้ | พนักงาน | หมายเหตุ | เจตนา
+// วันที่ | เลขบิล | เบอร์ | ชื่อ | ยอดซื้อ | ลดหนี้ | Maker | หมายเหตุ | เจตนา  (รหัสลูกค้าเว้นว่าง — ดูข้างล่าง)
 const ROWS = [
   ['2026-07-20', 'DM-2607-001', '0800000001', 'สมชาย มั่นคง',      2500,  0,    'S01', '',                    'ปกติ · นอกแคมเปญ'],
   ['2026-07-20', 'DM-2607-002', '0800000002', 'ปราณี ศรีสุข',       12000, 1500, 'S02', 'คืนกระเบื้อง 2 กล่อง', 'มียอดลดหนี้'],
@@ -53,16 +53,20 @@ async function main() {
   const wb = buildSalesTemplate(REPS)
   const ws = wb.getWorksheet(SPEC.sheetName)
 
+  // spec v2 (Sprint 9R): คอลัมน์ A = รหัสลูกค้า — ลูกค้าสาธิตใน seed ยังไม่มีรหัส (Q1 ยังไม่ตอบ)
+  // จึงเว้นว่างทั้งหมด → parser ไม่เตือน (ทั้งสองฝั่งว่าง) · ห้ามใส่รหัสมั่ว ไม่งั้น preview จะเตือนทุกแถว
+  const cellOf = (key) => SPEC.columns.findIndex((c) => c.key === key) + 1
   ROWS.forEach((r, i) => {
     const row = ws.getRow(SPEC.headerRow + 1 + i)
-    row.getCell(1).value = d(r[0])
-    row.getCell(2).value = r[1]
-    row.getCell(3).value = r[2]
-    row.getCell(4).value = r[3]
-    row.getCell(5).value = r[4]
-    row.getCell(6).value = r[5]
-    row.getCell(7).value = repLabel(byCode[r[6]])
-    row.getCell(8).value = r[7]
+    row.getCell(cellOf('customer_code')).value = ''
+    row.getCell(cellOf('purchase_date')).value = d(r[0])
+    row.getCell(cellOf('bill_no')).value = r[1]
+    row.getCell(cellOf('phone')).value = r[2]
+    row.getCell(cellOf('customer_name')).value = r[3]
+    row.getCell(cellOf('gross')).value = r[4]
+    row.getCell(cellOf('discount')).value = r[5]
+    row.getCell(cellOf('sales_rep')).value = repLabel(byCode[r[6]])
+    row.getCell(cellOf('note')).value = r[7]
     row.commit()
   })
 

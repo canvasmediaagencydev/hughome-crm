@@ -24,8 +24,10 @@ export function UserCard({ user, onViewDetails, onEditPoints, onEditRole }: User
         />
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-slate-900 truncate text-sm">{getUserDisplayName(user)}</h3>
-          {user.customer_code && (
-            <p className="text-xs text-slate-500 font-mono">{user.customer_code}</p>
+          {user.customer_code ? (
+            <p className="text-xs text-slate-600 font-mono">{user.customer_code}</p>
+          ) : (
+            <p className="text-xs text-slate-400 italic">ยังไม่กำหนดรหัส</p>
           )}
           <div className="mt-1.5">
             <RoleBadge role={user.role as 'contractor' | 'homeowner' | null} />
@@ -45,6 +47,7 @@ export function UserCard({ user, onViewDetails, onEditPoints, onEditRole }: User
           <FaCoins className="w-3.5 h-3.5 text-blue-400" />
           <span className="font-semibold text-slate-900">{formatPoints(user.points_balance || 0)} คะแนน</span>
         </div>
+        <div className="text-xs text-slate-500">สมัคร: {formatDate(user.created_at)}</div>
         {user.last_login_at && (
           <div className="text-xs text-slate-500">
             Login ล่าสุด: {formatDate(user.last_login_at, { includeTime: true })}

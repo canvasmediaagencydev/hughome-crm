@@ -10,8 +10,8 @@ are marked as such.
 |---|---|
 | Branch / deploy | `pilot-phase1` → https://pilot-phase1.vercel.app, commit `784603a` (Sprint 6–8 pushed 2026-09-14) |
 | Supabase | pilot `vltzkxmblmrvsmaookhl`, `tenant_code = pilot` |
-| Migrations | `001`–`023` all applied (`023` on 2026-09-14) |
-| Sprints complete | 0, 1, 2, 2.1, 3, 3.1, pre-4, 4, 5 (partial), 6, 7 · 8 code-complete 2026-09-14 (not deployed, not clicked) |
+| Migrations | `001`–`025` applied (`024` + `025` on 2026-09-21 through the SQL Editor) |
+| Sprints complete | 0, 1, 2, 2.1, 3, 3.1, pre-4, 4, 5 (partial), 6, 7, 8 · **9R code + DB complete 2026-09-21** (uncommitted, not deployed) |
 | Demo data | `docs/demo/` (10 rows · 687 points) · `verify-demo-ready.js` 19/19 |
 
 ### Demo data — resolved 2026-08-31
@@ -133,13 +133,83 @@ the browser UI and `POST /api/rewards/redeem` → `notifyTeam` (needs a LIFF ses
 garbage groupId returned 200, which only happens when `pushMessage` skips. LINE push on prod has been a no-op
 (batch award, expiry, birthday, and now team notify). Set it to `true` before the demo if pushes should arrive.
 
+### Sprint 9R — customer-trial build (code done 2026-09-21 · 024/025 applied the same day)
+
+Built from `docs/PROMPTS.md` "Sprint 9R" after the 2026-09-21 meeting (`wiki/14`). The customer answered
+**Q4 = confirmed** and **Q5 = approved** on the same day, so part B for those two is included.
+
+- **Migration `024` (approval flow):** `batch_status` gains `pending_approval`; `point_batches.submitted_by /
+  submitted_at` (+ CHECK pair); permission `batches.approve` → super_admin + manager; `batches.commit`
+  removed from accounting; `award_points_from_batch` v4 accepts only `pending_approval` and awards rows
+  with status `valid` **or** `duplicate_amount`; `void_batch` v3 also closes a `pending_approval` batch
+  (reject, no ledger). Rollback file restores 020/017 bodies.
+- **Migration `025` (Q4):** `award_points_from_batch` v5 — `expires_at = approval date (Bangkok) + 365`,
+  `earned_month = approval month`. Old lots untouched. Rollback restores v4.
+- **Routes:** `POST /api/admin/batches/:id/submit` (upload perm, status guard, team notify
+  `batch.submitted` after the response), `POST /:id/commit` now needs `batches.approve` and answers 409
+  "ต้องส่งให้ผู้อนุมัติก่อน" on `previewed`, `POST /:id/void` from `pending_approval` too,
+  `GET /api/admin/batches/:id` (rows for the approver — the Sprint 5 leftover), list returns
+  `submitted_by_name`. Upload: `pending_approval` twin → 409; customer-code cross-check lookup;
+  `valid_rows` = awardable rows.
+- **Excel spec v2 (Q5):** `sales-columns.json` — 9 columns, `รหัสลูกค้า` first, header `Maker`;
+  parser: `customer_code`, `warnings[]`, `duplicate_of_row`, status `duplicate_amount`,
+  `duplicateAmountPolicy` flag (warn default), `customerCodeByUserId` cross-check (phone stays the key);
+  template guide sheet rewritten (approval steps, expiry from approval date, Maker); demo file and
+  `docs/Hughome_Sales_Staff_Template.xlsx` regenerated. `test-parse-sales-batch.js` **42/42**,
+  `verify-demo-batch.js` **17/17**.
+- **UI:** `/admin/batches` rewritten — status filter tabs (รอส่ง / รอผู้อนุมัติ / แต้มเข้าแล้ว / ยกเลิก),
+  buttons by permission (ส่งให้ผู้อนุมัติ · อนุมัติ (แต้มเข้า) · ปฏิเสธ · ยกเลิกทั้งชุด (Rollback)), preview
+  reopenable from history (fixes the "previewed batch has no button after reload" debt), yellow
+  duplicate/warning rows with counts, `voided_by_name` rendered, per-batch Excel report button.
+  `/admin/notifications` gained per-channel event checkboxes (`batch.submitted`).
+- **Labels:** every "พนักงานขาย" in `src/` → "Maker" (nav, sales-reps page, toasts, API errors, guide sheet);
+  table/role/JSON key unchanged.
+- **Customer ID:** `customer_code` + registration date (พ.ศ.) on `/dashboard` header, `/profile` card,
+  admin user card + detail modal, batch preview column, both Excel reports. `null` renders
+  "ยังไม่กำหนดรหัส"; nothing is generated (Q1 open). Login + refresh APIs return both fields.
+- **Reports:** `/api/admin/reports/users/excel` rewritten via `src/lib/excel/build-reports.js` — all
+  onboarded customers, one row each, no bill column, phone as 10-digit text, code, registration date,
+  type, balance, next-expiring lot + date, net purchases + bill count in range, tags; file
+  `customers_<from>_<to>.xlsx`. New `GET /api/admin/reports/batches/:id/excel` (one row per bill, bill
+  number + Maker + branch, totals row, metadata sheet). `scripts/build-sample-reports.js` writes
+  `docs/demo/sample_customers_export.xlsx` + `sample_batch_report.xlsx` from demo data (or `--from-db`
+  read-only with fake names).
+- **Dashboard:** `/admin` presets เดือนนี้ (default) · 30 วัน · 90 วัน · กำหนดเอง → `?from=&to=` on
+  `/api/admin/dashboard/metrics` and `/all` (shared `src/lib/dashboard-metrics.ts`). Metrics now:
+  pending-approval batches, points issued / redeemed in range, new customers in range, batches
+  approved in range, totals. Receipt/OCR metric names removed from the dashboard routes, hook, tiles,
+  `UsageStatistics`.
+- **Customer side:** `BottomNavigation` 5 tabs (หน้าหลัก · แลกรางวัล · โทรร้าน · Facebook · โปรไฟล์),
+  new `/call` (tel: + LINE OA from `TENANT`) and `/facebook` (from `TENANT.facebookUrl`), `/history` link
+  gone, `viewportFit: cover`, bottom padding on every tab page, profile header tightened for 640 px.
+  Screenshots at 360×640 + 412×915 in `docs/android-check/` (git-ignored).
+- **Tags:** existing `/admin/tags` CRUD + user-detail attach/detach kept; delete confirm now names the
+  number of customers wearing the tag.
+- **Scripts:** `e2e-batch-flow.js` rewritten for submit → approve → reject → rollback and the 025 expiry
+  dates (**needs 024/025 applied to run**); `build-demo-batch.js`, `verify-demo-ready.js`,
+  `generate-sales-template.js` follow spec v2.
+- `tsc` + `npm run build` clean. After apply: `verify-schema.js` **22/22**, `verify-types.js` clean (hand-patched
+  types match the live DB), `e2e-batch-flow.js` **35/35** (RPC refuses `previewed`, submit guard, award 90 = valid 45 +
+  duplicate 45, `expires_at` = approval day + 365, rollback, reject without ledger, invariant),
+  `e2e-points-invariant.js` **36/36**.
+
 ## Remaining
+
+> **2026-09-21 — the customer's latest meeting changed the plan below.** The full delta, its code
+> impact, and the 12 blocking questions are in `wiki/14-customer-meeting-2026-09-delta.md`. The rows
+> here are the *updated* plan; items marked ⚠️ cannot start until the numbered question in `wiki/14`
+> §4 is answered.
+> The work prompt for the next build is `docs/PROMPTS.md` → "Sprint 9R" (git-ignored, on the
+> working machine); it splits the list into part A (start now) and part B (after the questions).
 
 | Sprint | Work |
 |---|---|
-| 5 (leftover) | `POST /api/admin/batches/:id/review` (manager records a spot-check), `GET /api/admin/batches/:id` (batch detail) |
-| 8 (wrap-up) | set `NOTIFY_TOKEN_KEY` on Vercel + `.env.local` · set `NOTIFICATIONS_ENABLED=true` on prod · click through `wiki/13` §7b (UI + LIFF redeem → group message) |
-| 9 | Customer UI (5-tab bottom nav, `/call`, `/facebook`), admin polish, weekly reports with bill number and salesperson columns, demo data |
+| 9R (finish) | commit + push, click `wiki/13` §10–§11 on production, tick `batch.submitted` on the existing notify channels, fill `NEXT_PUBLIC_TENANT_PHONE` / `NEXT_PUBLIC_TENANT_FB_URL` with real values, run `supabase gen types` once logged in (types already match) |
+| 5 (leftover) | `POST /:id/review` **on hold** — approval before points now exists; Q12 decides whether a post-approval spot-check is still wanted. `GET /:id` is done (9R) |
+| 8 (wrap-up) | set `NOTIFY_TOKEN_KEY` on Vercel + `.env.local` · set `NOTIFICATIONS_ENABLED=true` on prod (⚠️ Q7 first — the customer may not want customer pushes at all) · click through `wiki/13` §7b |
+| 9R skipped — waiting on a question | ⚠️ **Q1** auto-generate `customer_code` at onboarding + backfill (code shows "ยังไม่กำหนดรหัส" until then) · ⚠️ **Q2** duplicate key / hard-reject — implemented as warning on phone+date+net, one flag flips it · ⚠️ **Q3** who may void — still `manager` + `super_admin` (`batches.void`) · ⚠️ **Q6/Q11** email + bell — Sprint 10 · ⚠️ **Q12** post-approval spot-check |
+| 10 | **Email + in-app bell** for the team (`admin_notifications`, `notification_schedules`, email provider + dedicated sender, digest cron) (⚠️ Q6, Q11) · **campaign image** square-only upload · Thai wording for point-history strings |
+| 11 | custom dashboard widgets · bell polish (bulk mark-read, filters) · Phase 2 data migration plan (real branch, ~700 customers, old IDs) |
 
 ## Locked decisions
 
@@ -147,10 +217,12 @@ Each of these is a decision that was made explicitly and should not be revisited
 
 | Decision | Why | Where |
 |---|---|---|
-| Promo code column removed; multipliers are back-office date ranges | project owner: "ป้องกันการทุจริต" — the person keying amounts must not choose the multiplier | migration 014, `sales-columns.json` |
-| `earned_month` comes from the purchase date per row, not commit time | an accounting delay across a month boundary would otherwise grant an extra month of validity | migration 017/020 |
-| Bill numbers unique system-wide, except in voided batches | one bill earns points once; voiding releases the number for a corrected re-upload | `pbl_bill_no_active_idx` |
-| Sales staff have no login; accounting uploads | `uploaded_by` references `admin_users`, whose `auth_user_id` is UNIQUE NOT NULL — a login per salesperson was out of scope | `sales_reps` table |
+| Promo code column removed; multipliers are back-office date ranges | project owner: "ป้องกันการทุจริต" — the person keying amounts must not choose the multiplier · **re-confirmed by the customer 2026-09-21** (their template guide says the same) | migration 014, `sales-columns.json` |
+| **Reversed 2026-09-21 (Q4 confirmed):** points expire 365 days from the **approval date**, `earned_month` = approval month | the customer wants "อัปโหลด 100 รายการพร้อมกัน = หมดอายุวันเดียวกัน" and accepted that a late upload extends validity. `purchase_date` still drives the multiplier and the week check. Lots issued under the old rule keep their dates | migration 025 (replaces the 017/020 rule) |
+| Points enter only after an approver clicks — no path from `previewed` to `committed` | the customer's Maker/Approver split; the people who key amounts must not release points | migration 024, `batches.approve` |
+| Excel spec v2 with `รหัสลูกค้า` as column A, header `Maker` | Q5 approved 2026-09-21 before any real sheet was issued; the phone stays the matching key and the code is a cross-check warning, so a typo cannot redirect points | `sales-columns.json` v2 |
+| Bill numbers unique system-wide, except in voided batches | one bill earns points once; voiding releases the number for a corrected re-upload · the customer's "batch rollback" (2026-09-21) **is** this void; no second mechanism | `pbl_bill_no_active_idx` |
+| Sales staff have no login; accounting uploads | `uploaded_by` references `admin_users`, whose `auth_user_id` is UNIQUE NOT NULL — a login per salesperson was out of scope · **re-confirmed 2026-09-21**: "ผู้ขายไม่มีสิทธิ์แตะหลังบ้าน"; the label becomes "Maker" but the table and role names stay | `sales_reps` table |
 | Campaign date ranges may not overlap | one multiplier per day, so selection is deterministic and needs no tie-break rule | `point_campaigns_no_overlap` |
 | Four separate audit actors per batch | uploader, committer, reviewer, voider can all be different people | migration 019 |
 | `award_points_from_batch` 1-arg version dropped, not overloaded | an overload is how someone accidentally calls the version that records nobody | migration 020 |
@@ -194,9 +266,8 @@ Each of these is a decision that was made explicitly and should not be revisited
   catch-all is what turned the Supabase Auth 504 into "Failed to adjust points" (500) on
   `users/[id]/points`
 - **Found in the 2026-09-14 browser rehearsal (`wiki/13`), none money-related:**
-  - a `previewed` batch has no commit/void action in the history table after a page reload — the
-    only way to commit it is to upload the same file again (the upload replaces the old preview)
-  - batch history shows the void reason but not who voided (`voided_by_name` is fetched, not rendered)
+  - ~~a `previewed` batch has no commit/void action in the history table after a page reload~~ fixed 9R (`GET /:id` + "เปิด preview")
+  - ~~batch history shows the void reason but not who voided~~ fixed 9R
   - the commit toast says "แจ้ง LINE n คน" for every attempted push, including failures
     (`notifyPointChange` swallows errors); on demo customers with fake LINE ids all 8 pushes failed
   - wrong password on `/admin/login` shows the raw Supabase text "Invalid login credentials"
@@ -206,9 +277,16 @@ Each of these is a decision that was made explicitly and should not be revisited
   abandoned project; the new pilot reconciles 0 mismatches. Kept as the pattern for future repairs
 - `notifications.manage` is held by `super_admin` and `manager` only (012); `reward_manager` cannot see
   `/admin/notifications` — fine for the pilot, revisit if the store wants reward staff to manage the group
-- Stale receipt/OCR references remain in `src/app/admin/page.tsx`,
-  `src/components/StatusBadge.tsx`, dashboard metrics routes, `TESTING_GUIDE.md`,
-  `ADMIN_RBAC_TASKS.md`, and `GEMINI_API_KEY` in `.env.example`
+- Stale receipt/OCR references: dashboard routes / hook / tiles / `StatusBadge` cleaned in 9R. Still in
+  `src/app/api/admin/analytics/route.ts` (`receipts` field name), `src/app/admin/roles/page.tsx`,
+  `src/lib/line-messaging.ts` (`receipt_approved` kind), `TESTING_GUIDE.md`, `ADMIN_RBAC_TASKS.md`,
+  `GEMINI_API_KEY` in `.env.example`
+- `verify-demo-ready.js` currently 17/19 on the pilot because of the two rehearsal leftovers above
+  (rep `S99`, one `previewed` demo batch) — not a code problem; clean-up SQL in `wiki/13` §9
+- Existing `notification_channels` rows only subscribe to `redemption.created`; `batch.submitted` must
+  be ticked on `/admin/notifications` or the submit notification goes nowhere (new channels get both)
+- `TENANT.phone` / `TENANT.facebookUrl` are still placeholders in `.env.local` and on Vercel — `/call`
+  and `/facebook` show them verbatim
 - `database.types.ts` was hand-edited; `supabase gen types` has never been run against `013`–`020`.
   `verify-types.js` covers `Tables` only, not `Enums` / `Functions` / `CompositeTypes`
 - A fresh Phase 2 database will `CREATE promo_codes` in `005` and `DROP` it in `015` — harmless noise
@@ -251,4 +329,9 @@ for one test number only).
 **3. Sprint 8 wrap-up (code written, `023` applied):** add `NOTIFY_TOKEN_KEY` (64 hex) to Vercel and
 `.env.local`, deploy, then click `wiki/13` §7b with a real Telegram group.
 
-**4. Then Sprint 9** — customer 5-tab nav, `/call`, `/facebook`, weekly report with bill/salesperson columns.
+**4. Get the `wiki/14` §4 questions answered** — Q4 (expiry base), Q5 (Excel v2) and Q3/Q12 (approval
+step) change migrations and the Excel spec, so they must be settled before any Sprint 9 code that
+touches batches. Q1 and Q2 can be answered in parallel.
+
+**5. Then Sprint 9** as listed under Remaining — the customer-visible items first (Customer ID,
+Maker label, approval step, 5-tab nav), because the trial starts with the customer's approver and the customer's second tester on Android.

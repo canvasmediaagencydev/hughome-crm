@@ -1,6 +1,6 @@
 /**
- * GET  /api/admin/sales-reps  — รายชื่อพนักงานขาย (ป้อน dropdown ในไฟล์ Excel)
- * POST /api/admin/sales-reps  — เพิ่มพนักงานขาย
+ * GET  /api/admin/sales-reps  — รายชื่อ Maker (ป้อน dropdown ในไฟล์ Excel)
+ * POST /api/admin/sales-reps  — เพิ่ม Maker
  *
  * ไม่มี DELETE โดยตั้งใจ — ledger อ้าง sales_rep_id ด้วย FK ON DELETE RESTRICT
  * ลาออกให้ปิด is_active (PATCH /:id) ประวัติยอดเก่าต้องสาวกลับได้เสมอ
@@ -34,11 +34,11 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
     if (error) {
       console.error('[sales-reps] list failed:', error)
-      return NextResponse.json({ error: 'ดึงรายชื่อพนักงานขายไม่สำเร็จ' }, { status: 500 })
+      return NextResponse.json({ error: 'ดึงรายชื่อ Maker ไม่สำเร็จ' }, { status: 500 })
     }
     return NextResponse.json(data ?? [])
   } catch (error) {
-    return authError(error) ?? NextResponse.json({ error: 'ดึงรายชื่อพนักงานขายไม่สำเร็จ' }, { status: 500 })
+    return authError(error) ?? NextResponse.json({ error: 'ดึงรายชื่อ Maker ไม่สำเร็จ' }, { status: 500 })
   }
 }
 
@@ -85,10 +85,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: `มีรหัสพนักงาน "${code}" อยู่แล้ว` }, { status: 409 })
       }
       console.error('[sales-reps] insert failed:', error)
-      return NextResponse.json({ error: 'เพิ่มพนักงานขายไม่สำเร็จ' }, { status: 500 })
+      return NextResponse.json({ error: 'เพิ่ม Maker ไม่สำเร็จ' }, { status: 500 })
     }
     return NextResponse.json(data, { status: 201 })
   } catch (error) {
-    return authError(error) ?? NextResponse.json({ error: 'เพิ่มพนักงานขายไม่สำเร็จ' }, { status: 500 })
+    return authError(error) ?? NextResponse.json({ error: 'เพิ่ม Maker ไม่สำเร็จ' }, { status: 500 })
   }
 }

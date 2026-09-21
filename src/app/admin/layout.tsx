@@ -148,7 +148,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       show: hasPermission(PERMISSIONS.BATCHES_VIEW),
     },
     {
-      name: 'พนักงานขาย',
+      name: 'Maker',
       href: '/admin/sales-reps',
       icon: UserSquare2,
       current: pathname.startsWith('/admin/sales-reps'),

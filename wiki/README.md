@@ -21,6 +21,7 @@ This wiki is the depth behind it.
 | [11 — Verification](11-verification.md) | Before you claim anything works |
 | [12 — Conflicts & unverified](12-conflicts-and-unverified.md) | When a document disagrees with the code |
 | [13 — Manual test plan](13-manual-test-plan.md) | Clicking the pilot end to end to hunt bugs before writing more code |
+| [14 — Customer meeting Sept 2026 delta](14-customer-meeting-2026-09-delta.md) | **Before Sprint 9.** What the customer changed on 2026-09-21, mapped onto the code, and the 12 questions that block it |
 
 ## The one-paragraph version
 
@@ -29,6 +30,16 @@ confirms. The system matches each customer by phone, applies a campaign multipli
 purchase date (never by anything typed into the sheet), computes points, writes a ledger lot with its
 own expiry, updates the balance, and pushes a LINE message. A manager spot-checks against real bills
 and can void an entire batch, which returns the points and frees the bill numbers for re-entry.
+
+## Customer requirements after 2026-09-21
+
+The customer's latest handoff (`wiki/meetings/2026-09-sprint8-customer-update/`) reverses some of
+what this wiki describes as settled — most importantly the **point-expiry base date** (purchase date
+today → upload/approval date requested), an **approval step before points enter**, **email + in-app
+bell** instead of chat-app push for the team, and a **9-column Excel sheet** with `รหัสลูกค้า`.
+None of it is implemented. [14](14-customer-meeting-2026-09-delta.md) is the single place where the
+requests, their code impact, and the open questions live; pages 03/04/09 still describe the code as
+it is.
 
 ## Sourcing
 

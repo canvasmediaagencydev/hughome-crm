@@ -22,7 +22,7 @@ export type NotificationChannel = Tables<'notification_channels'>
 export const CHANNEL_TYPES = ['telegram', 'line_group'] as const
 export type ChannelType = (typeof CHANNEL_TYPES)[number]
 
-export const TEAM_EVENTS = ['redemption.created'] as const
+export const TEAM_EVENTS = ['redemption.created', 'batch.submitted'] as const
 export type TeamEvent = (typeof TEAM_EVENTS)[number]
 
 const TIMEOUT_MS = 5_000
@@ -117,6 +117,34 @@ export function buildRedemptionCreatedText(p: RedemptionCreatedPayload): string 
   if (p.pickupCode) lines.push(`รหัสรับของ: ${p.pickupCode}`)
   lines.push(`จัดการ: ${p.adminUrl}`)
   return lines.join('\n')
+}
+
+// ---------------------------------------------------------------------------
+// Event: batch.submitted — บัญชีส่งชุดยอดขายให้ผู้อนุมัติ (Sprint 9R A2)
+// ---------------------------------------------------------------------------
+export interface BatchSubmittedPayload {
+  tenantName: string
+  submitterName: string
+  fileName: string
+  weekStart: string
+  weekEnd: string
+  awardableRows: number
+  totalRows: number
+  totalPoints: number
+  /** absolute URL ของหน้า /admin/batches */
+  adminUrl: string
+}
+
+export function buildBatchSubmittedText(p: BatchSubmittedPayload): string {
+  return [
+    `📋 [${p.tenantName}] มีชุดยอดขายรอผู้อนุมัติ`,
+    `ส่งโดย: ${p.submitterName}`,
+    `สัปดาห์: ${p.weekStart} → ${p.weekEnd}`,
+    `ไฟล์: ${p.fileName}`,
+    `แถวที่จะได้แต้ม: ${p.awardableRows} จาก ${p.totalRows}`,
+    `แต้มรวม: ${p.totalPoints.toLocaleString('th-TH')} แต้ม`,
+    `อนุมัติ/ปฏิเสธ: ${p.adminUrl}`,
+  ].join('\n')
 }
 
 /**

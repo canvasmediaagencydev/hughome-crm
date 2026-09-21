@@ -10,7 +10,18 @@ import ExcelJS from 'exceljs'
 import { normalizeThaiPhone } from '@/lib/phone'
 import SPEC from './sales-columns.json'
 
-export type RowStatus = 'valid' | 'invalid' | 'unmatched'
+/**
+ * valid            — ให้แต้มตอนอนุมัติ
+ * duplicate_amount — ให้แต้มเหมือน valid แต่เตือน: เบอร์ + วันที่ซื้อ + ยอดสุทธิ ซ้ำกับแถวก่อนหน้าในไฟล์
+ *                    (Sprint 9R A4 · Q2 ยังไม่ตอบ จึงเป็น warning ไม่ใช่ reject — สลับได้ด้วย duplicateAmountPolicy)
+ * unmatched        — เบอร์ถูกต้องแต่ไม่มีลูกค้า
+ * invalid          — อย่างอื่นทั้งหมด
+ */
+export type RowStatus = 'valid' | 'duplicate_amount' | 'invalid' | 'unmatched'
+
+/** สถานะที่ RPC award_points_from_batch ให้แต้ม (ต้องตรงกับ migration 024/025) */
+export const AWARDABLE_STATUSES: readonly RowStatus[] = ['valid', 'duplicate_amount']
+export const isAwardable = (s: RowStatus) => AWARDABLE_STATUSES.includes(s)
 
 export interface SalesRepLookup {
   id: string
@@ -36,12 +47,26 @@ export interface ParseContext {
   activeCampaigns: CampaignLookup[]
   /** เบอร์ (normalize แล้ว) → user_profiles.id */
   usersByPhone: Map<string, string>
+  /**
+   * user_profiles.id → customer_code (null = ลูกค้ายังไม่มีรหัส)
+   * ใช้ cross-check คอลัมน์ รหัสลูกค้า กับเบอร์ (เบอร์เป็น key เสมอ · รหัสไม่ตรง = warning ไม่ใช่ reject)
+   * ไม่ส่งมา = ข้ามการ cross-check (สคริปต์เก่า/บาง e2e)
+   */
+  customerCodeByUserId?: Map<string, string | null>
   /** upper(trim(bill_no)) ของ ledger ที่ voided=false → batch id ที่ใช้ไปแล้ว */
   billsInUse: Map<string, string>
+  /**
+   * เบอร์ + วันที่ซื้อ + ยอดสุทธิ ซ้ำกันในไฟล์เดียวกัน:
+   *   'warn'   (ค่าเริ่มต้น) → status duplicate_amount ให้แต้มได้ แต่ preview นับและโชว์
+   *   'reject' → status invalid
+   * เปลี่ยนเป็น 'reject' ได้ที่จุดเดียวถ้า Q2 ตอบว่าต้อง reject
+   */
+  duplicateAmountPolicy?: 'warn' | 'reject'
 }
 
 export interface ParsedRow {
   row_no: number
+  customer_code: string | null
   purchase_date: string | null
   bill_no: string | null
   phone: string | null
@@ -61,16 +86,26 @@ export interface ParsedRow {
   note: string | null
   status: RowStatus
   errors: string[]
+  /** เตือนแต่ไม่กันแต้ม: รหัสลูกค้าไม่ตรง · ยอดซ้ำในไฟล์ (ผู้อนุมัติต้องเห็น) */
+  warnings: string[]
+  /** แถวก่อนหน้าในไฟล์ที่ เบอร์+วันที่+สุทธิ ซ้ำกัน (เฉพาะ duplicate_amount / reject จากนโยบาย) */
+  duplicate_of_row: number | null
 }
 
 export interface ParseResult {
   rows: ParsedRow[]
   summary: {
     total: number
+    /** status = 'valid' เท่านั้น (ไม่รวม duplicate_amount) */
     valid: number
+    /** ยอดซ้ำในไฟล์ — ให้แต้มได้ แต่ผู้อนุมัติต้องเห็นตัวเลขนี้ */
+    duplicate_amount: number
     invalid: number
     unmatched: number
+    /** แถวที่มี warning อย่างน้อย 1 ข้อ (รวม duplicate_amount และรหัสลูกค้าไม่ตรง) */
+    warned: number
     blank_skipped: number
+    /** ผลรวมแต้มของแถวที่จะได้แต้มตอนอนุมัติ (valid + duplicate_amount) */
     total_points: number
   }
 }
@@ -270,13 +305,20 @@ export async function parseSalesBatch(buffer: Buffer, ctx: ParseContext): Promis
     ctx.activeCampaigns.find((c) => date >= c.starts_on && date <= c.ends_on) ?? null
 
   const billSeenInFile = new Map<string, number>()
+  /** `${phone}|${purchase_date}|${net}` → row_no แรกที่เจอ */
+  const amountSeenInFile = new Map<string, number>()
+  const dupPolicy = ctx.duplicateAmountPolicy ?? 'warn'
 
   const rows: ParsedRow[] = []
 
   for (const r of dataRowNos) {
     const row = ws.getRow(r)
     const errors: string[] = []
+    const warnings: string[] = []
     let unmatchedOnly = false
+
+    // ---- รหัสลูกค้า (คอลัมน์ A · v2) — อ่านไว้ก่อน cross-check หลังจับคู่เบอร์ ----
+    const customerCode = cellText(row.getCell(colIndex('customer_code'))) || null
 
     // ---- วันที่ซื้อ ----
     const dateCell = row.getCell(colIndex('purchase_date'))
@@ -319,6 +361,18 @@ export async function parseSalesBatch(buffer: Buffer, ctx: ParseContext): Promis
       if (!userId) {
         errors.push(`ไม่พบลูกค้าเบอร์ ${phone} ในระบบ — ให้ลูกค้าสมัครผ่าน LINE ก่อน`)
         unmatchedOnly = errors.length === 1
+      } else if (ctx.customerCodeByUserId) {
+        // cross-check รหัสลูกค้า ↔ เบอร์ · เบอร์เป็น key เสมอ (กันบัญชีผีจากรหัสพิมพ์ผิด)
+        // ทั้งสองฝั่งว่าง = ยังไม่มีอะไรให้เทียบ (Q1 ยังไม่ตอบ ลูกค้าใหม่ไม่มีรหัส) → ไม่เตือน
+        const dbCode = ctx.customerCodeByUserId.get(userId) ?? null
+        const norm = (c: string | null) => (c ?? '').trim().toUpperCase()
+        if (customerCode && !dbCode) {
+          warnings.push(`ระบบยังไม่มีรหัสของลูกค้าเบอร์นี้ (ไฟล์ระบุ "${customerCode}")`)
+        } else if (!customerCode && dbCode) {
+          warnings.push(`ไม่ได้กรอกรหัสลูกค้า (ระบบ: ${dbCode})`)
+        } else if (customerCode && dbCode && norm(customerCode) !== norm(dbCode)) {
+          warnings.push(`รหัสลูกค้าไม่ตรงกับระบบ (ไฟล์ "${customerCode}" · ระบบ "${dbCode}") — ระบบยึดเบอร์โทร`)
+        }
       }
     }
 
@@ -342,19 +396,19 @@ export async function parseSalesBatch(buffer: Buffer, ctx: ParseContext): Promis
     }
     const net = gross !== null && gross > 0 && discount <= gross ? gross - discount : null
 
-    // ---- พนักงานขาย ----
+    // ---- Maker (sales_rep) ----
     const repRaw = cellText(row.getCell(colIndex('sales_rep')))
     let repCode: string | null = null
     let rep: SalesRepLookup | null = null
     if (!repRaw) {
-      errors.push('ไม่ได้เลือกพนักงานขาย')
+      errors.push('ไม่ได้เลือก Maker')
     } else {
       // เซลล์เก็บ label "CODE · ชื่อ" · ยอมรับกรณีพิมพ์เฉพาะรหัสด้วย
       const idx = repRaw.indexOf(SEP)
       repCode = (idx > 0 ? repRaw.slice(0, idx) : repRaw).trim()
       rep = repByCode.get(repCode.toUpperCase()) ?? null
-      if (!rep) errors.push(`ไม่พบพนักงานขาย "${repRaw}" ในระบบ — ให้บัญชีเพิ่มรายชื่อก่อน`)
-      else if (!rep.is_active) errors.push(`พนักงานขาย "${rep.code} · ${rep.full_name}" ถูกปิดใช้งานแล้ว`)
+      if (!rep) errors.push(`ไม่พบ Maker "${repRaw}" ในระบบ — ให้บัญชีเพิ่มรายชื่อก่อน`)
+      else if (!rep.is_active) errors.push(`Maker "${rep.code} · ${rep.full_name}" ถูกปิดใช้งานแล้ว`)
     }
 
     // ---- campaign + แต้ม ----
@@ -370,11 +424,35 @@ export async function parseSalesBatch(buffer: Buffer, ctx: ParseContext): Promis
       }
     }
 
+    // ---- ยอดซ้ำในไฟล์: เบอร์ + วันที่ซื้อ + ยอดสุทธิ (A4 · คีย์ชั่วคราวจนกว่า Q2 จะตอบ) ----
+    // ตรวจเฉพาะแถวที่ไม่มี error อื่น (แถวที่ตกอยู่แล้วไม่ต้องเตือนซ้ำ และไม่ควรไปเป็น "แถวแรก" ให้แถวดีอ้าง)
+    // แถวแรกที่เจอไม่ถูกตี แถวถัดไปอ้างกลับไปหาแถวแรก
+    let duplicateOfRow: number | null = null
+    if (errors.length === 0 && phone && purchaseDate && net !== null) {
+      const key = `${phone}|${purchaseDate}|${net}`
+      const first = amountSeenInFile.get(key)
+      if (first) {
+        duplicateOfRow = first
+        const msg = `ยอดซ้ำกับแถว ${first} (เบอร์เดียวกัน วันเดียวกัน สุทธิ ${net.toLocaleString('en-US')} เท่ากัน)`
+        if (dupPolicy === 'reject') errors.push(msg + ' — ระบบตั้งให้ปฏิเสธยอดซ้ำ')
+        else warnings.push(msg)
+      } else {
+        amountSeenInFile.set(key, r)
+      }
+    }
+
     const status: RowStatus =
-      errors.length === 0 ? 'valid' : unmatchedOnly && errors.length === 1 ? 'unmatched' : 'invalid'
+      errors.length === 0
+        ? duplicateOfRow && dupPolicy === 'warn'
+          ? 'duplicate_amount'
+          : 'valid'
+        : unmatchedOnly && errors.length === 1
+          ? 'unmatched'
+          : 'invalid'
 
     rows.push({
       row_no: r,
+      customer_code: customerCode,
       purchase_date: purchaseDate,
       bill_no: billNo,
       phone,
@@ -394,19 +472,23 @@ export async function parseSalesBatch(buffer: Buffer, ctx: ParseContext): Promis
       note: cellText(row.getCell(colIndex('note'))) || null,
       status,
       errors,
+      warnings,
+      duplicate_of_row: duplicateOfRow,
     })
   }
 
-  const valid = rows.filter((r) => r.status === 'valid')
+  const awardable = rows.filter((r) => isAwardable(r.status))
   return {
     rows,
     summary: {
       total: rows.length,
-      valid: valid.length,
+      valid: rows.filter((r) => r.status === 'valid').length,
+      duplicate_amount: rows.filter((r) => r.status === 'duplicate_amount').length,
       invalid: rows.filter((r) => r.status === 'invalid').length,
       unmatched: rows.filter((r) => r.status === 'unmatched').length,
+      warned: rows.filter((r) => r.warnings.length > 0).length,
       blank_skipped: blankSkipped,
-      total_points: valid.reduce((n, r) => n + (r.points ?? 0), 0),
+      total_points: awardable.reduce((n, r) => n + (r.points ?? 0), 0),
     },
   }
 }

@@ -95,7 +95,13 @@ export default function TagsPage() {
   }
 
   const handleDelete = async (tag: Tag) => {
-    if (!confirm(`ต้องการลบ Tag "${tag.name}" หรือไม่? จะลบออกจากลูกค้าทุกคนด้วย`)) return
+    // Sprint 9R A8: แท็กที่มีคนใช้อยู่ต้องถามยืนยันพร้อมบอกจำนวน — ลบแล้วหลุดจากลูกค้าทุกคนทันที
+    const inUse = tag.user_count ?? 0
+    const msg =
+      inUse > 0
+        ? `แท็ก "${tag.name}" ติดอยู่กับลูกค้า ${inUse} คน — ลบแล้วจะหลุดจากลูกค้าทุกคนทันที และย้อนกลับไม่ได้\nยืนยันลบ?`
+        : `ลบแท็ก "${tag.name}"? (ยังไม่มีลูกค้าใช้แท็กนี้)`
+    if (!confirm(msg)) return
     await deleteTag.mutateAsync(tag.id)
   }
 
@@ -105,8 +111,10 @@ export default function TagsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">จัดการ Tags</h1>
-            <p className="text-sm text-slate-500 mt-1">แบ่งกลุ่มลูกค้าด้วย Tags</p>
+            <h1 className="text-2xl font-bold text-slate-900">จัดการแท็ก</h1>
+            <p className="text-sm text-slate-500 mt-1">
+              แบ่งกลุ่มลูกค้าด้วยแท็ก (ชื่อ + สี) · ติด/ถอดได้จากหน้ารายละเอียดลูกค้า · ไม่บังคับตอนสมัคร · ทดลองตั้งอิสระ 1 เดือนแล้วค่อยกำหนดรูปแบบ
+            </p>
           </div>
           {canManage && (
             <div className="flex items-center gap-2">

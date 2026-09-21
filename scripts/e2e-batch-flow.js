@@ -1,13 +1,15 @@
 /**
- * ทดสอบเส้นทางเงินจริงบน Supabase: parse → preview → commit → void → คีย์บิลซ้ำหลัง void
+ * ทดสอบเส้นทางเงินจริงบน Supabase (Sprint 9R · migration 024/025):
+ *   parse → previewed → (RPC ปฏิเสธ previewed) → submit (pending_approval) → approve (RPC)
+ *   → บิลซ้ำโดนเตะ → void (Rollback) → คีย์บิลเดิมใหม่ผ่าน → ปฏิเสธชุด pending_approval → invariant
  *
  *   node scripts/e2e-batch-flow.js
  *
  * ⚠️ เขียนลง DB จริง แต่สร้าง "ลูกค้าทดสอบของตัวเอง" (line_user_id ขึ้นต้น E2E-TEST-)
  *    ไม่แตะบัญชีลูกค้าจริงเลย และลบทุกอย่างที่สร้างทิ้งตอนจบ (รวมกรณี error)
+ * ⚠️ ต้อง apply 024 + 025 ก่อน — ไม่งั้นข้อ [2] จะตกที่ "must be previewed"
  *
- * ทำไมต้องมี: RPC award_points_from_batch v3 (migration 020) ยังไม่เคยถูกรันสักครั้ง
- * parse ผ่าน + build ผ่าน ไม่ได้แปลว่า plpgsql ข้างในทำงานถูก
+ * ทำไมต้องมี: parse ผ่าน + build ผ่าน ไม่ได้แปลว่า plpgsql ข้างในทำงานถูก
  */
 require('dotenv').config({ path: '.env.local' })
 const fs = require('fs')
@@ -125,12 +127,16 @@ async function main() {
   check('ลูกค้าทดสอบเริ่มต้นที่ 0 แต้ม', user.points_balance === 0, String(user.points_balance))
 
   // ---------- parse ----------
-  // วันที่ซื้อ = พฤษภาคม (คนละเดือนกับตอน commit) → พิสูจน์ว่า earned_month ยึดวันที่ซื้อ
+  // วันที่ซื้อ = พฤษภาคม (คนละเดือนกับตอนอนุมัติ) → พิสูจน์ว่า 025 ยึด "วันที่อนุมัติ" ไม่ใช่วันที่ซื้อ (Q4)
   // ใช้เดือนที่ไม่มีแคมเปญใน seed (มิ.ย. มี ×1.5) — สคริปต์นี้ส่ง activeCampaigns ว่าง จึงต้องเป็น ×1 จริง
-  console.log('\n[1] parse ไฟล์ (ซื้อ พ.ค. · commit วันนี้)')
+  console.log('\n[1] parse ไฟล์ v2 (ซื้อ พ.ค. · อนุมัติวันนี้)')
   const BILL = 'E2E-BILL-001'
+  const repLabel = `${rep.code}${SPEC.salesRepSeparator}${rep.full_name}`
   const buf = await makeSheet([
-    ['15/05/2026', BILL, phone, 'ลูกค้าทดสอบ', 5000, 500, `${rep.code}${SPEC.salesRepSeparator}${rep.full_name}`, 'e2e'],
+    // รหัสลูกค้า | วันที่ | บิล | เบอร์ | ชื่อ | ยอด | ลด | Maker | หมายเหตุ
+    ['', '15/05/2026', BILL, phone, 'ลูกค้าทดสอบ', 5000, 500, repLabel, 'e2e'],
+    // ยอดซ้ำ (เบอร์+วัน+สุทธิ เท่ากัน คนละบิล) → duplicate_amount ต้องได้แต้มเหมือน valid
+    ['', '15/05/2026', 'E2E-BILL-DUP', phone, 'ลูกค้าทดสอบ', 5000, 500, repLabel, 'e2e dup'],
   ])
   const ctx = {
     weekStart: '2026-05-11',
@@ -139,14 +145,15 @@ async function main() {
     salesReps: [rep],
     activeCampaigns: [],
     usersByPhone: new Map([[phone, user.id]]),
+    customerCodeByUserId: new Map([[user.id, null]]),
     billsInUse: new Map(),
   }
   const parsed = await parseSalesBatch(buf, ctx)
-  check('parse ได้ 1 แถว valid', parsed.summary.valid === 1, JSON.stringify(parsed.summary))
-  check('คิดแต้ม (5000-500)/100 = 45', parsed.rows[0].points === 45, String(parsed.rows[0].points))
+  check('parse ได้ valid 1 + duplicate_amount 1', parsed.summary.valid === 1 && parsed.summary.duplicate_amount === 1, JSON.stringify(parsed.summary))
+  check('คิดแต้ม (5000-500)/100 = 45 ต่อแถว · รวม 90', parsed.rows[0].points === 45 && parsed.summary.total_points === 90, String(parsed.summary.total_points))
 
-  // ---------- preview → commit ----------
-  console.log('\n[2] commit → แต้มเข้าจริง')
+  // ---------- preview → submit → approve ----------
+  console.log('\n[2] previewed ตรง ๆ ต้องอนุมัติไม่ได้ → submit → approve → แต้มเข้าจริง')
   const mkBatch = async (name) => {
     const { data, error } = await sb
       .from('point_batches')
@@ -158,7 +165,7 @@ async function main() {
         week_end: ctx.weekEnd,
         status: 'previewed',
         total_rows: parsed.summary.total,
-        valid_rows: parsed.summary.valid,
+        valid_rows: parsed.summary.valid + parsed.summary.duplicate_amount,
         invalid_rows: parsed.summary.invalid,
         unmatched_rows: parsed.summary.unmatched,
         total_points: parsed.summary.total_points,
@@ -171,62 +178,110 @@ async function main() {
     return data.id
   }
 
+  /** จำลอง POST /:id/submit — UPDATE แบบมี guard status เดิม (route ทำแบบเดียวกัน) */
+  const submitBatch = async (id) => {
+    const { data, error } = await sb
+      .from('point_batches')
+      .update({ status: 'pending_approval', submitted_by: admin.id, submitted_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('status', 'previewed')
+      .select('id, status')
+      .maybeSingle()
+    if (error) throw new Error('submit ไม่ได้: ' + error.message)
+    return data
+  }
+
   const batch1 = await mkBatch('e2e-1.xlsx')
+  const early = await sb.rpc('award_points_from_batch', { p_batch_id: batch1, p_admin: admin.id })
+  check('RPC ปฏิเสธชุด previewed (ต้อง submit ก่อน · ไม่มี auto-approve)',
+    !!early.error && early.error.message.includes('must be pending_approval'), early.error?.message ?? 'ไม่ error')
+  const stillZero = await sb.from('user_profiles').select('points_balance').eq('id', user.id).single()
+  check('แต้มยังเป็น 0 หลังถูกปฏิเสธ', stillZero.data?.points_balance === 0, String(stillZero.data?.points_balance))
+
+  const sub = await submitBatch(batch1)
+  check('submit: previewed → pending_approval', sub?.status === 'pending_approval', String(sub?.status))
+  const subAgain = await submitBatch(batch1)
+  check('submit ซ้ำ → 0 แถว (guard status เดิม)', subAgain === null, JSON.stringify(subAgain))
+
   const { data: awarded, error: awardErr } = await sb.rpc('award_points_from_batch', {
     p_batch_id: batch1,
     p_admin: admin.id,
   })
-  check('RPC award สำเร็จ', !awardErr, awardErr?.message)
-  check('คืนค่าแต้มรวม = 45', awarded === 45, String(awarded))
+  check('RPC award (อนุมัติ) สำเร็จ', !awardErr, awardErr?.message)
+  check('คืนค่าแต้มรวม = 90 (valid 45 + duplicate_amount 45)', awarded === 90, String(awarded))
 
   const after = await sb.from('user_profiles').select('points_balance').eq('id', user.id).single()
-  check('ยอดแต้มลูกค้าขึ้นเป็น 45', after.data?.points_balance === 45, String(after.data?.points_balance))
+  check('ยอดแต้มลูกค้าขึ้นเป็น 90', after.data?.points_balance === 90, String(after.data?.points_balance))
 
-  const lot = await sb
-    .from('point_batch_ledger')
-    .select('*')
-    .eq('source_batch_id', batch1)
-    .single()
-  check('earned_month = 2026-05-01 (เดือนที่ซื้อ ไม่ใช่เดือนที่ commit)',
-    lot.data?.earned_month === '2026-05-01', String(lot.data?.earned_month))
-  check('expires_at = 2027-05-31 (สิ้นเดือน พ.ค. + 365)',
-    lot.data?.expires_at === '2027-05-31', String(lot.data?.expires_at))
+  const lots1 = await sb.from('point_batch_ledger').select('*').eq('source_batch_id', batch1).order('bill_no')
+  check('ledger 2 lot (แถว duplicate_amount ได้แต้มด้วย)', lots1.data?.length === 2, String(lots1.data?.length))
+  const lot = { data: (lots1.data ?? []).find((l) => l.bill_no === BILL) }
+
+  // 025 (Q4): ฐานอายุแต้ม = วันที่อนุมัติตามเวลาไทย · ไม่ใช่เดือนที่ซื้อ
+  const todayBkk = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10)
+  const expectedEarnedMonth = todayBkk.slice(0, 7) + '-01'
+  const expectedExpiry = new Date(Date.UTC(+todayBkk.slice(0, 4), +todayBkk.slice(5, 7) - 1, +todayBkk.slice(8, 10) + 365)).toISOString().slice(0, 10)
+  check(`earned_month = ${expectedEarnedMonth} (เดือนที่อนุมัติ ไม่ใช่เดือนที่ซื้อ พ.ค.)`,
+    lot.data?.earned_month === expectedEarnedMonth, String(lot.data?.earned_month))
+  check(`expires_at = ${expectedExpiry} (วันที่อนุมัติ + 365)`,
+    lot.data?.expires_at === expectedExpiry, String(lot.data?.expires_at))
   check('เก็บ bill_no', lot.data?.bill_no === BILL, String(lot.data?.bill_no))
   check('เก็บ sales_rep_id', lot.data?.sales_rep_id === rep.id, String(lot.data?.sales_rep_id))
-  check('เก็บ purchase_date', lot.data?.purchase_date === '2026-05-15', String(lot.data?.purchase_date))
+  check('เก็บ purchase_date (ยังเป็นวันที่ซื้อจริง)', lot.data?.purchase_date === '2026-05-15', String(lot.data?.purchase_date))
   check('voided = false', lot.data?.voided === false, String(lot.data?.voided))
 
-  const bat = await sb.from('point_batches').select('status, committed_by, committed_at').eq('id', batch1).single()
+  const bat = await sb.from('point_batches').select('status, committed_by, committed_at, submitted_by, submitted_at').eq('id', batch1).single()
   check('batch status = committed', bat.data?.status === 'committed', String(bat.data?.status))
-  check('committed_by = admin ที่กด', bat.data?.committed_by === admin.id, String(bat.data?.committed_by))
+  check('committed_by = ผู้อนุมัติ', bat.data?.committed_by === admin.id, String(bat.data?.committed_by))
+  check('submitted_by/at ยังอยู่ (คนส่ง ≠ ช่องคนอนุมัติ)', bat.data?.submitted_by === admin.id && !!bat.data?.submitted_at, JSON.stringify(bat.data))
 
-  const tx = await sb.from('point_transactions').select('*').eq('source_batch_id', batch1).eq('type', 'earned').single()
-  check('point_transactions.created_by = admin (เดิมเป็น NULL)', tx.data?.created_by === admin.id, String(tx.data?.created_by))
+  const tx = await sb.from('point_transactions').select('*').eq('source_batch_id', batch1).eq('type', 'earned')
+  check('point_transactions 2 แถว · created_by = ผู้อนุมัติ',
+    tx.data?.length === 2 && tx.data.every((t) => t.created_by === admin.id), JSON.stringify(tx.data?.map((t) => t.created_by)))
 
   // ---------- บิลซ้ำ ----------
   console.log('\n[3] คีย์บิลเดิมซ้ำ → ต้องถูกเตะ')
   const batch2 = await mkBatch('e2e-2.xlsx')
+  await submitBatch(batch2)
   const dup = await sb.rpc('award_points_from_batch', { p_batch_id: batch2, p_admin: admin.id })
   check('RPC ปฏิเสธบิลซ้ำ', !!dup.error && dup.error.code === '23505',
     dup.error ? `${dup.error.code}: ${dup.error.message.slice(0, 80)}` : 'ไม่ error')
   const afterDup = await sb.from('user_profiles').select('points_balance').eq('id', user.id).single()
-  check('แต้มไม่เพิ่ม (rollback ทั้ง batch)', afterDup.data?.points_balance === 45, String(afterDup.data?.points_balance))
+  check('แต้มไม่เพิ่ม (rollback ทั้ง batch)', afterDup.data?.points_balance === 90, String(afterDup.data?.points_balance))
+  const bat2 = await sb.from('point_batches').select('status').eq('id', batch2).single()
+  check('batch2 ยังค้าง pending_approval (ไม่ถูกเปลี่ยนสถานะเมื่อ RPC ล้ม)', bat2.data?.status === 'pending_approval', String(bat2.data?.status))
 
-  // ---------- void ----------
-  console.log('\n[4] void → คืนแต้ม + ปลดล็อกเลขบิล')
+  // ---------- void (Rollback) ----------
+  console.log('\n[4] void ชุดที่แต้มเข้าแล้ว → คืนแต้ม + ปลดล็อกเลขบิล')
   const v = await sb.rpc('void_batch', { p_batch_id: batch1, p_admin: admin.id, p_reason: 'e2e test' })
   check('RPC void สำเร็จ', !v.error, v.error?.message)
   const afterVoid = await sb.from('user_profiles').select('points_balance').eq('id', user.id).single()
   check('แต้มกลับเป็น 0', afterVoid.data?.points_balance === 0, String(afterVoid.data?.points_balance))
-  const lotVoided = await sb.from('point_batch_ledger').select('voided, points_remaining').eq('source_batch_id', batch1).single()
-  check('ledger ถูกมาร์ค voided', lotVoided.data?.voided === true, String(lotVoided.data?.voided))
+  const lotVoided = await sb.from('point_batch_ledger').select('voided, points_remaining').eq('source_batch_id', batch1)
+  check('ledger ทุก lot ถูกมาร์ค voided', (lotVoided.data ?? []).length === 2 && lotVoided.data.every((l) => l.voided === true), JSON.stringify(lotVoided.data))
 
   // ---------- คีย์บิลเดิมใหม่หลัง void ----------
-  console.log('\n[5] คีย์บิลเดิมใหม่หลัง void → ต้องผ่าน')
+  console.log('\n[5] คีย์บิลเดิมใหม่หลัง void → ต้องผ่าน (batch2 ยัง pending_approval อยู่)')
   const redo = await sb.rpc('award_points_from_batch', { p_batch_id: batch2, p_admin: admin.id })
   check('RPC ยอมรับบิลเดิมหลัง void', !redo.error, redo.error?.message)
   const afterRedo = await sb.from('user_profiles').select('points_balance').eq('id', user.id).single()
-  check('แต้มขึ้นใหม่เป็น 45', afterRedo.data?.points_balance === 45, String(afterRedo.data?.points_balance))
+  check('แต้มขึ้นใหม่เป็น 90', afterRedo.data?.points_balance === 90, String(afterRedo.data?.points_balance))
+
+  // ---------- ปฏิเสธชุดที่ยังรอผู้อนุมัติ ----------
+  console.log('\n[5b] ปฏิเสธชุด pending_approval (void ก่อนแต้มเข้า) → ไม่มีเงินขยับ')
+  const batch3 = await mkBatch('e2e-3.xlsx')
+  const rejectEarly = await sb.rpc('void_batch', { p_batch_id: batch3, p_admin: admin.id, p_reason: 'e2e reject previewed' })
+  check('void ชุด previewed → ถูกปฏิเสธ (อัปโหลดทับได้อยู่แล้ว)', !!rejectEarly.error && rejectEarly.error.message.includes('can be voided'), rejectEarly.error?.message ?? 'ไม่ error')
+  await submitBatch(batch3)
+  const reject = await sb.rpc('void_batch', { p_batch_id: batch3, p_admin: admin.id, p_reason: 'e2e reject' })
+  check('void ชุด pending_approval สำเร็จ', !reject.error, reject.error?.message)
+  const bat3 = await sb.from('point_batches').select('status, voided_by, void_reason').eq('id', batch3).single()
+  check('batch3 = voided · บันทึกคน/เหตุผล', bat3.data?.status === 'voided' && bat3.data?.voided_by === admin.id && bat3.data?.void_reason === 'e2e reject', JSON.stringify(bat3.data))
+  const noLedger = await sb.from('point_batch_ledger').select('id').eq('source_batch_id', batch3)
+  const noTx = await sb.from('point_transactions').select('id').eq('source_batch_id', batch3)
+  check('ไม่มี ledger / transaction ของชุดที่ถูกปฏิเสธ', (noLedger.data ?? []).length === 0 && (noTx.data ?? []).length === 0)
+  const afterReject = await sb.from('user_profiles').select('points_balance').eq('id', user.id).single()
+  check('แต้มยังเป็น 90 (ไม่ขยับ)', afterReject.data?.points_balance === 90, String(afterReject.data?.points_balance))
 
   // ---------- invariant ----------
   console.log('\n[6] invariant: points_balance == SUM(ledger.points_remaining)')

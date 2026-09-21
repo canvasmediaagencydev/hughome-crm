@@ -18,9 +18,9 @@ import { PERMISSIONS } from '@/types/admin'
 // Force dynamic rendering - no caching
 export const dynamic = 'force-dynamic'
 
+// Sprint 9R A6: เดือนนี้ (ค่าเริ่มต้น) · 30 วัน · 90 วัน · กำหนดเอง → ?from=&to=
 const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
-  { value: 'all', label: 'ทั้งหมด' },
-  { value: '7d', label: '7 วัน' },
+  { value: 'this_month', label: 'เดือนนี้' },
   { value: '30d', label: '30 วัน' },
   { value: '90d', label: '90 วัน' },
   { value: 'custom', label: 'กำหนดเอง' },
@@ -28,8 +28,8 @@ const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
 
 const ROLE_OPTIONS: { value: RoleFilter; label: string }[] = [
   { value: 'all', label: 'ทั้งหมด' },
-  { value: 'contractor', label: 'Contractor' },
-  { value: 'homeowner', label: 'Homeowner' },
+  { value: 'contractor', label: 'ช่าง' },
+  { value: 'homeowner', label: 'เจ้าของบ้าน' },
 ]
 
 export default function AdminDashboard() {
@@ -50,6 +50,7 @@ export default function AdminDashboard() {
     setCustomStart,
     customEnd,
     setCustomEnd,
+    activeRange,
   } = useDashboard()
 
   const { saving, savePointSetting } = usePointSettings()
@@ -60,7 +61,7 @@ export default function AdminDashboard() {
   // Remove manual fetch - React Query handles this automatically
 
   const handleSavePointSetting = async () => {
-    const success = await savePointSetting(pointSetting, bahtPerPoint, fetchAllDashboardData)
+    await savePointSetting(pointSetting, bahtPerPoint, fetchAllDashboardData)
   }
 
   const visibleTabs = useMemo(() => {
@@ -179,6 +180,11 @@ export default function AdminDashboard() {
                 )}
               </div>
             )}
+            {activeRange && (
+              <p className="text-xs text-slate-500">
+                ตัวเลข "ในช่วง" คิดจาก {activeRange.from} → {activeRange.to} (เวลาไทย)
+              </p>
+            )}
           </div>
         )}
 
@@ -201,8 +207,7 @@ export default function AdminDashboard() {
             <UserStatistics metrics={dashboardMetrics} loading={false} />
           )}
 
-          {/* NOTE: receipt charts / recent-receipts table removed (OCR flow gone).
-              Points/batch charts will be rebuilt in Sprint 9. */}
+          {/* กราฟแต้ม/ชุดรายวัน = Sprint 11 (custom dashboard widgets) */}
         </TabsContent>
 
         {showAnalyticsTab && (

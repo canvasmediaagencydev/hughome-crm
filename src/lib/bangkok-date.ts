@@ -45,6 +45,14 @@ function splitIso(iso: string): [number, number, number] {
   return [y, m - 1, d]
 }
 
+/** ISO timestamp (เช่น created_at) → 'YYYY-MM-DD' ตามเวลาไทย · ค่าที่อ่านไม่ออกคืน null */
+export function bangkokDateOf(timestamp: string | null | undefined): string | null {
+  if (!timestamp) return null
+  const d = new Date(timestamp)
+  if (Number.isNaN(d.getTime())) return null
+  return todayBangkok(d)
+}
+
 /** 23 ก.ค. 2569 */
 export function formatThaiDate(iso: string): string {
   const d = new Date(`${iso}T00:00:00Z`)

@@ -23,6 +23,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: 'cover', // ให้ env(safe-area-inset-bottom) ของแถบล่างทำงานบนจอมีขอบ/gesture bar
   themeColor: '#dc2626', // Red theme color for PWA
 };
 

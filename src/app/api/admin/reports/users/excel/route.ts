@@ -1,157 +1,176 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { requirePermission } from "@/lib/admin-auth";
-import { PERMISSIONS } from "@/types/admin";
-import { parseISO, startOfDay, endOfDay, format } from "date-fns";
-import ExcelJS from "exceljs";
+/**
+ * GET /api/admin/reports/users/excel?start=YYYY-MM-DD&end=YYYY-MM-DD[&role=contractor|homeowner]
+ * รายงานลูกค้าสำหรับการตลาด (Sprint 9R A5 · wiki/14 §3 "Reports")
+ *
+ *   1 แถว = ลูกค้า 1 คน · ทุกคนที่ onboard แล้ว (role ไม่ว่าง) — ช่วงวันที่ใช้คำนวณ
+ *   "ยอดซื้อสุทธิรวมในช่วง" และ "จำนวนบิลในช่วง" จาก ledger (ตามวันที่ซื้อ · ไม่นับชุดที่ถูก void)
+ *   ห้ามมีคอลัมน์เลขที่บิล — รายงานตรวจบิลคือ /api/admin/reports/batches/:id/excel
+ *   เบอร์ 10 หลักติดกัน ไม่มีขีด · คอลัมน์เป็น text กัน Excel ตัด 0
+ *
+ * ตัวสร้างไฟล์อยู่ที่ src/lib/excel/build-reports.js (ใช้ร่วมกับ scripts/build-sample-reports.js)
+ */
+import { NextRequest, NextResponse } from 'next/server'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { requirePermission } from '@/lib/admin-auth'
+import { adminAuthError } from '@/lib/admin-http'
+import { PERMISSIONS } from '@/types/admin'
+import { todayBangkok, isIsoDate } from '@/lib/bangkok-date'
+import { buildCustomerExport, customerExportFilename, XLSX_MIME } from '@/lib/excel/build-reports'
 
-function formatThaiDate(dateString: string): string {
-  const date = new Date(dateString);
-  const buddhistYear = date.getFullYear() + 543;
-  const formatted = format(date, "dd/MM/yyyy HH:mm");
-  return formatted.replace(String(date.getFullYear()), String(buddhistYear));
-}
+export const runtime = 'nodejs'
 
-function formatPhone(phone: string | null): string {
-  if (!phone) return "-";
-  const cleaned = phone.replace(/\D/g, "");
-  if (cleaned.length === 10) {
-    return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
-  }
-  return phone;
+const PAGE = 1000 // PostgREST ตัดที่ 1,000 แถวต่อ query — ต้องวนดึงเอง
+
+interface CustomerRow {
+  id: string
+  customer_code: string | null
+  first_name: string | null
+  last_name: string | null
+  phone: string | null
+  role: string | null
+  created_at: string
+  points_balance: number | null
 }
 
 export async function GET(request: NextRequest) {
   try {
-    await requirePermission(PERMISSIONS.USERS_VIEW);
+    await requirePermission(PERMISSIONS.USERS_VIEW)
+    const supabase = createServerSupabaseClient()
+    const sp = new URL(request.url).searchParams
 
-    const supabase = createServerSupabaseClient();
-    const { searchParams } = new URL(request.url);
-
-    const startDate = searchParams.get("start");
-    const endDate = searchParams.get("end");
-    const role = searchParams.get("role"); // "contractor" | "homeowner" | null
-
-    if (!startDate || !endDate) {
-      return NextResponse.json(
-        { error: "Missing required parameters: start and end" },
-        { status: 400 }
-      );
+    const start = sp.get('start')
+    const end = sp.get('end')
+    const role = sp.get('role')
+    if (!isIsoDate(start) || !isIsoDate(end)) {
+      return NextResponse.json({ error: 'ต้องระบุ start และ end เป็น YYYY-MM-DD' }, { status: 400 })
+    }
+    if (end < start) return NextResponse.json({ error: 'end ต้องไม่มาก่อน start' }, { status: 400 })
+    if (role && role !== 'contractor' && role !== 'homeowner') {
+      return NextResponse.json({ error: "role ต้องเป็น 'contractor' หรือ 'homeowner'" }, { status: 400 })
     }
 
-    if (role && role !== "contractor" && role !== "homeowner") {
-      return NextResponse.json(
-        { error: "Invalid role. Must be 'contractor' or 'homeowner'" },
-        { status: 400 }
-      );
-    }
-
-    let start: Date;
-    let end: Date;
-    try {
-      start = startOfDay(parseISO(startDate));
-      end = endOfDay(parseISO(endDate));
-      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-        throw new Error("Invalid date");
+    // ---------- ลูกค้าทั้งหมด (วนหน้า) ----------
+    const customers: CustomerRow[] = []
+    for (let from = 0; ; from += PAGE) {
+      let q = supabase
+        .from('user_profiles')
+        .select('id, customer_code, first_name, last_name, phone, role, created_at, points_balance')
+        .not('role', 'is', null)
+        .order('created_at', { ascending: true })
+        .range(from, from + PAGE - 1)
+      if (role) q = q.eq('role', role)
+      const { data, error } = await q
+      if (error) {
+        console.error('[reports/users/excel] customers failed:', error)
+        return NextResponse.json({ error: 'ดึงรายชื่อลูกค้าไม่สำเร็จ' }, { status: 500 })
       }
-    } catch {
-      return NextResponse.json(
-        { error: "Invalid date format" },
-        { status: 400 }
-      );
+      customers.push(...((data ?? []) as CustomerRow[]))
+      if (!data || data.length < PAGE) break
+    }
+    const ids = new Set(customers.map((c) => c.id))
+
+    // ---------- ยอดซื้อ/จำนวนบิลในช่วง (ledger ตามวันที่ซื้อ · ไม่นับ void) ----------
+    const netByUser = new Map<string, { net: number; bills: number }>()
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await supabase
+        .from('point_batch_ledger')
+        .select('user_id, net_amount')
+        .eq('voided', false)
+        .gte('purchase_date', start)
+        .lte('purchase_date', end)
+        .range(from, from + PAGE - 1)
+      if (error) {
+        console.error('[reports/users/excel] ledger range failed:', error)
+        return NextResponse.json({ error: 'ดึงยอดซื้อในช่วงไม่สำเร็จ' }, { status: 500 })
+      }
+      for (const l of data ?? []) {
+        if (!ids.has(l.user_id)) continue
+        const cur = netByUser.get(l.user_id) ?? { net: 0, bills: 0 }
+        cur.net += Number(l.net_amount ?? 0)
+        cur.bills += 1
+        netByUser.set(l.user_id, cur)
+      }
+      if (!data || data.length < PAGE) break
     }
 
-    let query = supabase
-      .from("user_profiles")
-      .select("created_at, first_name, last_name, phone, points_balance, role")
-      .not("role", "is", null)
-      .gte("created_at", start.toISOString())
-      .lte("created_at", end.toISOString())
-      .order("created_at", { ascending: false });
-
-    if (role) {
-      query = query.eq("role", role);
+    // ---------- แต้มก้อนถัดไปที่จะหมดอายุ (เรียงตาม expires_at → แถวแรกของแต่ละคนคือก้อนถัดไป) ----------
+    const nextByUser = new Map<string, { points: number; date: string }>()
+    const today = todayBangkok()
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await supabase
+        .from('point_batch_ledger')
+        .select('user_id, points_remaining, expires_at')
+        .gt('points_remaining', 0)
+        .gte('expires_at', today)
+        .order('expires_at', { ascending: true })
+        .order('user_id', { ascending: true })
+        .range(from, from + PAGE - 1)
+      if (error) {
+        console.error('[reports/users/excel] ledger expiry failed:', error)
+        return NextResponse.json({ error: 'ดึงแต้มที่จะหมดอายุไม่สำเร็จ' }, { status: 500 })
+      }
+      for (const l of data ?? []) {
+        if (!ids.has(l.user_id)) continue
+        const cur = nextByUser.get(l.user_id)
+        if (!cur) nextByUser.set(l.user_id, { points: l.points_remaining, date: l.expires_at })
+        else if (cur.date === l.expires_at) cur.points += l.points_remaining // หลาย lot หมดวันเดียวกัน → รวม
+      }
+      if (!data || data.length < PAGE) break
     }
 
-    const { data: users, error } = await query;
-
-    if (error) {
-      console.error("Database query error:", error);
-      return NextResponse.json({ error: "Failed to fetch data" }, { status: 500 });
+    // ---------- แท็ก ----------
+    const tagsByUser = new Map<string, string[]>()
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await supabase
+        .from('user_tags')
+        .select('user_id, tags ( name )')
+        .range(from, from + PAGE - 1)
+      if (error) {
+        console.error('[reports/users/excel] tags failed:', error)
+        return NextResponse.json({ error: 'ดึงแท็กไม่สำเร็จ' }, { status: 500 })
+      }
+      for (const t of data ?? []) {
+        const name = (t.tags as unknown as { name: string } | null)?.name
+        if (!name || !ids.has(t.user_id)) continue
+        const arr = tagsByUser.get(t.user_id) ?? []
+        arr.push(name)
+        tagsByUser.set(t.user_id, arr)
+      }
+      if (!data || data.length < PAGE) break
     }
 
-    const roleLabel = (r: string | null): string => {
-      if (r === "contractor") return "ช่าง";
-      if (r === "homeowner") return "เจ้าของบ้าน";
-      return "-";
-    };
-
-    // สร้างข้อมูลสำหรับ Excel
-    const headers = ["ลำดับ", "วันที่สมัคร", "ชื่อจริง", "นามสกุล", "เบอร์โทร", "ประเภท", "แต้มปัจจุบัน"];
-
-    const rows = (users || []).map((user, index) => [
-      index + 1,
-      formatThaiDate(user.created_at),
-      user.first_name || "-",
-      user.last_name || "-",
-      formatPhone(user.phone),
-      roleLabel(user.role),
-      user.points_balance ?? 0,
-    ]);
-
-    const sheetName = role === "contractor"
-      ? "รายงานช่าง"
-      : role === "homeowner"
-      ? "รายงานเจ้าของบ้าน"
-      : "รายงานลูกค้า";
-
-    // สร้าง workbook และ worksheet
-    const wb = new ExcelJS.Workbook();
-    wb.creator = "HugHome CRM";
-    const ws = wb.addWorksheet(sheetName);
-
-    // กำหนดความกว้าง column
-    ws.columns = [
-      { width: 8 },   // ลำดับ
-      { width: 18 },  // วันที่สมัคร
-      { width: 15 },  // ชื่อจริง
-      { width: 15 },  // นามสกุล
-      { width: 14 },  // เบอร์โทร
-      { width: 12 },  // ประเภท
-      { width: 12 },  // แต้มปัจจุบัน
-    ];
-
-    ws.addRow(headers).font = { bold: true };
-    rows.forEach((row) => ws.addRow(row));
-    ws.views = [{ state: "frozen", ySplit: 1 }];
-
-    // สร้างไฟล์ Excel
-    const excelBuffer = await wb.xlsx.writeBuffer();
-
-    const roleSuffix = role ? `-${role}` : "";
-    const filename = `users-report-${startDate}-to-${endDate}${roleSuffix}.xlsx`;
-
-    return new NextResponse(new Uint8Array(excelBuffer), {
+    const wb = buildCustomerExport({
+      rangeStart: start,
+      rangeEnd: end,
+      customers: customers.map((c) => {
+        const inRange = netByUser.get(c.id)
+        const next = nextByUser.get(c.id)
+        return {
+          customer_code: c.customer_code,
+          first_name: c.first_name,
+          last_name: c.last_name,
+          phone: c.phone,
+          role: c.role,
+          created_at: c.created_at,
+          points_balance: c.points_balance ?? 0,
+          next_expiry_points: next?.points ?? null,
+          next_expiry_date: next?.date ?? null,
+          net_in_range: inRange?.net ?? 0,
+          bills_in_range: inRange?.bills ?? 0,
+          tags: (tagsByUser.get(c.id) ?? []).sort(),
+        }
+      }),
+    })
+    const buffer = await wb.xlsx.writeBuffer()
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
-        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="${filename}"`,
-        "Cache-Control": "no-cache",
+        'Content-Type': XLSX_MIME,
+        'Content-Disposition': `attachment; filename="${customerExportFilename(start, end)}"`,
+        'Cache-Control': 'no-store',
       },
-    });
-  } catch (error: unknown) {
-    console.error("Excel generation error:", error);
-
-    const message = error instanceof Error ? error.message : "";
-    if (message.startsWith("Unauthorized")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (message.includes("Forbidden")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    return NextResponse.json(
-      { error: "Failed to generate Excel" },
-      { status: 500 }
-    );
+    })
+  } catch (error) {
+    console.error('[reports/users/excel] unexpected:', error)
+    return adminAuthError(error) ?? NextResponse.json({ error: 'สร้างไฟล์รายงานไม่สำเร็จ' }, { status: 500 })
   }
 }

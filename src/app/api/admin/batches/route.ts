@@ -1,9 +1,9 @@
 /**
- * GET /api/admin/batches — รายการ batch + ชื่อบัญชี actor ทั้ง 4
+ * GET /api/admin/batches — รายการ batch + ชื่อบัญชี actor ทั้ง 5
  *
- * actor 4 คนต่อ batch เป็นคนละคนได้ ห้ามยุบเป็นช่องเดียว (MIGRATION_PLAN.md §4.2):
- *   uploaded_by (ใครส่งไฟล์) · committed_by (ใครกดให้แต้มเข้า)
- *   reviewed_by (ใครสุ่มตรวจ) · voided_by (ใครยกเลิก)
+ * actor 5 คนต่อ batch เป็นคนละคนได้ ห้ามยุบเป็นช่องเดียว (MIGRATION_PLAN.md §4.2 · 024):
+ *   uploaded_by (ใครส่งไฟล์) · submitted_by (ใครส่งให้ผู้อนุมัติ) · committed_by (ใครอนุมัติ = แต้มเข้า)
+ *   reviewed_by (ใครสุ่มตรวจ) · voided_by (ใครยกเลิก/ปฏิเสธ)
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
@@ -25,12 +25,12 @@ export async function GET(request: NextRequest) {
       .from('point_batches')
       // ต้องเป็น string literal ตัวเดียว — ถ้าต่อ string supabase-js จะ infer type ไม่ออก
       .select(
-        'id, file_name, week_start, week_end, status, total_rows, valid_rows, invalid_rows, unmatched_rows, total_points, created_at, committed_at, reviewed_at, review_note, voided_at, void_reason, uploaded_by, committed_by, reviewed_by, voided_by'
+        'id, file_name, week_start, week_end, status, total_rows, valid_rows, invalid_rows, unmatched_rows, total_points, created_at, submitted_at, committed_at, reviewed_at, review_note, voided_at, void_reason, uploaded_by, submitted_by, committed_by, reviewed_by, voided_by'
       )
       .order('created_at', { ascending: false })
       .limit(limit)
 
-    if (status) query = query.eq('status', status as 'draft' | 'previewed' | 'committed' | 'voided')
+    if (status) query = query.eq('status', status as 'draft' | 'previewed' | 'pending_approval' | 'committed' | 'voided')
     if (weekFrom) query = query.gte('week_start', weekFrom)
     if (weekTo) query = query.lte('week_end', weekTo)
 
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     const adminIds = [
       ...new Set(
         (batches ?? []).flatMap((b) =>
-          [b.uploaded_by, b.committed_by, b.reviewed_by, b.voided_by].filter((x): x is string => !!x)
+          [b.uploaded_by, b.submitted_by, b.committed_by, b.reviewed_by, b.voided_by].filter((x): x is string => !!x)
         )
       ),
     ]
@@ -59,6 +59,7 @@ export async function GET(request: NextRequest) {
       (batches ?? []).map((b) => ({
         ...b,
         uploaded_by_name: who(b.uploaded_by),
+        submitted_by_name: who(b.submitted_by),
         committed_by_name: who(b.committed_by),
         reviewed_by_name: who(b.reviewed_by),
         voided_by_name: who(b.voided_by),

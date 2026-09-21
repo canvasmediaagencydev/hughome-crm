@@ -429,6 +429,8 @@ export type Database = {
           reviewed_at: string | null
           reviewed_by: string | null
           status: Database["public"]["Enums"]["batch_status"]
+          submitted_at: string | null
+          submitted_by: string | null
           total_points: number
           total_rows: number
           unmatched_rows: number
@@ -453,6 +455,8 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["batch_status"]
+          submitted_at?: string | null
+          submitted_by?: string | null
           total_points?: number
           total_rows?: number
           unmatched_rows?: number
@@ -477,6 +481,8 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["batch_status"]
+          submitted_at?: string | null
+          submitted_by?: string | null
           total_points?: number
           total_rows?: number
           unmatched_rows?: number
@@ -492,6 +498,13 @@ export type Database = {
           {
             foreignKeyName: "point_batches_committed_by_fkey"
             columns: ["committed_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "point_batches_submitted_by_fkey"
+            columns: ["submitted_by"]
             isOneToOne: false
             referencedRelation: "admin_users"
             referencedColumns: ["id"]
@@ -1076,7 +1089,12 @@ export type Database = {
       }
     }
     Enums: {
-      batch_status: "draft" | "previewed" | "committed" | "voided"
+      batch_status:
+        | "draft"
+        | "previewed"
+        | "pending_approval"
+        | "committed"
+        | "voided"
       redemption_status:
         | "requested"
         | "approved"
@@ -1212,7 +1230,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      batch_status: ["draft", "previewed", "committed", "voided"],
+      batch_status: [
+        "draft",
+        "previewed",
+        "pending_approval",
+        "committed",
+        "voided",
+      ],
       redemption_status: [
         "requested",
         "approved",

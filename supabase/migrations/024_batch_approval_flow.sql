@@ -1,0 +1,249 @@
+-- 024_batch_approval_flow.sql — Sprint 9R (customer meeting 2026-09-21, wiki/14 §3 N6)
+--
+-- ขั้นตอนใหม่: previewed → pending_approval → committed
+--   Maker/บัญชี "ส่งให้ผู้อนุมัติ" (submit) · ผู้อนุมัติ "อนุมัติ" (commit) แต้มจึงเข้า
+--   ไม่มีทางลัดจาก previewed ไป committed (ลูกค้าระบุ "ไม่ auto-approve")
+--
+-- 1. enum batch_status เพิ่มค่า 'pending_approval'
+-- 2. point_batches เพิ่ม submitted_by / submitted_at (คู่กันเสมอ เหมือน committed_*)
+--    ไม่เพิ่ม approved_by/approved_at — committed_by/committed_at ของ 019/020 คือคนอนุมัติอยู่แล้ว
+-- 3. permission ใหม่ batches.approve → super_admin + manager
+--    ถอด batches.commit ออกจาก accounting (บัญชีส่งได้ แต่ปล่อยแต้มเองไม่ได้อีก)
+-- 4. award_points_from_batch v4 — เหมือน 020 ทุกอย่าง ยกเว้นรับเฉพาะ status = 'pending_approval'
+-- 5. void_batch v3 — ยกเลิกได้จาก pending_approval ด้วย (ปฏิเสธก่อนแต้มเข้า ไม่มี ledger ให้คืน)
+--
+-- ⚠️ ALTER TYPE ... ADD VALUE ใช้ค่าใหม่ใน DML ของ transaction เดียวกันไม่ได้
+--    ไฟล์นี้ไม่มี DML ที่อ้าง 'pending_approval' (function body ตรวจตอนรัน ไม่ใช่ตอนสร้าง)
+--    ถ้า SQL Editor ฟ้อง "unsafe use of new value" ให้รันบรรทัด ALTER TYPE แยกก่อน แล้วรันที่เหลือ
+
+-- ===========================================================================
+-- 1. enum
+-- ===========================================================================
+ALTER TYPE batch_status ADD VALUE IF NOT EXISTS 'pending_approval' AFTER 'previewed';
+
+-- ===========================================================================
+-- 2. point_batches.submitted_by / submitted_at
+-- ===========================================================================
+ALTER TABLE point_batches
+  ADD COLUMN submitted_by uuid REFERENCES admin_users(id) ON DELETE RESTRICT, -- ห้ามลบคนที่ส่งชุดเข้าคิวอนุมัติ
+  ADD COLUMN submitted_at timestamptz;
+
+ALTER TABLE point_batches
+  ADD CONSTRAINT point_batches_submit_actor CHECK (
+    (submitted_at IS NULL AND submitted_by IS NULL)
+    OR (submitted_at IS NOT NULL AND submitted_by IS NOT NULL)
+  );
+
+CREATE INDEX point_batches_submitted_by_idx ON point_batches (submitted_by, submitted_at);
+
+-- ===========================================================================
+-- 3. permission batches.approve
+-- ===========================================================================
+INSERT INTO admin_permissions (permission_key, category, display_name) VALUES
+  ('batches.approve', 'batches', 'อนุมัติ batch (แต้มเข้า)')
+ON CONFLICT (permission_key) DO NOTHING;
+
+INSERT INTO admin_role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM admin_roles r JOIN admin_permissions p ON true
+WHERE r.name IN ('super_admin', 'manager')
+  AND p.permission_key = 'batches.approve'
+ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+-- accounting: ส่งได้ (batches.upload) แต่ปล่อยแต้มเองไม่ได้อีก
+DELETE FROM admin_role_permissions rp
+USING admin_roles r, admin_permissions p
+WHERE rp.role_id = r.id AND rp.permission_id = p.id
+  AND r.name = 'accounting' AND p.permission_key = 'batches.commit';
+
+-- ===========================================================================
+-- 4. award_points_from_batch v4 — รับเฉพาะ pending_approval
+-- ===========================================================================
+CREATE OR REPLACE FUNCTION award_points_from_batch(p_batch_id uuid, p_admin uuid)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_batch         point_batches%ROWTYPE;
+  v_row           jsonb;
+  v_user_id       uuid;
+  v_points        integer;
+  v_purchase_date date;
+  v_bill_no       text;
+  v_sales_rep_id  uuid;
+  v_campaign_id   uuid;
+  v_multiplier    numeric;
+  v_expected_mult numeric;
+  v_earned_month  date;
+  v_expires_at    date;
+  v_new_balance   integer;
+  v_total         integer := 0;
+BEGIN
+  PERFORM 1 FROM admin_users WHERE id = p_admin AND is_active;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'admin % not found or inactive (cannot commit batch %)', p_admin, p_batch_id;
+  END IF;
+
+  SELECT * INTO v_batch FROM point_batches WHERE id = p_batch_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'batch % not found', p_batch_id; END IF;
+  -- v4: แต้มเข้าได้เฉพาะชุดที่ถูกส่งให้ผู้อนุมัติแล้วเท่านั้น (previewed ตรง ๆ ไม่ได้)
+  IF v_batch.status <> 'pending_approval' THEN
+    RAISE EXCEPTION 'batch % is % (must be pending_approval to commit)', p_batch_id, v_batch.status;
+  END IF;
+
+  FOR v_row IN
+    SELECT e FROM jsonb_array_elements(v_batch.raw_rows) e
+    -- duplicate_amount = ยอดซ้ำในไฟล์ที่ parser เตือนไว้ (Sprint 9R A4) — ผู้อนุมัติเห็นแล้วกดอนุมัติ จึงให้แต้มเหมือน valid
+    WHERE e->>'status' IN ('valid', 'duplicate_amount')
+    ORDER BY e->>'user_id'
+  LOOP
+    v_user_id       := (v_row->>'user_id')::uuid;
+    v_points        := (v_row->>'points')::integer;
+    v_purchase_date := (v_row->>'purchase_date')::date;
+    v_bill_no       := btrim(v_row->>'bill_no');
+    v_sales_rep_id  := (v_row->>'sales_rep_id')::uuid;
+    v_campaign_id   := NULLIF(v_row->>'campaign_id', '')::uuid;
+    v_multiplier    := COALESCE((v_row->>'multiplier')::numeric, 1);
+
+    IF v_points IS NULL OR v_points <= 0 THEN
+      RAISE EXCEPTION 'invalid points for user % in batch %', v_user_id, p_batch_id;
+    END IF;
+    IF v_purchase_date IS NULL OR v_bill_no IS NULL OR v_bill_no = '' OR v_sales_rep_id IS NULL THEN
+      RAISE EXCEPTION 'row for user % in batch % missing purchase_date/bill_no/sales_rep_id',
+        v_user_id, p_batch_id;
+    END IF;
+
+    IF v_purchase_date < v_batch.week_start OR v_purchase_date > v_batch.week_end THEN
+      RAISE EXCEPTION 'purchase_date % outside batch week %..% (user %)',
+        v_purchase_date, v_batch.week_start, v_batch.week_end, v_user_id;
+    END IF;
+
+    PERFORM 1 FROM sales_reps WHERE id = v_sales_rep_id;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'sales_rep % not found (batch %)', v_sales_rep_id, p_batch_id;
+    END IF;
+
+    SELECT c.multiplier INTO v_expected_mult
+      FROM point_campaigns c
+      WHERE c.is_active
+        AND v_purchase_date BETWEEN c.starts_on AND c.ends_on;
+    v_expected_mult := COALESCE(v_expected_mult, 1);
+
+    IF v_campaign_id IS NOT NULL THEN
+      PERFORM 1 FROM point_campaigns c
+        WHERE c.id = v_campaign_id AND c.is_active
+          AND v_purchase_date BETWEEN c.starts_on AND c.ends_on;
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'campaign % no longer active/covering % — re-preview batch %',
+          v_campaign_id, v_purchase_date, p_batch_id;
+      END IF;
+    END IF;
+
+    IF v_multiplier <> v_expected_mult THEN
+      RAISE EXCEPTION 'multiplier % does not match campaign multiplier % for % — re-preview batch %',
+        v_multiplier, v_expected_mult, v_purchase_date, p_batch_id;
+    END IF;
+
+    -- (024 ยังยึดเดือนที่ซื้อ · 025 เปลี่ยนฐานเป็นวันที่อนุมัติตาม Q4)
+    v_earned_month := date_trunc('month', v_purchase_date)::date;
+    v_expires_at   := ((v_earned_month + interval '1 month')::date - 1) + 365;
+
+    PERFORM 1 FROM user_profiles WHERE id = v_user_id FOR UPDATE;
+
+    INSERT INTO point_batch_ledger (
+      user_id, source_batch_id, source, points_earned, points_remaining,
+      earned_month, expires_at, gross_amount, discount_amount, net_amount,
+      purchase_date, bill_no, sales_rep_id, campaign_id, multiplier
+    ) VALUES (
+      v_user_id, p_batch_id, 'batch', v_points, v_points,
+      v_earned_month, v_expires_at,
+      (v_row->>'gross')::numeric, (v_row->>'discount')::numeric, (v_row->>'net')::numeric,
+      v_purchase_date, v_bill_no, v_sales_rep_id, v_campaign_id, v_multiplier
+    );
+
+    UPDATE user_profiles
+      SET points_balance = points_balance + v_points, updated_at = now()
+      WHERE id = v_user_id
+      RETURNING points_balance INTO v_new_balance;
+
+    INSERT INTO point_transactions (
+      user_id, type, points, balance_after, source, source_batch_id, created_by, description
+    ) VALUES (
+      v_user_id, 'earned', v_points, v_new_balance, 'batch', p_batch_id, p_admin,
+      'Batch award · bill ' || v_bill_no
+    );
+
+    v_total := v_total + v_points;
+  END LOOP;
+
+  UPDATE point_batches
+    SET status = 'committed', committed_at = now(), committed_by = p_admin, total_points = v_total
+    WHERE id = p_batch_id;
+
+  RETURN v_total;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION award_points_from_batch(uuid, uuid)    FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION award_points_from_batch(uuid, uuid) TO service_role;
+
+-- ===========================================================================
+-- 5. void_batch v3 — ยกเลิกได้ทั้ง committed (คืนแต้ม) และ pending_approval (ปฏิเสธก่อนแต้มเข้า)
+-- ===========================================================================
+CREATE OR REPLACE FUNCTION void_batch(p_batch_id uuid, p_admin uuid, p_reason text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_batch       point_batches%ROWTYPE;
+  v_lot         point_batch_ledger%ROWTYPE;
+  v_new_balance integer;
+BEGIN
+  SELECT * INTO v_batch FROM point_batches WHERE id = p_batch_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'batch % not found', p_batch_id; END IF;
+
+  IF v_batch.status = 'pending_approval' THEN
+    -- ยังไม่มีแต้มเข้า ไม่มี ledger → แค่ปิดชุดพร้อมบันทึกคน/เหตุผล
+    UPDATE point_batches
+      SET status = 'voided', voided_by = p_admin, voided_at = now(), void_reason = p_reason
+      WHERE id = p_batch_id;
+    RETURN;
+  END IF;
+
+  IF v_batch.status <> 'committed' THEN
+    RAISE EXCEPTION 'batch % is % (only committed or pending_approval can be voided)', p_batch_id, v_batch.status;
+  END IF;
+
+  FOR v_lot IN
+    SELECT * FROM point_batch_ledger
+    WHERE source_batch_id = p_batch_id AND points_remaining > 0
+    ORDER BY user_id
+  LOOP
+    PERFORM 1 FROM user_profiles WHERE id = v_lot.user_id FOR UPDATE;
+
+    UPDATE point_batch_ledger SET points_remaining = 0 WHERE id = v_lot.id;
+
+    UPDATE user_profiles
+      SET points_balance = points_balance - v_lot.points_remaining, updated_at = now()
+      WHERE id = v_lot.user_id
+      RETURNING points_balance INTO v_new_balance;
+
+    INSERT INTO point_transactions (user_id, type, points, balance_after, source, source_batch_id, created_by, description)
+    VALUES (v_lot.user_id, 'refund', -v_lot.points_remaining, v_new_balance, 'batch', p_batch_id, p_admin,
+            'Batch voided: ' || COALESCE(p_reason, ''));
+  END LOOP;
+
+  UPDATE point_batch_ledger SET voided = true
+    WHERE source_batch_id = p_batch_id AND NOT voided;
+
+  UPDATE point_batches
+    SET status = 'voided', voided_by = p_admin, voided_at = now(), void_reason = p_reason
+    WHERE id = p_batch_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION void_batch(uuid, uuid, text)     FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION void_batch(uuid, uuid, text)  TO service_role;

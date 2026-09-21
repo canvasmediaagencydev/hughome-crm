@@ -61,12 +61,14 @@ function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-28">
       {/* Header Section */}
       <HeaderSection
         firstName={userData.first_name}
         lastName={userData.last_name}
         userRole={userData.role}
+        customerCode={userData.customer_code ?? null}
+        createdAt={userData.created_at ?? null}
       />
 
       {/* Status Card */}
@@ -80,8 +82,8 @@ function DashboardPage() {
       {/* Quick Actions */}
       <QuickActions />
 
-      {/* Points are added automatically from in-store purchases (new flow) */}
-      <div className="flex justify-center items-center py-8 px-4">
+      {/* แต้มเข้าอัตโนมัติจากยอดซื้อหน้าร้าน (ผ่านไฟล์ยอดขายที่ผู้อนุมัติกดอนุมัติ) */}
+      <div className="flex justify-center items-center py-6 px-4">
         <div className="text-center space-y-2">
           <p className="text-gray-600 text-sm font-medium">สะสมคะแนนอัตโนมัติ</p>
           <p className="text-gray-400 text-xs">

@@ -39,6 +39,10 @@ export interface UserData {
   picture_url: string | null
   points_balance: number
   next_expiry?: NextExpiry | null
+  /** รหัสลูกค้า (Sprint 9R A1) — null = ยังไม่กำหนดรหัส */
+  customer_code?: string | null
+  /** วันที่สมัคร (ISO) */
+  created_at?: string | null
   displayName?: string
   pictureUrl?: string
   role?: string

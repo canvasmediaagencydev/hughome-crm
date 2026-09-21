@@ -1,13 +1,17 @@
 import { memo } from 'react'
-import { IoSparkles, IoGift } from "react-icons/io5"
+import { bangkokDateOf, formatThaiDate } from '@/lib/bangkok-date'
 
 interface HeaderSectionProps {
   firstName?: string
   lastName?: string
   userRole?: string
+  /** รหัสลูกค้า — null = ยังไม่กำหนดรหัส (Sprint 9R A1 · ไม่ generate เองจนกว่า Q1 จะตอบ) */
+  customerCode?: string | null
+  /** วันที่สมัคร (ISO) */
+  createdAt?: string | null
 }
 
-export const HeaderSection = memo(({ firstName, lastName, userRole }: HeaderSectionProps) => {
+export const HeaderSection = memo(({ firstName, lastName, userRole, customerCode, createdAt }: HeaderSectionProps) => {
   const getGreeting = () => {
     const hour = new Date().getHours()
     if (hour < 12) return 'สวัสดีตอนเช้า'
@@ -46,7 +50,7 @@ export const HeaderSection = memo(({ firstName, lastName, userRole }: HeaderSect
         <div className="space-y-3">
           <p className="text-white/80 text-sm font-medium">{getGreeting()}</p>
           <div className="flex items-center gap-3 flex-wrap">
-            <h2 className="text-white font-bold text-3xl leading-tight">
+            <h2 className="text-white font-bold text-3xl leading-tight break-words min-w-0">
               {getFullName()}
             </h2>
             <div className="inline-flex items-center bg-white/15 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20">
@@ -54,6 +58,16 @@ export const HeaderSection = memo(({ firstName, lastName, userRole }: HeaderSect
                 {getRoleText(userRole)}
               </span>
             </div>
+          </div>
+          {/* รหัสลูกค้า + วันที่สมัคร — ลูกค้าใช้บอก Maker ตอนซื้อ (คอลัมน์ A ของไฟล์ยอดขาย) */}
+          <div className="flex items-center gap-x-3 gap-y-1 flex-wrap text-white/85 text-xs">
+            <span>
+              รหัสลูกค้า:{' '}
+              <span className={customerCode ? 'font-mono font-semibold text-white text-sm tracking-wide' : 'italic text-white/70'}>
+                {customerCode ?? 'ยังไม่กำหนดรหัส'}
+              </span>
+            </span>
+            {bangkokDateOf(createdAt) && <span>สมาชิกตั้งแต่ {formatThaiDate(bangkokDateOf(createdAt) as string)}</span>}
           </div>
         </div>
       </div>

@@ -49,9 +49,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     if (error) {
       console.error('[sales-reps] update failed:', error)
-      return NextResponse.json({ error: 'แก้ไขพนักงานขายไม่สำเร็จ' }, { status: 500 })
+      return NextResponse.json({ error: 'แก้ไข Maker ไม่สำเร็จ' }, { status: 500 })
     }
-    if (!data) return NextResponse.json({ error: 'ไม่พบพนักงานขายคนนี้' }, { status: 404 })
+    if (!data) return NextResponse.json({ error: 'ไม่พบ Maker คนนี้' }, { status: 404 })
 
     return NextResponse.json(data)
   } catch (error) {
@@ -59,6 +59,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (message.startsWith('Unauthorized')) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     if (message.startsWith('Forbidden')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     console.error('[sales-reps] unexpected:', error)
-    return NextResponse.json({ error: 'แก้ไขพนักงานขายไม่สำเร็จ' }, { status: 500 })
+    return NextResponse.json({ error: 'แก้ไข Maker ไม่สำเร็จ' }, { status: 500 })
   }
 }

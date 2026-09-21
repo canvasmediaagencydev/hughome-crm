@@ -15,7 +15,7 @@ export async function POST(): Promise<NextResponse> {
     const supabase = createServerSupabaseClient()
     const query = supabase
       .from('user_profiles')
-      .select('id, points_balance, first_name, last_name, picture_url, role, phone')
+      .select('id, points_balance, first_name, last_name, picture_url, role, phone, customer_code, created_at')
     const { data: userProfile, error } = session.uid
       ? await query.eq('id', session.uid).maybeSingle()
       : await query.eq('line_user_id', session.line_user_id).maybeSingle()
@@ -27,7 +27,7 @@ export async function POST(): Promise<NextResponse> {
       // Logged in but no profile yet (pre-onboarding)
       return NextResponse.json({
         success: true,
-        updates: { points_balance: 0, next_expiry: null, first_name: '', last_name: '', picture_url: null, is_onboarded: false },
+        updates: { points_balance: 0, next_expiry: null, first_name: '', last_name: '', picture_url: null, is_onboarded: false, customer_code: null, created_at: null },
       })
     }
 
@@ -55,6 +55,8 @@ export async function POST(): Promise<NextResponse> {
         last_name: userProfile.last_name || '',
         picture_url: userProfile.picture_url || null,
         is_onboarded: isUserOnboarded(userProfile),
+        customer_code: userProfile.customer_code ?? null,
+        created_at: userProfile.created_at ?? null,
       },
     })
   } catch (error) {

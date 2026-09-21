@@ -13,11 +13,13 @@ delivered through LINE. Customers are contractors (`ผู้รับเหม�
 **The core loop:**
 
 ```
-[Sales staff]  fill a weekly Excel sheet (purchase date, bill no, customer phone, amount, salesperson)
-[Accounting]   upload the .xlsx to the admin back office, pick the week, review the preview, confirm
-[System]       normalize phone, match customer, find the campaign multiplier by purchase date,
-               compute points, write the ledger, update balance, push a LINE message
-[Manager]      spot-check the weekly report against real bills; void the whole batch if wrong
+[Maker]        fill a weekly Excel sheet (customer code, purchase date, bill no, customer phone, amount, Maker)
+               — "Maker" is the customer's word for sales staff (2026-09-21); table/role names unchanged
+[Accounting]   upload the .xlsx to the admin back office, pick the week, review the preview, SUBMIT
+[Approver]     (manager, `batches.approve`) review the pending batch, approve → points enter, or reject
+[System]       normalize phone, match customer (code is a cross-check warning), find the campaign
+               multiplier by purchase date, compute points, write the ledger, update balance, push LINE
+[Manager]      download the weekly batch report (with bill numbers), void ("Rollback") the whole batch if wrong
 [Customer]     opens LIFF, sees balance + next expiry, redeems a reward, picks it up in store
 ```
 
@@ -38,8 +40,13 @@ If you find a doc or comment mentioning receipts/OCR, it is stale — trust the 
    control the multiplier, and must not be able to claim the same bill twice.
 3. **Nothing silently half-happens.** A batch either awards every valid row or awards none.
 4. **Customers get told.** Points in, expiry warning, birthday — via LINE push.
-5. **Points expire fairly.** Step-wise expiry: each award is its own lot with its own expiry date
-   (last day of the purchase month + 365 days), deducted FIFO when redeeming.
+5. **Points expire fairly.** Step-wise expiry: each award is its own lot with its own expiry date,
+   deducted FIFO when redeeming. **Since migration `025` (Q4 confirmed 2026-09-21): expiry = the day
+   the approver released the batch + 365 days** (`earned_month` = approval month). Lots issued before
+   `025` keep the older "last day of purchase month + 365" date. The purchase date still decides the
+   campaign multiplier and the week check.
+6. **Points enter only after an approver clicks.** Accounting uploads and submits; a `manager` with
+   `batches.approve` approves (migration `024`). No path from `previewed` straight to `committed`.
 
 ### Engineering objectives
 1. **No silent fallbacks.** Missing config throws at boot. Never `|| ''`, never a default tenant code,
@@ -64,9 +71,10 @@ If you find a doc or comment mentioning receipts/OCR, it is stale — trust the 
 |---|---|
 | Branch | `pilot-phase1` → Vercel production https://pilot-phase1.vercel.app (Sprint 6–8 pushed 2026-09-14 as `784603a`; Vercel account on Pro) |
 | Supabase | pilot project `vltzkxmblmrvsmaookhl` (`hughome-pilot`, org of `canvasmediaagency@gmail.com`, Tokyo), `app_config.tenant_code = 'pilot'` · replaced `zoaxqouayhjkyterzzdt` on 2026-09-14 — see `wiki/07` |
-| Migrations | `001`–`023`, all applied to pilot (`023` applied 2026-09-14 via SQL Editor — Sprint 8: pickup_code in `redeem_reward`, `notification_channels.last_sent_at/updated_at`) |
-| Sprints done | 0 – 8 (Sprint 5 minus `POST /:id/review` and `GET /:id`) · Sprint 8 code done 2026-09-14, `023` applied, needs `NOTIFY_TOKEN_KEY` on Vercel + `wiki/13` §7b click-through |
-| Sprints left | 9 (user UI + reports + demo data) |
+| Migrations | `001`–`025` all applied to pilot (`024` + `025` on 2026-09-21 via SQL Editor; `verify-schema.js` 22/22, `verify-types.js` clean, `e2e-batch-flow.js` 35/35) |
+| Sprints done | 0 – 8 · **9R code + DB done 2026-09-21** (uncommitted, not deployed) · Sprint 5 leftover `GET /:id` done in 9R, `POST /:id/review` on hold (Q12) |
+| Sprints left | 9R finish (apply, e2e, `wiki/13` §10–11, push) · 10–11 — see `wiki/09` Remaining · open questions Q1 Q2 Q3 Q6–Q12 in `wiki/14` §4 |
+| Customer requirements | **`wiki/14-customer-meeting-2026-09-delta.md`** — Q4 (expiry base) **confirmed** and Q5 (Excel v2) **approved** 2026-09-21, both built; Q1 Q2 Q3 Q6–Q12 still open and the code takes the defaults named there |
 | Rehearsal | `wiki/13` §1–6 + 8.3 clicked on production 2026-09-14 — money path clean; §7 (phone/LIFF) and clean-up §9 still open. Findings: `wiki/09` Open debt |
 
 Living status: **`wiki/09-status-and-roadmap.md`** and `docs/PHASE1_STATUS.md`.
@@ -86,13 +94,16 @@ These come from `docs/PROMPTS.md` and have been enforced all along.
 - **Never touch `.env.local`.** It holds live pilot credentials.
 - **Never run a migration or write to Supabase without asking first.** Write the `.sql` file, hand it
   over to be pasted into the SQL Editor.
-- **Never edit an applied migration** (`001`–`023`). New change = new file.
+- **Never edit an applied migration** (`001`–`025`). New change = new file.
 - **Never `npm install` / `uninstall` without asking.**
 - **Never `git commit` or `git push` unless explicitly told to.**
 - **Never put a real phone number or a real person's name in the repo.**
 - **Do not change `src/lib/excel/sales-columns.json` without asking.** Sales staff hold templates
-  built from that spec; changing it mid-week invalidates sheets already filled in.
+  built from that spec; changing it mid-week invalidates sheets already filled in. (v2 — 9 columns,
+  `รหัสลูกค้า` first, header `Maker` — was approved by the customer on 2026-09-21 before any real sheet
+  was issued.)
 - **Business decisions stop the work.** If something requires a business call, ask; do not guess.
+  The open ones are numbered in `wiki/14` §4 (Q1–Q12); refer to them by number.
 - **If `MIGRATION_PLAN.md` contradicts the code, stop and report.** Do not silently rewrite the plan.
 - **Stay inside the current sprint's scope.**
 
@@ -126,6 +137,10 @@ node scripts/verify-demo-batch.js        # demo file vs hand-computed points
 node scripts/verify-demo-ready.js        # is the pilot DB ready to demo (reads live DB)
 node scripts/e2e-batch-flow.js           # ⚠️ WRITES to the DB — creates its own throwaway
                                          #    customer, then deletes everything it made
+                                         #    9R: previewed → submit → approve → dup → rollback → reject
+                                         #    needs migrations 024 + 025 applied
+node scripts/build-sample-reports.js [--from-db]  # docs/demo/sample_customers_export.xlsx +
+                                         #    sample_batch_report.xlsx (fake names always)
 node scripts/e2e-points-invariant.js --yes  # ⚠️ WRITES — balance == SUM(ledger) after adjust/redeem/
                                          #    expire/cancel; runs expire_ledger_batches(today) for real
 node scripts/verify-cron-auth.js <base-url> # every cron + /api/admin/quota returns 401 unauthenticated
@@ -160,7 +175,10 @@ npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts 
 | `src/lib/excel/sales-columns.json` | **Single source of truth** for the Excel column spec. Both the plain-JS generator and the TS parser read it. Never redeclare headers anywhere else. |
 | `src/lib/excel/parse-sales-batch.ts` | The parser. Pure — takes a Buffer plus lookups, returns rows. No DB access, so it is testable offline. |
 | `src/lib/excel/build-template.js` | Template builder, CommonJS so both the CLI script and the API route use one implementation. |
-| `src/app/api/admin/batches/*` | upload (preview) · commit · void · list · template |
+| `src/lib/excel/build-reports.js` | Both Excel reports (customer export without bill numbers · weekly batch report with them), CommonJS, shared by the routes and `scripts/build-sample-reports.js`. |
+| `src/app/api/admin/batches/*` | upload (preview) · `[id]` detail with rows · `[id]/submit` (→ pending_approval) · `[id]/commit` (= approve, `batches.approve`) · `[id]/void` (reject or rollback) · list · template |
+| `src/app/api/admin/reports/*` | `users/excel` customer export · `batches/[id]/excel` weekly batch report |
+| `src/lib/dashboard-metrics.ts` | The `/admin` numbers with `?from=&to=` (Bangkok dates); shared by `dashboard/metrics` and `dashboard/all` |
 | `src/app/api/cron/*` | 4 crons per `MIGRATION_PLAN.md` §6.3; all gated by `verifyCronRequest`; money moves only via RPC; `reconcile-balances` is read-only and returns 500 on drift so Vercel flags the run |
 | `src/lib/notification-log.ts`, `src/lib/line-quota.ts` | LINE push dedupe (`notification_log`) · LINE quota cache (15 min) |
 | `src/lib/redemption-status.ts` | The 4-status model (`requested → approved → ready → delivered`, `cancelled`), labels, `NEXT_STATUS`, pickup-code format. Client- and server-safe. |
@@ -203,8 +221,13 @@ npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts 
   to save or send a Telegram channel without it throws — no plaintext fallback.
 - The original pilot project `zoaxqouayhjkyterzzdt` is orphaned (no known owner account) — see `wiki/07`. Never point anything at it again.
 - On a fresh Supabase project keep **"Automatically expose new tables"** on, or new tables never reach PostgREST.
-- Stale leftovers still mention receipts in `src/app/admin/page.tsx`, `src/components/StatusBadge.tsx`,
-  dashboard metrics routes, and `TESTING_GUIDE.md` / `ADMIN_RBAC_TASKS.md`.
+- Stale leftovers still mention receipts in `src/app/api/admin/analytics/route.ts`,
+  `src/app/admin/roles/page.tsx`, `src/lib/line-messaging.ts`, and `TESTING_GUIDE.md` /
+  `ADMIN_RBAC_TASKS.md` (dashboard routes, hook, tiles and `StatusBadge` were cleaned in 9R).
+- `notification_channels` rows created before 9R subscribe only to `redemption.created`; tick
+  `batch.submitted` on `/admin/notifications` or the "batch pending approval" message goes nowhere.
+- `NEXT_PUBLIC_TENANT_PHONE` / `NEXT_PUBLIC_TENANT_FB_URL` are placeholders on the pilot; `/call` and
+  `/facebook` display them verbatim.
 - A fresh Phase 2 database will `CREATE promo_codes` in `005` and `DROP` it in `015`. Harmless noise,
   kept so the migration history stays honest.
 - Operational: the new pilot admin has no working password until set via `auth.admin.updateUserById`;
@@ -224,6 +247,7 @@ npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts 
 | `wiki/08-migrations-runbook.md` | before any schema change |
 | `wiki/09-status-and-roadmap.md` | completed, remaining, locked decisions, open debt, next step |
 | `wiki/12-conflicts-and-unverified.md` | **read this when a document disagrees with the code** |
+| `wiki/14-customer-meeting-2026-09-delta.md` | the customer's latest requirements (2026-09-21) mapped onto the code, and what blocks them |
 
 `MIGRATION_PLAN.md` is the original decision record — long, and authoritative on *why*.
 

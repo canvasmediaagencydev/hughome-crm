@@ -45,9 +45,9 @@ export function UserStatistics({ metrics, loading }: UserStatisticsProps) {
           </div>
           <div className="text-center p-4 bg-slate-50 rounded-lg">
             <div className="text-2xl font-bold text-slate-900">
-              {loading ? '-' : metrics.monthlyActiveUsers.toLocaleString()}
+              {loading ? '-' : metrics.newUsersInRange.toLocaleString()}
             </div>
-            <div className="text-sm text-slate-600">ผู้สมัครเดือนนี้</div>
+            <div className="text-sm text-slate-600">สมัครใหม่ในช่วงที่เลือก</div>
           </div>
         </div>
       </CardContent>

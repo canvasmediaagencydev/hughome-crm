@@ -1,5 +1,8 @@
 /**
- * POST /api/admin/batches/:id/void — ยกเลิก batch ที่ commit ไปแล้ว คืนแต้มทั้งก้อน
+ * POST /api/admin/batches/:id/void — "ยกเลิกทั้งชุด (Rollback)"
+ *
+ *   committed        → voided  คืนแต้มทุกคนในชุด ปลดล็อกเลขบิล
+ *   pending_approval → voided  ผู้อนุมัติ "ปฏิเสธ" ก่อนแต้มเข้า (ไม่มี ledger ให้คืน · 024)
  *
  * ทำผ่าน RPC void_batch เท่านั้น (คืนแต้ม + มาร์ค voided ทุกแถวในทรานแซกชันเดียว)
  * การมาร์ค voided=true คือสิ่งที่ปลดล็อกเลขบิลให้คีย์ใหม่ได้ — ห้ามเขียน logic นี้ซ้ำที่นี่
@@ -30,8 +33,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     if (error) {
       console.error('[batches/void] rpc failed:', error)
-      if (error.message?.includes('only committed can be voided')) {
-        return NextResponse.json({ error: 'ยกเลิกได้เฉพาะ batch ที่ commit แล้วเท่านั้น' }, { status: 409 })
+      if (error.message?.includes('can be voided')) {
+        return NextResponse.json(
+          { error: 'ยกเลิกได้เฉพาะชุดที่แต้มเข้าแล้ว หรือชุดที่รอผู้อนุมัติ (ชุด previewed ให้อัปโหลดไฟล์ใหม่ทับได้เลย)' },
+          { status: 409 }
+        )
       }
       if (error.message?.includes('not found')) {
         return NextResponse.json({ error: 'ไม่พบ batch นี้' }, { status: 404 })

@@ -63,7 +63,7 @@ async function main() {
   // ---------------- 1. ข้อมูล seed ----------------
   console.log('\n[1] ข้อมูลที่ seed ลงฐาน')
   const reps = (await sb.from('sales_reps').select('*').order('code')).data ?? []
-  check('พนักงานขาย 4 คน', reps.length === 4, `ได้ ${reps.length}`)
+  check('Maker (sales_reps) 4 คน', reps.length === 4, `ได้ ${reps.length}`)
   check(
     'รหัส S01–S04 ครบและ active',
     ['S01', 'S02', 'S03', 'S04'].every((c) => reps.some((r) => r.code === c && r.is_active)),

@@ -7,8 +7,9 @@ import axios from 'axios'
 import { UserSessionManager } from '@/lib/user-session'
 import BottomNavigation from '@/components/BottomNavigation'
 import LoadingSpinner from '@/components/LoadingSpinner'
-import { FaUser, FaPhone, FaBirthdayCake } from 'react-icons/fa'
+import { FaUser, FaPhone, FaBirthdayCake, FaIdCard } from 'react-icons/fa'
 import { SiLine } from 'react-icons/si'
+import { bangkokDateOf, formatThaiDate } from '@/lib/bangkok-date'
 
 interface UserProfile {
   id: string
@@ -20,6 +21,9 @@ interface UserProfile {
   display_name: string | null
   picture_url: string | null
   birthday: string | null
+  /** Sprint 9R A1 — null = ยังไม่กำหนดรหัส */
+  customer_code: string | null
+  created_at: string | null
 }
 
 export default function ProfilePage() {
@@ -48,6 +52,8 @@ export default function ProfilePage() {
       display_name: cachedSession.user.display_name,
       picture_url: cachedSession.user.picture_url,
       birthday: cachedSession.user.birthday ?? null,
+      customer_code: cachedSession.user.customer_code ?? null,
+      created_at: cachedSession.user.created_at ?? null,
     })
     setIsLoading(false)
   }, [router])
@@ -125,7 +131,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-gray-50 pb-28">
       {/* Header Section */}
       <div className="relative bg-gradient-to-br from-red-600 via-red-500 to-orange-500 overflow-hidden">
         {/* Decorative Background */}
@@ -135,10 +141,10 @@ export default function ProfilePage() {
         </div>
 
         {/* Content */}
-        <div className="relative px-6 pt-8 pb-24">
+        <div className="relative px-6 pt-6 pb-14">
           {/* Profile Picture & Name */}
           <div className="flex flex-col items-center">
-            <div className="relative w-32 h-32 mb-4">
+            <div className="relative w-24 h-24 mb-3">
               {profile?.picture_url ? (
                 <Image
                   src={profile.picture_url}
@@ -148,12 +154,12 @@ export default function ProfilePage() {
                 />
               ) : (
                 <div className="w-full h-full rounded-full bg-white/20 flex items-center justify-center border-4 border-white/20">
-                  <FaUser className="w-16 h-16 text-white/60" />
+                  <FaUser className="w-12 h-12 text-white/60" />
                 </div>
               )}
             </div>
 
-            <h2 className="text-white font-bold text-3xl text-center mb-2">
+            <h2 className="text-white font-bold text-2xl text-center mb-2 break-words">
               {getFullName()}
             </h2>
 
@@ -174,7 +180,27 @@ export default function ProfilePage() {
       </div>
 
       {/* Info Cards */}
-      <div className="px-6 mt-16 space-y-4">
+      <div className="px-6 mt-8 space-y-4">
+        {/* Customer code + registration date (Sprint 9R A1) */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 shrink-0 bg-gradient-to-br from-slate-700 to-slate-900 rounded-xl flex items-center justify-center">
+              <FaIdCard className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-gray-500 text-xs mb-1">รหัสลูกค้า · แจ้ง Maker ตอนซื้อสินค้า</p>
+              {profile?.customer_code ? (
+                <p className="text-gray-900 font-semibold text-lg font-mono tracking-wide break-all">{profile.customer_code}</p>
+              ) : (
+                <p className="text-gray-400 italic">ยังไม่กำหนดรหัส</p>
+              )}
+              {bangkokDateOf(profile?.created_at) && (
+                <p className="text-gray-500 text-xs mt-1">สมัครเมื่อ {formatThaiDate(bangkokDateOf(profile?.created_at) as string)}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Phone Card */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <div className="flex items-center space-x-3">

@@ -143,7 +143,10 @@ export const PERMISSIONS = {
   // Batches (Excel upload)
   BATCHES_VIEW: 'batches.view',
   BATCHES_UPLOAD: 'batches.upload',
+  /** ปล่อยแต้มเข้า — ตั้งแต่ 024 route commit ใช้ batches.approve แทน (key นี้เหลือแค่ super_admin) */
   BATCHES_COMMIT: 'batches.commit',
+  /** ผู้อนุมัติ (Sprint 9R): previewed → pending_approval → committed · manager + super_admin */
+  BATCHES_APPROVE: 'batches.approve',
   BATCHES_REVIEW: 'batches.review',
   BATCHES_VOID: 'batches.void',
 
@@ -151,7 +154,7 @@ export const PERMISSIONS = {
   CAMPAIGNS_VIEW: 'campaigns.view',
   CAMPAIGNS_MANAGE: 'campaigns.manage',
 
-  // Sales reps (รายชื่อพนักงานขายที่ป้อน dropdown ในไฟล์ Excel)
+  // Sales reps (รายชื่อ Makerที่ป้อน dropdown ในไฟล์ Excel)
   SALESREPS_VIEW: 'salesreps.view',
   SALESREPS_MANAGE: 'salesreps.manage',
 

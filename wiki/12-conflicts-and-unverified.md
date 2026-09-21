@@ -50,6 +50,23 @@ Noted here because the reversal is easy to mistake for an error.
 `line-messaging.ts` keeps a `receipt_approved` notification kind that is unused by current flows.
 These were not touched — dashboard cleanup is Sprint 9.
 
+### 7. The customer's 2026-09-21 handoff vs the code — recorded, not resolved
+
+Full mapping in `wiki/14-customer-meeting-2026-09-delta.md`. The conflicts, in one place:
+
+| Customer asks | Code / locked decision says | Resolution |
+|---|---|---|
+| Points expire 365 days from the **upload** date | `earned_month` from the **purchase** date (migration 017/020, locked in `wiki/09`) | **Resolved 2026-09-21 — Q4 confirmed.** Migration `025`: expiry = approval date + 365. Old lots keep their dates |
+| Approver confirms **before** points enter; no auto-approve | accounting commits directly; manager spot-checks **after** (`batches.review`, unbuilt) | **Built 2026-09-21** — migration `024`, `pending_approval`, `batches.approve`. Q3 (who voids) and Q12 (spot-check after) still open |
+| Excel: `รหัสลูกค้า` mandatory; brief's schema has **no `วันที่ซื้อ`** | 8 columns, `วันที่ซื้อ` required — the multiplier and week check depend on it; the customer's own mock template still has it | **Resolved 2026-09-21 — Q5 approved.** 9-column v2 in `sales-columns.json`; `วันที่ซื้อ` kept; code is a cross-check warning, phone stays the key |
+| `ยอดลดหนี้` mandatory | optional, blank = 0 (parser, and the customer's own guide sheet) | Keep optional unless told otherwise (Q5) |
+| Cut "LINE API" team notification | Sprint 8 uses LINE **Messaging API** group push + Telegram, never LINE Notify | Ask which one they mean (Q6) |
+| Export report has **no bill number** | `MIGRATION_PLAN.md` §8.2 reversal (§5 above): the manager report **needs** bill numbers | Two reports: customer export (no bill) and weekly batch report (with bill). Both stand |
+| Rename "พนักงานขาย" → "Maker" everywhere | table `sales_reps`, role `sales_staff`, Excel header `พนักงานขาย` | Labels and guide sheet yes; table/role names no; Excel header only with Q5 |
+| "Rollback" with `rolled_back_by/at/reason` | `void_batch` with `voided_by/at`, `void_reason` — same thing | Naming only; no new columns |
+| Dashboard across both branches (older Meeting Pack) | one tenant per instance (`CLAUDE.md` §2 engineering objective 4) | Stays a non-goal; the newer handoff does not repeat the ask |
+| Customer ID format `HUG-YYYYMM-####` (brief) | `customer_code` is free text; the customer's mockup shows old IDs like `HH-000423` | Q1 |
+
 ## Claims that could not be verified
 
 | Claim | Status |
@@ -74,3 +91,6 @@ about 300 KB, so nothing has hit this.
 
 **Should the `005` create / `015` drop of `promo_codes` be squashed for Phase 2?** Deferred to when
 Phase 2 begins.
+
+**The twelve customer questions from 2026-09-21** — `wiki/14` §4, Q1–Q12. Q4 (expiry base), Q5 (Excel
+v2) and Q3/Q12 (approval step) block Sprint 9 batch work; the rest can be answered during it.

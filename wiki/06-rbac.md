@@ -35,7 +35,7 @@ users.view / edit / manage_points / manage_notes / manage_tags
 tags.view / manage
 rewards.view / create / edit / delete
 redemptions.view / process / deliver
-batches.view / upload / commit / review / void
+batches.view / upload / commit / approve / review / void   ← approve new in migration 024 (Sprint 9R)
 campaigns.view / manage        ← replaced promos.* in migration 018
 salesreps.view / manage        ← new in migration 018
 notifications.manage
@@ -52,14 +52,18 @@ There are no `receipts.*` permissions. That flow is deleted.
 | Role | Permissions |
 |---|---|
 | `super_admin` | everything |
-| `manager` | `dashboard.view`, `reports.view`, `batches.view/review/void`, `redemptions.*`, `users.view`, `campaigns.view`, `salesreps.view` |
-| `accounting` | `batches.view/upload/commit`, `campaigns.view`, `salesreps.view/manage`, `users.view` |
+| `manager` | `dashboard.view`, `reports.view`, `batches.view/approve/review/void`, `redemptions.*`, `users.view`, `campaigns.view`, `salesreps.view` — the **Approver** |
+| `accounting` | `batches.view/upload`, `campaigns.view`, `salesreps.view/manage`, `users.view` — `batches.commit` **removed in 024**: accounting submits, the approver releases points |
 | `sales_staff` | `sales.entry`, `users.view` — reserved; real salespeople have no login |
 | `reward_manager` | `rewards.*`, `redemptions.view/process/deliver` |
 | `customer_support` | `users.view/edit/manage_notes`, `redemptions.view` |
 
 `accounting` deliberately **cannot** manage campaigns — see
 [05 — Security & anti-fraud](05-security-and-anti-fraud.md).
+
+`batches.commit` still exists as a key (super_admin only) but no route checks it any more —
+`POST /api/admin/batches/:id/commit` requires `batches.approve`. `batches.review` (post-approval
+spot-check) is unassigned to any route until Q12 is answered.
 
 Note the name collision hazard: `sales_staff` is an `admin_roles.name` value, which is why the
 salesperson table is called `sales_reps`.

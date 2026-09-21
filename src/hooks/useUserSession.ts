@@ -20,6 +20,8 @@ export function useUserSession(): UseUserSessionResult {
     picture_url: user.picture_url || user.pictureUrl,
     points_balance: user.points_balance || 0,
     next_expiry: user.next_expiry ?? null,
+    customer_code: user.customer_code ?? null,
+    created_at: user.created_at ?? null,
     displayName: user.displayName || user.display_name || `${user.first_name || ''} ${user.last_name || ''}`.trim(),
     pictureUrl: user.pictureUrl || user.picture_url,
     role: user.role || user.user_role

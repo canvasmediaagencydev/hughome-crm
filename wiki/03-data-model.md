@@ -49,13 +49,17 @@ system — actually releasing points — had no accountable name.
 
 `raw_rows` (jsonb) stores the parsed preview so that commit does not re-parse the file.
 A unique index on `file_sha256` where `status <> 'voided'` blocks re-uploading the same file.
+`status` is `batch_status`: `draft · previewed · pending_approval (024) · committed · voided`.
+`submitted_by / submitted_at` (024) name who sent the batch to the approver; `committed_by /
+committed_at` are the approver. Both pairs have a CHECK that they are set together.
 
 **`point_batch_ledger`** — the heart of step-wise expiry. One lot per Excel row.
 
 ```
 points_earned / points_remaining   FIFO deduction happens against points_remaining
-earned_month                       first day of the month the purchase happened
-expires_at                         last day of earned_month + 365 days
+earned_month                       first day of the month the batch was APPROVED (since 025, Q4 · before: purchase month)
+expires_at                         approval date (Asia/Bangkok) + 365 days (since 025 · before: last day of purchase month + 365)
+                                   lots issued before 025 keep their old dates — mixed rules coexist in one table
 purchase_date, bill_no, sales_rep_id, campaign_id     traceability
 voided                             set by void_batch; frees the bill number
 ```

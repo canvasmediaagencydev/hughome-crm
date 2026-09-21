@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Shield, FileText, Download, Search, Loader2, Users, HardHat, Home } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Shield, FileText, Download, Search, Loader2, Users, HardHat, Home, FileSpreadsheet } from 'lucide-react'
 import { useAdminAuth } from '@/hooks/useAdminAuth'
 import { PERMISSIONS } from '@/types/admin'
 import { Button } from '@/components/ui/button'
@@ -38,6 +38,26 @@ interface ReportResponse {
   users: UserReport[]
 }
 
+interface BatchRow {
+  id: string
+  file_name: string
+  week_start: string
+  week_end: string
+  status: 'draft' | 'previewed' | 'pending_approval' | 'committed' | 'voided'
+  valid_rows: number
+  total_rows: number
+  total_points: number
+  committed_by_name: string | null
+}
+
+const BATCH_STATUS_TEXT: Record<BatchRow['status'], string> = {
+  draft: 'ร่าง',
+  previewed: 'รอส่ง',
+  pending_approval: 'รอผู้อนุมัติ',
+  committed: 'แต้มเข้าแล้ว',
+  voided: 'ยกเลิก',
+}
+
 function formatThaiDate(dateString: string): string {
   const date = new Date(dateString)
   const buddhistYear = date.getFullYear() + 543
@@ -68,6 +88,31 @@ export default function AdminReportsPage() {
   const [reportData, setReportData] = useState<ReportResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  const [batches, setBatches] = useState<BatchRow[] | null>(null)
+  const canViewBatches = hasPermission(PERMISSIONS.BATCHES_VIEW)
+
+  // รายงานชุดยอดขาย (มีเลขบิล) — ดาวน์โหลดได้จากที่นี่ด้วย ไม่ต้องไปหน้า /admin/batches
+  useEffect(() => {
+    if (!canViewBatches) return
+    axiosAdmin
+      .get<BatchRow[]>('/api/admin/batches?limit=30')
+      .then((r) => setBatches(r.data.filter((b) => b.status !== 'draft' && b.status !== 'previewed')))
+      .catch(() => setBatches([]))
+  }, [canViewBatches])
+
+  const downloadBatchReport = async (b: BatchRow) => {
+    try {
+      const res = await axiosAdmin.get(`/api/admin/reports/batches/${b.id}/excel`, { responseType: 'blob' })
+      const url = window.URL.createObjectURL(res.data as Blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `batch_${b.week_start}_${b.week_end}.xlsx`
+      a.click()
+      window.URL.revokeObjectURL(url)
+    } catch {
+      toast.error('ดาวน์โหลดรายงานชุดไม่สำเร็จ')
+    }
+  }
 
   if (authLoading) {
     return (
@@ -134,8 +179,7 @@ export default function AdminReportsPage() {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      const roleSuffix = roleFilter !== 'all' ? `-${roleFilter}` : ''
-      a.download = `users-report-${startDate}-to-${endDate}${roleSuffix}.xlsx`
+      a.download = `customers_${startDate}_${endDate}.xlsx`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
@@ -182,7 +226,10 @@ export default function AdminReportsPage() {
             <FileText className="w-6 h-6" />
             รายงานข้อมูลลูกค้า
           </h1>
-          <p className="text-slate-600 mt-1">ดึงข้อมูลลูกค้าตามช่วงเวลาที่กำหนด</p>
+          <p className="text-slate-600 mt-1">
+            ตาราง = ลูกค้าที่สมัครในช่วง · ไฟล์ Excel = ลูกค้าทุกคน 1 แถวต่อคน (รหัส, เบอร์ 10 หลัก, แต้ม, แต้มที่จะหมดอายุ,
+            ยอดซื้อสุทธิ + จำนวนบิลในช่วงที่เลือก, แท็ก) — ไม่มีเลขที่บิล
+          </p>
         </div>
 
         {/* Filter Card */}
@@ -380,6 +427,54 @@ export default function AdminReportsPage() {
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-16 text-center">
             <Search className="w-12 h-12 text-slate-300 mx-auto mb-3" />
             <p className="text-slate-500">เลือกช่วงเวลาแล้วกด "ค้นหา" เพื่อดูรายงาน</p>
+          </div>
+        )}
+
+        {/* รายงานชุดยอดขาย (สำหรับผู้อนุมัติ · มีเลขที่บิล) */}
+        {canViewBatches && (
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 mt-6">
+            <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5" /> รายงานชุดยอดขายรายสัปดาห์
+            </h2>
+            <p className="text-sm text-slate-600 mt-1 mb-4">
+              1 แถว = 1 บิล · มีเลขที่บิล, Maker และสาขา สำหรับผู้อนุมัติ/ผู้จัดการเทียบกับบิลกระดาษ · ห้ามส่งต่อภายนอก
+            </p>
+            {batches === null ? (
+              <p className="text-slate-400 text-sm">กำลังโหลด…</p>
+            ) : batches.length === 0 ? (
+              <p className="text-slate-400 text-sm">ยังไม่มีชุดที่ส่งให้ผู้อนุมัติหรือแต้มเข้าแล้ว</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>สัปดาห์</TableHead>
+                    <TableHead>ไฟล์</TableHead>
+                    <TableHead>สถานะ</TableHead>
+                    <TableHead className="text-right">บิล</TableHead>
+                    <TableHead className="text-right">แต้ม</TableHead>
+                    <TableHead>อนุมัติโดย</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {batches.map((b) => (
+                    <TableRow key={b.id}>
+                      <TableCell className="whitespace-nowrap">{b.week_start} → {b.week_end}</TableCell>
+                      <TableCell className="max-w-[16rem] truncate">{b.file_name}</TableCell>
+                      <TableCell>{BATCH_STATUS_TEXT[b.status]}</TableCell>
+                      <TableCell className="text-right">{b.valid_rows}/{b.total_rows}</TableCell>
+                      <TableCell className="text-right">{b.total_points.toLocaleString()}</TableCell>
+                      <TableCell>{b.committed_by_name ?? '—'}</TableCell>
+                      <TableCell>
+                        <Button size="sm" variant="outline" onClick={() => downloadBatchReport(b)}>
+                          <Download className="w-3.5 h-3.5 mr-1" /> Excel
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </div>
         )}
       </div>

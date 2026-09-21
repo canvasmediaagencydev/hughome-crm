@@ -1,5 +1,5 @@
 /**
- * GET /api/admin/batches/template — ดาวน์โหลด Excel template สำหรับพนักงานขาย
+ * GET /api/admin/batches/template — ดาวน์โหลด Excel template สำหรับ Maker
  *
  * ⚠️ generate สดทุกครั้ง ห้าม serve ไฟล์ static ใน docs/
  *    dropdown ต้องเป็นรายชื่อ sales_reps ที่ is_active=true "ณ ตอนนี้"
@@ -26,11 +26,11 @@ export async function GET() {
 
     if (error) {
       console.error('[batches/template] lookup failed:', error)
-      return NextResponse.json({ error: 'ดึงรายชื่อพนักงานขายไม่สำเร็จ' }, { status: 500 })
+      return NextResponse.json({ error: 'ดึงรายชื่อ Maker ไม่สำเร็จ' }, { status: 500 })
     }
     if (!reps || reps.length === 0) {
       return NextResponse.json(
-        { error: 'ยังไม่มีพนักงานขายที่เปิดใช้งาน — เพิ่มรายชื่อที่หน้า "พนักงานขาย" ก่อนดาวน์โหลด template' },
+        { error: 'ยังไม่มี Maker ที่เปิดใช้งาน — เพิ่มรายชื่อที่หน้า "Maker" ก่อนดาวน์โหลด template' },
         { status: 409 }
       )
     }

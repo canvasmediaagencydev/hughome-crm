@@ -70,6 +70,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         phone: existingUser?.phone ?? null,
         is_onboarded: onboarded,
         points_balance: existingUser?.points_balance ?? 0,
+        // Sprint 9R A1: ลูกค้าเห็นรหัสตัวเอง + วันที่สมัคร (null = ยังไม่กำหนดรหัส · ไม่ generate เอง — Q1)
+        customer_code: existingUser?.customer_code ?? null,
+        created_at: existingUser?.created_at ?? null,
       },
     })
   } catch (error) {

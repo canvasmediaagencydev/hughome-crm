@@ -1,5 +1,5 @@
 /**
- * ตรวจว่า migration 013–023 ขึ้นครบบน Supabase หรือยัง
+ * ตรวจว่า migration 013–025 ขึ้นครบบน Supabase หรือยัง
  *
  *   node scripts/verify-schema.js
  *
@@ -75,7 +75,8 @@ async function main() {
 
   // --- 018: permissions ---
   const perms = await count('admin_permissions')
-  record(perms.count === 29, '018 · admin_permissions = 29', `ได้ ${perms.count ?? perms.error}`)
+  // 018 = 29 · 024 เพิ่ม batches.approve = 30
+  record(perms.count === 30, '018+024 · admin_permissions = 30', `ได้ ${perms.count ?? perms.error}`)
 
   const newKeys = await count(
     'admin_permissions',
@@ -100,6 +101,14 @@ async function main() {
   record(await columnExists('notification_channels', 'last_sent_at'), '023 · notification_channels.last_sent_at')
   record(await columnExists('notification_channels', 'updated_at'), '023 · notification_channels.updated_at')
 
+  // --- 024: approval flow (enum pending_approval + RPC v4 ตรวจใน SQL Editor) ---
+  record(await columnExists('point_batches', 'submitted_by'), '024 · point_batches.submitted_by')
+  record(await columnExists('point_batches', 'submitted_at'), '024 · point_batches.submitted_at')
+  const approve = await count('admin_permissions', '&permission_key=eq.batches.approve')
+  record(approve.count === 1, '024 · permission batches.approve มีอยู่', `ได้ ${approve.count ?? approve.error}`)
+  const pendingProbe = await count('point_batches', '&status=eq.pending_approval')
+  record(!pendingProbe.error, '024 · enum batch_status รับค่า pending_approval', pendingProbe.error)
+
   // --- สรุป ---
   const failed = results.filter((r) => !r.ok)
   console.log(
@@ -114,6 +123,7 @@ async function main() {
       "   • function cancel_redemption(uuid, uuid, text) มีอยู่ (021)\n" +
       "   • function reconcile_balances() มีอยู่ (022)\n" +
       "   • function generate_pickup_code() + index redemptions_pickup_code_key (023)\n" +
+      "   • award_points_from_batch ต้องปฏิเสธ status previewed (024) และ expires_at = วันอนุมัติ + 365 (025) — e2e-batch-flow.js พิสูจน์\n" +
       '   ดู block VERIFICATION ท้ายไฟล์ supabase/_apply_013_020.sql'
   )
   process.exit(failed.length ? 1 : 0)

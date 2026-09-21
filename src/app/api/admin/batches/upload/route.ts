@@ -1,9 +1,9 @@
 /**
- * POST /api/admin/batches/upload — Sprint 4
+ * POST /api/admin/batches/upload — Sprint 4 (+ Sprint 9R: รหัสลูกค้า cross-check, ยอดซ้ำ)
  * multipart .xlsx + { week_start, week_end } → parse + dry-run → preview
  *
- * ⚠️ sprint นี้ "ไม่เขียนแต้มเข้าใคร" — สร้าง point_batches status='previewed' เก็บ raw_rows ไว้
- *    การให้แต้มจริงเป็นงาน Sprint 5 (POST /:id/commit → RPC award_points_from_batch)
+ * ⚠️ endpoint นี้ "ไม่เขียนแต้มเข้าใคร" — สร้าง point_batches status='previewed' เก็บ raw_rows ไว้
+ *    จากนั้น POST /:id/submit (ส่งให้ผู้อนุมัติ) → POST /:id/commit (ผู้อนุมัติ · RPC award_points_from_batch)
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { createHash } from 'crypto'
@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
 
     // ---------------- กันไฟล์ซ้ำ ----------------
     // committed → กัน (บิลเดียวได้แต้มครั้งเดียว · ต้อง void ก่อนถ้าจะส่งใหม่)
+    // pending_approval → กัน (ส่งให้ผู้อนุมัติไปแล้ว · ผู้อนุมัติต้องปฏิเสธชุดนั้นก่อน ไม่งั้นมี 2 ชุดในคิว)
     // previewed/draft → ไฟล์เดิมที่ยังไม่เคยให้แต้ม (เช่น เลือกสัปดาห์ผิดแล้วอัปใหม่) — ไม่มี ledger/
     //   transaction อ้างถึง จึงลบ preview เก่าทิ้งแล้วทำ preview ใหม่แทน ไม่งั้นบัญชีติดตายที่ 409
     //   (index point_batches_file_hash_idx กัน hash ซ้ำทุกสถานะที่ไม่ใช่ voided)
@@ -83,10 +84,20 @@ export async function POST(request: NextRequest) {
     }
     let replacedPreviewId: string | null = null
     if (dupBatch) {
+      if (dupBatch.status === 'pending_approval') {
+        return NextResponse.json(
+          {
+            error: `ไฟล์นี้ถูกส่งให้ผู้อนุมัติไปแล้ว (batch "${dupBatch.file_name}" สัปดาห์ ${dupBatch.week_start} → ${dupBatch.week_end}) — ให้ผู้อนุมัติปฏิเสธชุดนั้นก่อน ถ้าต้องการส่งไฟล์ใหม่`,
+            detail: `ตรงกับ batch "${dupBatch.file_name}" (สถานะ ${dupBatch.status}) เมื่อ ${dupBatch.created_at}`,
+            batch_id: dupBatch.id,
+          },
+          { status: 409 }
+        )
+      }
       if (dupBatch.status === 'committed') {
         return NextResponse.json(
           {
-            error: `ไฟล์นี้ให้แต้มเข้าไปแล้ว (batch "${dupBatch.file_name}" สัปดาห์ ${dupBatch.week_start} → ${dupBatch.week_end}) — ถ้าไฟล์ผิดให้ยกเลิก batch นั้นก่อนแล้วค่อยอัปโหลดใหม่`,
+            error: `ไฟล์นี้ให้แต้มเข้าไปแล้ว (batch "${dupBatch.file_name}" สัปดาห์ ${dupBatch.week_start} → ${dupBatch.week_end}) — ถ้าไฟล์ผิดให้ยกเลิกทั้งชุด (Rollback) ก่อนแล้วค่อยอัปโหลดใหม่`,
             detail: `ตรงกับ batch "${dupBatch.file_name}" (สถานะ ${dupBatch.status}) เมื่อ ${dupBatch.created_at}`,
             batch_id: dupBatch.id,
           },
@@ -148,15 +159,20 @@ export async function POST(request: NextRequest) {
     const phones = [...new Set(probe.rows.map((r) => r.phone).filter((p): p is string => !!p))]
     const bills = [...new Set(probe.rows.map((r) => r.bill_no).filter((b): b is string => !!b))]
 
-    // เบอร์ → user_id
+    // เบอร์ → user_id · user_id → customer_code (cross-check คอลัมน์ รหัสลูกค้า · เบอร์เป็น key เสมอ)
     const usersByPhone = new Map<string, string>()
+    const customerCodeByUserId = new Map<string, string | null>()
     for (const part of chunk(phones, CHUNK)) {
-      const { data, error } = await supabase.from('user_profiles').select('id, phone').in('phone', part)
+      const { data, error } = await supabase.from('user_profiles').select('id, phone, customer_code').in('phone', part)
       if (error) {
         console.error('[batches/upload] phone lookup failed:', error)
         return NextResponse.json({ error: 'ค้นหาลูกค้าจากเบอร์ไม่สำเร็จ' }, { status: 500 })
       }
-      for (const u of data ?? []) if (u.phone) usersByPhone.set(u.phone, u.id)
+      for (const u of data ?? []) {
+        if (!u.phone) continue
+        usersByPhone.set(u.phone, u.id)
+        customerCodeByUserId.set(u.id, u.customer_code ?? null)
+      }
     }
 
     // เลขบิลที่ถูกใช้ไปแล้ว (ledger ที่ยังไม่ถูก void)
@@ -193,7 +209,9 @@ export async function POST(request: NextRequest) {
       salesReps,
       activeCampaigns,
       usersByPhone,
+      customerCodeByUserId,
       billsInUse,
+      duplicateAmountPolicy: 'warn', // Q2 ยังไม่ตอบ → เตือน ไม่ reject (สลับที่นี่ที่เดียวถ้าตอบว่า reject)
     })
 
     // ---------------- บันทึก preview ----------------
@@ -207,7 +225,8 @@ export async function POST(request: NextRequest) {
         week_end: weekEnd,
         status: 'previewed',
         total_rows: result.summary.total,
-        valid_rows: result.summary.valid,
+        // valid_rows = แถวที่จะได้แต้มตอนอนุมัติ (valid + duplicate_amount) — ตรงกับที่ RPC ให้แต้ม
+        valid_rows: result.summary.valid + result.summary.duplicate_amount,
         invalid_rows: result.summary.invalid,
         unmatched_rows: result.summary.unmatched,
         total_points: result.summary.total_points,
