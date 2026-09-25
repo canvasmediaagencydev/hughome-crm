@@ -214,6 +214,22 @@ Q7 no customer push (weekly cut-off) · Q11 Resend, internal test mailbox = the 
 - Pilot DB clean-up done (rep `S99`, previewed demo batch) → `verify-demo-ready.js` **19/19** (voided demo
   batches no longer count). Test admin with `accounting` + `manager` roles created for the internal run.
 
+### Sprint 10 part 2 — SMS OTP, LINE channel published, §10–§11 clicked (2026-09-25)
+
+- **SMS OTP via ThaiBulkSMS OTP Manager** (`94d50b1`): `send-otp` / `verify-otp` call
+  `otp.thaibulksms.com/v2/otp/{request,verify}` through `src/lib/thaibulksms-otp.ts`; Supabase Auth phone OTP is
+  no longer used. The provider token lives in the signed session cookie (`otp_token` + `otp_phone`), is replaced
+  by every new send and dropped after a successful verify. `THAIBULKSMS_OTP_KEY` / `THAIBULKSMS_OTP_SECRET`
+  are **required at boot** (set on Vercel production). OTP app `HugHome_CRMPOINT`: brand `HugHomePoint`, shared
+  sender `OTP_SMS`, 6-digit PIN, 5 min. Account (the agency's) has 8,760 corporate credits, expiring 2027-12-23.
+  **Verified on a real phone.** Own sender name not requested yet (max 11 characters).
+- **LINE Login channel `Hughome_CRM_Demo` (2010850077) published** — it was still *Developing*, so every
+  non-admin LINE account got LINE's `400 Bad Request` on the LIFF link. Publishing cannot be undone.
+- **Resend was already live** since 2026-09-22 (domain `canvasmkt.com` verified, test mails delivered).
+- **`wiki/13` §10–§11 clicked on production** as super_admin — money path clean; results and the
+  (non-money) findings are in `wiki/13` §12. Role separation (10.2/10.5/10.7) is confirmed in the role→permission
+  config only; a live 403 needs a login that holds one role.
+
 ## Remaining
 
 > **2026-09-21 — the customer's latest meeting changed the plan below.** The full delta, its code
@@ -225,7 +241,7 @@ Q7 no customer push (weekly cut-off) · Q11 Resend, internal test mailbox = the 
 
 | Sprint | Work |
 |---|---|
-| 9R / 10 (finish) | set `RESEND_API_KEY` + `NOTIFY_EMAIL_FROM` on Vercel and `.env.local` once the Resend account exists · SMS provider for OTP (blocker for real sign-ups) · click `wiki/13` §10–§11 on production with the test admin · fill `NEXT_PUBLIC_TENANT_PHONE` / `NEXT_PUBLIC_TENANT_FB_URL` · reward images · `supabase gen types` once logged in (types already match) |
+| 9R / 10 (finish) | prove role separation (`wiki/13` 10.2/10.5/10.7) with two admin accounts, one `accounting`, one `manager` · request an own SMS sender name (≤ 11 chars) · add `RESEND_*` + `THAIBULKSMS_OTP_*` to `.env.local` (owner) · `supabase gen types` once logged in (types already match) |
 | 5 (leftover) | `POST /:id/review` **on hold** — approval before points now exists; Q12 decides whether a post-approval spot-check is still wanted. `GET /:id` is done (9R) |
 | 8 (wrap-up) | set `NOTIFY_TOKEN_KEY` on Vercel + `.env.local` · set `NOTIFICATIONS_ENABLED=true` on prod (⚠️ Q7 first — the customer may not want customer pushes at all) · click through `wiki/13` §7b |
 | still waiting on a question | ⚠️ **Q8** points-threshold alert · ⚠️ **Q9** 300/500-baht rule · ⚠️ **Q10** meeting numbers · ⚠️ **Q11** sender domain (who owns the shop domain's DNS) · ⚠️ **Q12** post-approval spot-check |
@@ -269,7 +285,7 @@ Each of these is a decision that was made explicitly and should not be revisited
 - Old pilot project `zoaxqouayhjkyterzzdt` still exists somewhere (owner account unknown) — find and delete
 - Reward images: all three rewards on the new pilot have no image yet (`/admin/rewards`)
 - Vercel account shows **Payment failed / pay open invoices** — deploys and crons stop if unpaid
-- Real SMS provider — OTP currently works for a single test number
+- ~~Real SMS provider~~ done 2026-09-25 (ThaiBulkSMS, verified on a phone)
 - Two rewards have no image: `เสื้อยืด Hughome`, `บัตรกำนัล 500 บาท` (upload at `/admin/rewards`)
 - Remaining placeholders: shop phone number, Telegram bot/group (Sprint 8)
 
@@ -304,8 +320,10 @@ Each of these is a decision that was made explicitly and should not be revisited
   `GEMINI_API_KEY` in `.env.example`
 - `verify-demo-ready.js` currently 17/19 on the pilot because of the two rehearsal leftovers above
   (rep `S99`, one `previewed` demo batch) — not a code problem; clean-up SQL in `wiki/13` §9
-- Email delivery is untested end-to-end until `RESEND_API_KEY` / `NOTIFY_EMAIL_FROM` are set; the test
-  channel will show `last_error` "RESEND_API_KEY ไม่ได้ตั้งค่า" until then
+- ~~Email delivery untested~~ live since 2026-09-22 (`batch.submitted` mails confirmed 2026-09-25)
+- Found 2026-09-25 (`wiki/13` §12), none money-related: the week inputs on `/admin/batches` reset to the
+  current week if typed before the page finishes loading · batch report sheet "ข้อมูลชุด" shows the raw status
+  `voided` (the leftover test batch was deleted; `verify-demo-ready.js` 19/19)
 - `TENANT.phone` / `TENANT.facebookUrl` are still placeholders in `.env.local` and on Vercel — `/call`
   and `/facebook` show them verbatim
 - `database.types.ts` was hand-edited; `supabase gen types` has never been run against `013`–`020`.
@@ -333,6 +351,8 @@ Each of these is a decision that was made explicitly and should not be revisited
 | Customer side on the new pilot (`wiki/13` §7, and §8.1–8.2 which need a redemption) | ❌ needs a phone + LIFF + the OTP test number |
 | LINE push actually arriving on a phone (batch award, expiry, birthday) | ❌ **cannot arrive** — `NOTIFICATIONS_ENABLED=false` on Vercel production (found 2026-09-14) |
 | Sprint 8 admin API on production (`e2e-sprint8-http.js`) | ✅ 50/51 (1 transient auth 403) |
+| SMS OTP sign-up on a real phone via LIFF (2026-09-25) | ✅ |
+| `wiki/13` §10 approval flow + §11 exports on production (2026-09-25) | ✅ money path clean · role separation 10.2/10.5/10.7 and 10.12 not proven — `wiki/13` §12 |
 
 ## Next recommended step
 

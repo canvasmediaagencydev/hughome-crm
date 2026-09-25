@@ -69,11 +69,11 @@ If you find a doc or comment mentioning receipts/OCR, it is stale — trust the 
 
 | | |
 |---|---|
-| Branch | `pilot-phase1` → Vercel production https://pilot-phase1.vercel.app (Sprint 6–8 pushed 2026-09-14 as `784603a`; Vercel account on Pro) |
+| Branch | `pilot-phase1` → Vercel production https://pilot-phase1.vercel.app (latest push `94d50b1` 2026-09-25; Vercel account on Pro) |
 | Supabase | pilot project `vltzkxmblmrvsmaookhl` (`hughome-pilot`, org of `canvasmediaagency@gmail.com`, Tokyo), `app_config.tenant_code = 'pilot'` · replaced `zoaxqouayhjkyterzzdt` on 2026-09-14 — see `wiki/07` |
 | Migrations | `001`–`026` all applied to pilot (`024`–`026` on 2026-09-21 via SQL Editor; `verify-schema.js` 23/23, `verify-types.js` clean, `e2e-batch-flow.js` 35/35) |
-| Sprints done | 0 – 8 · 9R deployed `ec5e79f` 2026-09-21 · **Sprint 10 part 1 same day**: email team notify (Resend), Telegram/LINE-group creation removed, customer-code import, Rollback = super_admin only · Sprint 5 leftover `POST /:id/review` on hold (Q12) |
-| Sprints left | 9R finish (apply, e2e, `wiki/13` §10–11, push) · 10–11 — see `wiki/09` Remaining · open questions Q1 Q2 Q3 Q6–Q12 in `wiki/14` §4 |
+| Sprints done | 0 – 8 · 9R deployed `ec5e79f` 2026-09-21 · **Sprint 10 part 1 same day**: email team notify (Resend), Telegram/LINE-group creation removed, customer-code import, Rollback = super_admin only · Sprint 5 leftover `POST /:id/review` on hold (Q12) · **2026-09-25** (`94d50b1`): SMS OTP via ThaiBulkSMS (verified on a phone), LINE Login channel published, `wiki/13` §10–§11 clicked on prod (money path clean — `wiki/13` §12) |
+| Sprints left | prove role separation (`wiki/13` 10.2/10.5/10.7, needs a second admin account) · own SMS sender name · 10–11 — see `wiki/09` Remaining · open questions Q1 Q2 Q3 Q6–Q12 in `wiki/14` §4 |
 | Customer requirements | **`wiki/14-customer-meeting-2026-09-delta.md`** — answered and built 2026-09-21: Q1 (numeric codes imported from the old system), Q2 (duplicate = warning), Q3 (Rollback = super_admin), Q4 (expiry from approval date), Q5 (Excel v2), Q6 (email instead of Telegram/LINE group), Q7 (no customer push). Still open: Q8 Q9 Q10 Q11-sender-domain Q12 |
 | Rehearsal | `wiki/13` §1–6 + 8.3 clicked on production 2026-09-14 — money path clean; §7 (phone/LIFF) and clean-up §9 still open. Findings: `wiki/09` Open debt |
 
@@ -225,15 +225,17 @@ npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts 
 - Stale leftovers still mention receipts in `src/app/api/admin/analytics/route.ts`,
   `src/app/admin/roles/page.tsx`, `src/lib/line-messaging.ts`, and `TESTING_GUIDE.md` /
   `ADMIN_RBAC_TASKS.md` (dashboard routes, hook, tiles and `StatusBadge` were cleaned in 9R).
-- Email channel needs `RESEND_API_KEY` + `NOTIFY_EMAIL_FROM` on Vercel and `.env.local` (not set yet — the
-  internal test channel `canvasmediaagency@gmail.com` exists in the DB and will log `last_error` until then).
-  With `onboarding@resend.dev` Resend only delivers to the address that owns the Resend account.
-- `NEXT_PUBLIC_TENANT_PHONE` / `NEXT_PUBLIC_TENANT_FB_URL` are placeholders on the pilot; `/call` and
-  `/facebook` display them verbatim.
+- `RESEND_API_KEY` + `NOTIFY_EMAIL_FROM` are set on Vercel production (since 2026-09-22, domain `canvasmkt.com`
+  verified in Resend) but **not** in `.env.local`, so local dev cannot send team email.
+- Customer OTP goes through ThaiBulkSMS OTP Manager (`src/lib/thaibulksms-otp.ts`), not Supabase Auth.
+  `THAIBULKSMS_OTP_KEY` / `THAIBULKSMS_OTP_SECRET` are required at boot — set on Vercel and in `.env.local`
+  (appended 2026-09-25 at the owner's request; local `npm run build` passes). Sender is the shared `OTP_SMS` until an own sender name is approved.
+- `NEXT_PUBLIC_TENANT_PHONE` / `NEXT_PUBLIC_TENANT_FB_URL` hold the real shop values on Vercel since 2026-09-21
+  (`36442f5`); `/call` formats the 9-digit number as 052-000-369.
 - A fresh Phase 2 database will `CREATE promo_codes` in `005` and `DROP` it in `015`. Harmless noise,
   kept so the migration history stays honest.
 - Operational: the new pilot admin has no working password until set via `auth.admin.updateUserById`;
-  reward images missing; wire a real SMS provider (OTP currently works for one test number only).
+  reward images missing.
 
 ---
 
