@@ -30,6 +30,9 @@ export interface SessionPayload {
   verified_phone?: string
   /** unix seconds when verified_phone expires (must re-verify after) */
   vp_exp?: number
+  /** pending OTP: ThaiBulkSMS token + the phone it was sent to (canonical form) */
+  otp_token?: string
+  otp_phone?: string
 }
 
 function secretKey(): Uint8Array {

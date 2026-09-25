@@ -38,6 +38,7 @@ export default function OnboardingForm() {
   const [otpCode, setOtpCode] = useState('')
   const [phoneVerified, setPhoneVerified] = useState(false)
   const [otpError, setOtpError] = useState('')
+  const [otpRefno, setOtpRefno] = useState<string | null>(null)
   const [isSendingOtp, setIsSendingOtp] = useState(false)
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false)
   const [countdown, setCountdown] = useState(0)
@@ -100,6 +101,7 @@ export default function OnboardingForm() {
       const res = await axios.post('/api/phone/send-otp', { phone: formData.phone })
       if (res.data.success) {
         setOtpSent(true)
+        setOtpRefno(res.data.refno ?? null)
         setOtpCode('')
         setPhoneVerified(false)
         startCountdown()
@@ -402,7 +404,9 @@ export default function OnboardingForm() {
                       ส่งรหัส OTP ไปยัง{' '}
                       <span className="font-medium text-gray-900">{formData.phone}</span>
                     </p>
-                    <p className="text-xs text-gray-500">กรอกรหัส 6 หลักที่ได้รับ</p>
+                    <p className="text-xs text-gray-500">
+                      กรอกรหัส 6 หลักที่ได้รับ{otpRefno && <> (Ref: {otpRefno})</>}
+                    </p>
                   </div>
 
                   <input

@@ -72,6 +72,11 @@ const serverSchema = z.object({
   // Signing key for the server session cookie (HS256). Generate: openssl rand -hex 32
   SESSION_SECRET: requiredStr('SESSION_SECRET'),
 
+  // Sprint 10 — SMS OTP via ThaiBulkSMS OTP Manager (dashboard → SMS → จัดการ SMS OTP → key/secret ของแอป)
+  // required: สมัครสมาชิกลูกค้าทำไม่ได้เลยถ้าไม่มี (src/lib/thaibulksms-otp.ts)
+  THAIBULKSMS_OTP_KEY: requiredStr('THAIBULKSMS_OTP_KEY'),
+  THAIBULKSMS_OTP_SECRET: requiredStr('THAIBULKSMS_OTP_SECRET'),
+
   // Optional / future.
   GEMINI_API_KEY: z.string().optional(),
   NOTIFICATIONS_ENABLED: z.string().optional(),

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClientSupabaseClient } from '@/lib/supabase-server'
-import { getSession } from '@/lib/session'
-import { normalizeThaiPhone, toE164Thai } from '@/lib/phone'
+import { getSession, createSession } from '@/lib/session'
+import { normalizeThaiPhone } from '@/lib/phone'
+import { requestOtp } from '@/lib/thaibulksms-otp'
 import { rateLimit } from '@/lib/rate-limit'
 
 // Rate limits (Sprint 2.1 C). A legit user needs ~1 send, maybe 1–2 resends if
@@ -24,8 +24,7 @@ export async function POST(request: NextRequest) {
   try {
     const { phone } = await request.json()
     const local = normalizeThaiPhone(phone)
-    const e164 = toE164Thai(phone)
-    if (!local || !e164) {
+    if (!local) {
       return NextResponse.json({ success: false, error: 'เบอร์โทรศัพท์ไม่ถูกต้อง' }, { status: 400 })
     }
 
@@ -45,14 +44,19 @@ export async function POST(request: NextRequest) {
     const perSession = rateLimit(`otp:sess:${session.line_user_id}`, MAX_PER_SESSION, WINDOW_MS)
     if (!perSession.ok) return tooMany(perSession.retryAfterSec)
 
-    const supabase = createClientSupabaseClient()
-    const { error } = await supabase.auth.signInWithOtp({ phone: e164 })
-    if (error) {
+    let sent: Awaited<ReturnType<typeof requestOtp>>
+    try {
+      sent = await requestOtp(local)
+    } catch (error) {
       console.error('Send OTP error:', error)
       return NextResponse.json({ success: false, error: 'ไม่สามารถส่ง OTP ได้ กรุณาลองใหม่' }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true })
+    // Keep the provider token server-side, bound to this phone. A new send
+    // replaces the previous token, so only the latest SMS can be verified.
+    await createSession({ ...session, otp_token: sent.token, otp_phone: local })
+
+    return NextResponse.json({ success: true, refno: sent.refno })
   } catch (error) {
     console.error('Send OTP API error:', error)
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
