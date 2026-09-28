@@ -278,16 +278,16 @@ Each of these is a decision that was made explicitly and should not be revisited
   `requirePermission` → `auth.getUser()`, so one slow answer becomes a 500 on the route and, via
   `useAdminAuth` (`/api/admin/me`, retry 1), a bounce to `/admin/login` while still signed in.
   Consider a paid plan before the customer demo
-- **Test leftovers on the pilot from the 2026-09-14 rehearsal, not yet removed:** one `point_batches`
-  row in status `previewed` (re-upload after void, step 6.6) and sales rep `S99` (inactive).
-  Clean-up SQL is in `wiki/13` §9; `verify-demo-ready.js` must return 19/19 afterwards
-- Rotate the admin password and the LINE / Supabase keys that were pasted into a chat transcript
+- ~~Test leftovers from the 2026-09-14 rehearsal~~ cleaned 2026-09-21; the 2026-09-25 run left none
+  (`verify-demo-ready.js` 19/19)
+- Rotate the admin password, the LINE / Supabase keys and (since 2026-09-25) the ThaiBulkSMS OTP app
+  secret that were pasted into a chat transcript — before Phase 2 at the latest
 - Old pilot project `zoaxqouayhjkyterzzdt` still exists somewhere (owner account unknown) — find and delete
 - Reward images: all three rewards on the new pilot have no image yet (`/admin/rewards`)
 - Vercel account shows **Payment failed / pay open invoices** — deploys and crons stop if unpaid
 - ~~Real SMS provider~~ done 2026-09-25 (ThaiBulkSMS, verified on a phone)
 - Two rewards have no image: `เสื้อยืด Hughome`, `บัตรกำนัล 500 บาท` (upload at `/admin/rewards`)
-- Remaining placeholders: shop phone number, Telegram bot/group (Sprint 8)
+- ~~Placeholder shop phone / FB~~ real values since 2026-09-21 (`36442f5`); Telegram is no longer creatable (Q6)
 
 ### Technical
 - **Fixed in code 2026-09-13, migration `021` applied:** the two routes that moved money with a direct
@@ -318,14 +318,10 @@ Each of these is a decision that was made explicitly and should not be revisited
   `src/app/api/admin/analytics/route.ts` (`receipts` field name), `src/app/admin/roles/page.tsx`,
   `src/lib/line-messaging.ts` (`receipt_approved` kind), `TESTING_GUIDE.md`, `ADMIN_RBAC_TASKS.md`,
   `GEMINI_API_KEY` in `.env.example`
-- `verify-demo-ready.js` currently 17/19 on the pilot because of the two rehearsal leftovers above
-  (rep `S99`, one `previewed` demo batch) — not a code problem; clean-up SQL in `wiki/13` §9
 - ~~Email delivery untested~~ live since 2026-09-22 (`batch.submitted` mails confirmed 2026-09-25)
 - Found 2026-09-25 (`wiki/13` §12), none money-related: the week inputs on `/admin/batches` reset to the
   current week if typed before the page finishes loading · batch report sheet "ข้อมูลชุด" shows the raw status
   `voided` (the leftover test batch was deleted; `verify-demo-ready.js` 19/19)
-- `TENANT.phone` / `TENANT.facebookUrl` are still placeholders in `.env.local` and on Vercel — `/call`
-  and `/facebook` show them verbatim
 - `database.types.ts` was hand-edited; `supabase gen types` has never been run against `013`–`020`.
   `verify-types.js` covers `Tables` only, not `Enums` / `Functions` / `CompositeTypes`
 - A fresh Phase 2 database will `CREATE promo_codes` in `005` and `DROP` it in `015` — harmless noise
@@ -348,7 +344,7 @@ Each of these is a decision that was made explicitly and should not be revisited
 | Production: all 4 crons run once with the real secret (reconcile 8 users, 0 drift) | ✅ |
 | Browser flow on the **old** pilot, 2026-09-13 (auth, sales reps, wrong/right week, 687, double-commit, balances, history, void, re-upload) | ✅ — found and fixed the previewed-duplicate 409 and the notes 500 |
 | Browser flow on the **new** pilot with Sprint 6–7 code, 2026-09-14 (`wiki/13` §1–6, 8.3: auth redirect, sales reps, template, wrong/right week, 687, double-commit, balances, history, void → 0, re-upload after void, manual ±50 via RPC) | ✅ money path clean — findings listed under Open debt · full log in `docs/TEST_RUN_2026-09-14.md` (git-ignored) |
-| Customer side on the new pilot (`wiki/13` §7, and §8.1–8.2 which need a redemption) | ❌ needs a phone + LIFF + the OTP test number |
+| Customer side on the new pilot (`wiki/13` §7, and §8.1–8.2 which need a redemption) | ⚠️ sign-up with real SMS OTP ✅ 2026-09-25 · redeem → cancel (§7, §8.1–8.2) not clicked yet |
 | LINE push actually arriving on a phone (batch award, expiry, birthday) | ❌ **cannot arrive** — `NOTIFICATIONS_ENABLED=false` on Vercel production (found 2026-09-14) |
 | Sprint 8 admin API on production (`e2e-sprint8-http.js`) | ✅ 50/51 (1 transient auth 403) |
 | SMS OTP sign-up on a real phone via LIFF (2026-09-25) | ✅ |
@@ -356,23 +352,19 @@ Each of these is a decision that was made explicitly and should not be revisited
 
 ## Next recommended step
 
-**1. Finish the customer side of the rehearsal** (`wiki/13` §7 + §8.1–8.2, needs a phone): register
-one real LINE customer through LIFF, redeem, cancel from `/admin/redemptions`, and confirm the push
-arrives. Then run the clean-up SQL in `wiki/13` §9 and re-check `verify-demo-ready.js` 19/19.
+Updated 2026-09-25. The pilot is ready for the customer's demo: sign-up with a real SMS OTP, the approval
+flow and both exports work on production, and the demo data is clean (`verify-demo-ready.js` 19/19).
 
-**1b. Before the demo, fix the two rehearsal findings that hurt a live demo:** the Supabase Auth
-504 → 500/bounce-to-login (map auth failures to 503 with a Thai "try again" message, and consider a
-paid Supabase plan), and the `previewed` batch with no commit button after reload.
+**1. Customer demo** — LIFF link https://liff.line.me/2010850077-4iXzuV6k. Watch for the known Supabase
+Auth 504 flake on the free tier (admin bounced to login); consider a paid plan before real use.
 
-**2. Demo prep:** reward images, shop phone, decide how the customer-side demo is shown (OTP works
-for one test number only).
+**2. Finish the customer side of `wiki/13`** (§7 + §8.1–8.2): redeem a reward from a phone, cancel it from
+`/admin/redemptions`, confirm the points come back.
 
-**3. Sprint 8 wrap-up (code written, `023` applied):** add `NOTIFY_TOKEN_KEY` (64 hex) to Vercel and
-`.env.local`, deploy, then click `wiki/13` §7b with a real Telegram group.
+**3. Prove role separation live** (`wiki/13` 10.2/10.5/10.7): log in with an admin that holds only
+`accounting`, then one that holds only `manager`. The config already says it holds (`wiki/13` §12).
 
-**4. Get the `wiki/14` §4 questions answered** — Q4 (expiry base), Q5 (Excel v2) and Q3/Q12 (approval
-step) change migrations and the Excel spec, so they must be settled before any Sprint 9 code that
-touches batches. Q1 and Q2 can be answered in parallel.
+**4. Own SMS sender name** (≤ 11 characters, identity check with company documents) — then switch the
+OTP app's sender in the ThaiBulkSMS dashboard; no code change.
 
-**5. Then Sprint 9** as listed under Remaining — the customer-visible items first (Customer ID,
-Maker label, approval step, 5-tab nav), because the trial starts with the customer's approver and the customer's second tester on Android.
+**5. Answers to Q8–Q12** (`wiki/14` §4), then the rest of Sprint 10 and Sprint 11 under Remaining.

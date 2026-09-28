@@ -75,7 +75,7 @@ If you find a doc or comment mentioning receipts/OCR, it is stale — trust the 
 | Sprints done | 0 – 8 · 9R deployed `ec5e79f` 2026-09-21 · **Sprint 10 part 1 same day**: email team notify (Resend), Telegram/LINE-group creation removed, customer-code import, Rollback = super_admin only · Sprint 5 leftover `POST /:id/review` on hold (Q12) · **2026-09-25** (`94d50b1`): SMS OTP via ThaiBulkSMS (verified on a phone), LINE Login channel published, `wiki/13` §10–§11 clicked on prod (money path clean — `wiki/13` §12) |
 | Sprints left | prove role separation (`wiki/13` 10.2/10.5/10.7, needs a second admin account) · own SMS sender name · 10–11 — see `wiki/09` Remaining · open questions Q1 Q2 Q3 Q6–Q12 in `wiki/14` §4 |
 | Customer requirements | **`wiki/14-customer-meeting-2026-09-delta.md`** — answered and built 2026-09-21: Q1 (numeric codes imported from the old system), Q2 (duplicate = warning), Q3 (Rollback = super_admin), Q4 (expiry from approval date), Q5 (Excel v2), Q6 (email instead of Telegram/LINE group), Q7 (no customer push). Still open: Q8 Q9 Q10 Q11-sender-domain Q12 |
-| Rehearsal | `wiki/13` §1–6 + 8.3 clicked on production 2026-09-14 — money path clean; §7 (phone/LIFF) and clean-up §9 still open. Findings: `wiki/09` Open debt |
+| Rehearsal | `wiki/13` §1–6 + 8.3 clicked 2026-09-14 · §10–§11 clicked 2026-09-25 — money path clean both times (`wiki/13` §12). Still open: §7 redeem/cancel from a phone, live role-separation check. Findings: `wiki/09` Open debt |
 
 Living status: **`wiki/09-status-and-roadmap.md`** and `docs/PHASE1_STATUS.md`.
 Sprint-by-sprint work prompts: `docs/PROMPTS.md`.
@@ -190,7 +190,8 @@ npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts 
 | `src/config/env.ts`, `src/config/tenant.ts` | Boot-time env validation and tenant config. No defaults by design. |
 | `src/config/tenant-guard.ts` | Checks the connected DB belongs to this tenant. Currently **soft** — see debt list. |
 | `src/lib/phone.ts` | Canonical Thai phone normalization. Identity is the local 10-digit form. |
-| `supabase/migrations/` | `001`–`023` up, `rollback/` down. |
+| `src/lib/thaibulksms-otp.ts`, `src/app/api/phone/*` | Customer SMS OTP via ThaiBulkSMS OTP Manager; the provider token lives in the signed session cookie, bound to the phone, deleted after verify |
+| `supabase/migrations/` | `001`–`026` up, `rollback/` down. |
 | `supabase/seed/seed_demo_data.sql` | Demo data. **Outside** the migration path on purpose. |
 | `database.types.ts` | Generated Supabase types. Verify with `scripts/verify-types.js`. |
 

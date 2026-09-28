@@ -46,13 +46,19 @@ NEXT_PUBLIC_TENANT_SEGMENT
 NEXT_PUBLIC_TENANT_PHONE
 NEXT_PUBLIC_TENANT_LINE_OA
 NEXT_PUBLIC_TENANT_FB_URL
+RESEND_API_KEY                   Sprint 10 — team email via Resend. Optional at boot; sending an email
+NOTIFY_EMAIL_FROM                channel without them throws into notification_channels.last_error
+THAIBULKSMS_OTP_KEY              Sprint 10 — customer SMS OTP (ThaiBulkSMS OTP Manager app key/secret).
+THAIBULKSMS_OTP_SECRET           REQUIRED at boot: without them the app does not start
 GEMINI_API_KEY                   ⚠️ leftover from the deleted OCR flow — see conflicts
 ```
 
 Server-only keys are validated server-side only, so they cannot leak into the client bundle.
 
 `.env.local` holds live pilot credentials and must never be edited by an agent or committed
-(`.gitignore` has `.env*` with `!.env.example`).
+(`.gitignore` has `.env*` with `!.env.example`). One owner-requested exception: on 2026-09-25 the two
+`THAIBULKSMS_OTP_*` lines were appended by an agent at the owner's explicit request. `RESEND_*` is on
+Vercel only, so local dev does not send team email.
 
 ## Known values (pilot)
 
@@ -62,13 +68,18 @@ Server-only keys are validated server-side only, so they cannot leak into the cl
 | `app_config.tenant_code` | `pilot` |
 | `NEXT_PUBLIC_TENANT_CODE` (local) | `pilot` — matches |
 | `NOTIFICATIONS_ENABLED` (local) | `false` — LINE push is off |
-| LIFF | `2010850077-4iXzuV6k` (Login channel `2010850077`) |
+| LIFF | `2010850077-4iXzuV6k` — link https://liff.line.me/2010850077-4iXzuV6k |
+| LINE Login channel | `2010850077` `Hughome_CRM_Demo` (provider `hughome_CRM_demo`) — **Published** 2026-09-25. While it was *Developing* only channel admins could log in; everyone else got LINE's `400 Bad Request`. Cannot go back to Developing |
+| LINE OA | `@779oabsu` |
+| SMS OTP | ThaiBulkSMS (agency account) → SMS → จัดการ SMS OTP → app `HugHome_CRMPOINT`: brand `HugHomePoint`, sender `OTP_SMS` (shared, until an own ≤ 11-char sender name is approved), 6-digit PIN, 5 min |
+| Team email | Resend account `canvasmediaagency.dev`, verified domain `canvasmkt.com` |
 | Messaging channel | `2010850181` |
 | `baht_per_point` | 100 |
 | Storage bucket | `rewards` |
 
-> The Vercel environment could not be read from the agent shell. Local values are confirmed;
-> production values are **not**. This matters for `NEXT_PUBLIC_TENANT_CODE` — see the tenant-guard
+> The agent shell has a stale `VERCEL_TOKEN`; run the CLI as `env -u VERCEL_TOKEN npx vercel env ls production`
+> to use the logged-in account (names only — sensitive values stay hidden). Production *values* are
+> still not readable from here. This matters for `NEXT_PUBLIC_TENANT_CODE` — see the tenant-guard
 > note below.
 
 ## Tenant guard

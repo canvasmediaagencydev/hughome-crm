@@ -82,7 +82,7 @@ src/
                                redemptions, tags, admins, roles, reports
     api/
       liff/login               LINE idToken verification
-      phone/                   OTP send + verify
+      phone/                   OTP send + verify (ThaiBulkSMS OTP Manager)
       onboarding               profile creation
       rewards/redeem           redemption
       admin/                   all back-office endpoints
@@ -97,6 +97,8 @@ src/
     line-auth.ts               JWKS verification
     line-messaging.ts          push helpers
     phone.ts                   Thai phone normalization
+    thaibulksms-otp.ts         SMS OTP request/verify (token kept in the session cookie)
+    team-notify.ts             team email (Resend) on redemption.created / batch.submitted
   types/admin.ts               PERMISSIONS constants, role names
 supabase/
   migrations/                  001-020 up, rollback/ down

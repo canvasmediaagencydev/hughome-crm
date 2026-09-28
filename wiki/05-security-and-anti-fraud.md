@@ -108,7 +108,13 @@ verified against LINE's JWKS on every login — signature, issuer, audience, and
 refuses a phone that has not been verified in that session. An earlier version returned only
 `{success: true}` and stored nothing, so the client could claim any phone.
 
-**Rate limiting** on OTP send.
+**The OTP token never reaches the client.** Since 2026-09-25 the PIN is generated, sent and checked by
+ThaiBulkSMS OTP Manager (`src/lib/thaibulksms-otp.ts`). The provider's `token` is stored in the signed,
+httpOnly session cookie together with the phone it was sent to; `verify-otp` refuses a PIN for any other
+phone, a new send replaces the token, and a successful verify deletes it so it cannot be replayed.
+
+**Rate limiting** on OTP send (60 s cooldown, 3 per phone and 5 per session per 10 min — in-memory,
+so per server instance; ThaiBulkSMS applies its own expiry and attempt limits on top).
 
 **RLS on every table with no permissive policies**, so `anon` and `authenticated` read nothing. All
 access is server-side with `service_role`.
