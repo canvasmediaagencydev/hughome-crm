@@ -22,6 +22,7 @@ This wiki is the depth behind it.
 | [12 — Conflicts & unverified](12-conflicts-and-unverified.md) | When a document disagrees with the code |
 | [13 — Manual test plan](13-manual-test-plan.md) | Clicking the pilot end to end to hunt bugs before writing more code |
 | [14 — Customer meeting Sept 2026 delta](14-customer-meeting-2026-09-delta.md) | **Before Sprint 9.** What the customer changed on 2026-09-21, mapped onto the code, and the 12 questions that block it |
+| [15 — Customer feedback 2026-10-18](15-customer-feedback-2026-10-18.md) | Free-format customer code, bill column removed (template v3 + migration 027), report sort and phone format |
 
 ## The one-paragraph version
 

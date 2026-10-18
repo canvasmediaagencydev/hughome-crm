@@ -4,8 +4,8 @@
  *
  *   1 แถว = ลูกค้า 1 คน · ทุกคนที่ onboard แล้ว (role ไม่ว่าง) — ช่วงวันที่ใช้คำนวณ
  *   "ยอดซื้อสุทธิรวมในช่วง" และ "จำนวนบิลในช่วง" จาก ledger (ตามวันที่ซื้อ · ไม่นับชุดที่ถูก void)
- *   ห้ามมีคอลัมน์เลขที่บิล — รายงานตรวจบิลคือ /api/admin/reports/batches/:id/excel
- *   เบอร์ 10 หลักติดกัน ไม่มีขีด · คอลัมน์เป็น text กัน Excel ตัด 0
+ *   ไม่มีคอลัมน์เลขที่บิล — รายงานรายชุดคือ /api/admin/reports/batches/:id/excel
+ *   เบอร์รูปแบบ xxx-xxxxxxx (feedback 2026-10-18) · คอลัมน์เป็น text กัน Excel ตัด 0
  *
  * ตัวสร้างไฟล์อยู่ที่ src/lib/excel/build-reports.js (ใช้ร่วมกับ scripts/build-sample-reports.js)
  */

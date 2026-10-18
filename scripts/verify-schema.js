@@ -1,5 +1,5 @@
 /**
- * ตรวจว่า migration 013–025 ขึ้นครบบน Supabase หรือยัง
+ * ตรวจว่า migration 013–026 ขึ้นครบบน Supabase หรือยัง (027 ตรวจได้แค่ใน SQL Editor — ดูท้ายสคริปต์)
  *
  *   node scripts/verify-schema.js
  *
@@ -126,12 +126,15 @@ async function main() {
   console.log(
     '\n⚠️ ยังตรวจไม่ได้จากที่นี่ (PostgREST มองไม่เห็น) — ต้องรันใน SQL Editor:\n' +
       "   • constraint point_campaigns_no_overlap (EXCLUDE)\n" +
-      "   • index pbl_bill_no_active_idx (unique bill_no)\n" +
+      "   • index pbl_bill_no_active_idx (unique bill_no) — ยังอยู่หลัง 027 (กันซ้ำเฉพาะแถวเก่าที่มีเลขบิล)\n" +
       "   • signature award_points_from_batch ต้องเป็น (uuid, uuid) เท่านั้น\n" +
       "   • function cancel_redemption(uuid, uuid, text) มีอยู่ (021)\n" +
       "   • function reconcile_balances() มีอยู่ (022)\n" +
       "   • function generate_pickup_code() + index redemptions_pickup_code_key (023)\n" +
       "   • award_points_from_batch ต้องปฏิเสธ status previewed (024) และ expires_at = วันอนุมัติ + 365 (025) — e2e-batch-flow.js พิสูจน์\n" +
+      "   • (027 · template v3) constraint pbl_batch_traceability ไม่บังคับ bill_no แล้ว — บังคับแค่ purchase_date + sales_rep_id:\n" +
+      "       SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname='pbl_batch_traceability';  -- ต้องไม่มีคำว่า bill_no\n" +
+      "     และ award_points_from_batch v6 รับแถวที่ไม่มี bill_no (e2e-batch-flow.js ข้อ [2] พิสูจน์)\n" +
       '   ดู block VERIFICATION ท้ายไฟล์ supabase/_apply_013_020.sql'
   )
   process.exit(failed.length ? 1 : 0)

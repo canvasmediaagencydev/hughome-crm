@@ -1,15 +1,15 @@
 /**
  * สร้าง workbook ของรายงาน 2 ตัว (Sprint 9R A5) — implementation เดียวใช้ร่วมกัน:
  *   1. GET /api/admin/reports/users/excel          → buildCustomerExport   (ลูกค้า 1 แถว = 1 คน · ไม่มีเลขบิล)
- *   2. GET /api/admin/reports/batches/:id/excel    → buildBatchReport      (1 แถว = 1 บิล · มีเลขบิล + Maker + สาขา)
+ *   2. GET /api/admin/reports/batches/:id/excel    → buildBatchReport      (1 แถว = 1 รายการ · Maker + สาขา)
  *   3. scripts/build-sample-reports.js             → ไฟล์ตัวอย่างส่งลูกค้า (ไม่แตะ DB)
  *
  * CommonJS โดยตั้งใจ เหมือน build-template.js — ห้าม fork logic ไปเขียนซ้ำใน route
  * เป็น pure function: รับข้อมูลที่ route/สคริปต์เตรียมมาแล้ว ไม่แตะ DB
  *
  * ทำไม 2 รายงาน (wiki/12 §5, wiki/14 §3 "Reports"):
- *   - ฝั่งการตลาดของลูกค้าเอาไปใช้ต่อ → ห้ามมีเลขบิล · เบอร์ 10 หลักติดกัน ไม่มีขีด
- *   - ผู้อนุมัติ/ผู้จัดการเอาไปเทียบบิลกระดาษ → "ต้องมี" เลขบิล (MIGRATION_PLAN.md §8.2)
+ *   - ฝั่งการตลาดของลูกค้าเอาไปใช้ต่อ → ห้ามมีเลขบิล · เบอร์รูปแบบ xxx-xxxxxxx (feedback ลูกค้า 2026-10-18)
+ *   - ผู้อนุมัติ/ผู้จัดการใช้ตรวจรายชุด · template v3 (feedback ลูกค้า 2026-10-18) ไม่มีเลขที่บิลแล้ว จึงไม่มีคอลัมน์นี้
  */
 const ExcelJS = require('exceljs')
 
@@ -43,10 +43,14 @@ function roleLabel(role) {
   return ''
 }
 
-/** เบอร์ 10 หลักติดกัน — ห้ามใส่ขีด (ลูกค้าเอาไป vlookup ต่อ) · เก็บใน DB เป็น local 10 หลักอยู่แล้ว (phone.ts) */
-function plainPhone(phone) {
+/**
+ * เบอร์ในรายงาน → xxx-xxxxxxx (feedback ลูกค้า 2026-10-18 · แทนแบบ 10 หลักติดกันเดิม)
+ * DB เก็บเป็น local 10 หลักอยู่แล้ว (phone.ts) · ถ้าไม่ใช่ 10 หลักคืนตัวเลขตามเดิม ไม่เดารูปแบบ
+ */
+function reportPhone(phone) {
   if (!phone) return ''
-  return String(phone).replace(/\D/g, '')
+  const digits = String(phone).replace(/\D/g, '')
+  return digits.length === 10 ? `${digits.slice(0, 3)}-${digits.slice(3)}` : digits
 }
 
 function styleHeader(ws, colCount) {
@@ -108,7 +112,7 @@ function buildCustomerExport(input) {
       customer_code: u.customer_code ?? '',
       first_name: u.first_name ?? '',
       last_name: u.last_name ?? '',
-      phone: plainPhone(u.phone),
+      phone: reportPhone(u.phone),
       role: roleLabel(u.role),
       created_at: thaiDate(u.created_at),
       points_balance: u.points_balance ?? 0,
@@ -128,8 +132,8 @@ function buildCustomerExport(input) {
   const meta = wb.addWorksheet('หมายเหตุ')
   meta.addRow(['รายงานลูกค้า — HugHome Hug Point'])
   meta.addRow([`ช่วงที่ใช้คำนวณ "ยอดซื้อสุทธิรวมในช่วง" และ "จำนวนบิลในช่วง": ${thaiDate(input.rangeStart)} ถึง ${thaiDate(input.rangeEnd)} (ตามวันที่ซื้อ)`])
-  meta.addRow(['1 แถว = ลูกค้า 1 คน · รายงานนี้ไม่มีเลขที่บิลโดยตั้งใจ (รายงานตรวจบิลอยู่ที่หน้า "อัปโหลดยอดขาย" รายชุด)'])
-  meta.addRow(['เบอร์โทรเป็นข้อความ 10 หลักไม่มีขีด · แต้มคงเหลือ = ณ เวลาที่ออกรายงาน'])
+  meta.addRow(['1 แถว = ลูกค้า 1 คน · รายงานนี้ไม่มีเลขที่บิล (รายงานรายชุดอยู่ที่หน้า "อัปโหลดยอดขาย")'])
+  meta.addRow(['เบอร์โทรเป็นข้อความรูปแบบ xxx-xxxxxxx · แต้มคงเหลือ = ณ เวลาที่ออกรายงาน'])
   meta.addRow([`ออกรายงานเมื่อ ${thaiDate(new Date().toISOString())}`])
   meta.getColumn(1).width = 110
   meta.getRow(1).font = { bold: true, size: 13 }
@@ -142,11 +146,10 @@ function customerExportFilename(rangeStart, rangeEnd) {
 }
 
 // ---------------------------------------------------------------------------
-// 2. Weekly batch report — 1 แถว = 1 บิล · มีเลขบิลโดยตั้งใจ (wiki/12 §5) ห้ามลบ
+// 2. Weekly batch report — 1 แถว = 1 รายการซื้อ · ไม่มีเลขบิล (template v3 · 2026-10-18)
 // ---------------------------------------------------------------------------
 const BATCH_COLUMNS = [
   { key: 'purchase_date', header: 'วันที่ซื้อ', width: 13 },
-  { key: 'bill_no', header: 'เลขที่บิล', width: 18, numFmt: '@' },
   { key: 'customer_code', header: 'รหัสลูกค้า', width: 14, numFmt: '@' },
   { key: 'phone', header: 'เบอร์โทร', width: 14, numFmt: '@' },
   { key: 'customer_name', header: 'ชื่อลูกค้า', width: 24 },
@@ -165,7 +168,7 @@ const BATCH_COLUMNS = [
  *   batch: { file_name: string, week_start: string, week_end: string, status: string,
  *            uploaded_by_name?: string|null, submitted_by_name?: string|null, committed_by_name?: string|null,
  *            committed_at?: string|null, voided_by_name?: string|null, void_reason?: string|null },
- *   rows: { purchase_date: string|null, bill_no: string|null, customer_code: string|null, phone: string|null,
+ *   rows: { purchase_date: string|null, customer_code: string|null, phone: string|null,
  *           customer_name: string|null, gross: number|null, discount: number, net: number|null,
  *           multiplier: number, points: number|null, sales_rep: string|null }[]
  * }} input  rows = เฉพาะแถวที่ได้แต้ม (valid + duplicate_amount)
@@ -176,7 +179,7 @@ function buildBatchReport(input) {
 
   const wb = new ExcelJS.Workbook()
   wb.creator = 'HugHome CRM'
-  const ws = wb.addWorksheet('รายการบิล')
+  const ws = wb.addWorksheet('รายการซื้อ')
   ws.columns = BATCH_COLUMNS.map((c) => ({ header: c.header, key: c.key, width: c.width }))
   for (const c of BATCH_COLUMNS) if (c.numFmt) ws.getColumn(c.key).numFmt = c.numFmt
 
@@ -184,7 +187,16 @@ function buildBatchReport(input) {
   let sumDiscount = 0
   let sumNet = 0
   let sumPoints = 0
-  for (const r of input.rows) {
+  // เรียงวันที่ซื้อจากเก่าไปใหม่ (feedback ลูกค้า 2026-10-18) · วันเดียวกันคงลำดับตามไฟล์ · ไม่มีวันที่ไว้ท้าย
+  const sortedRows = input.rows
+    .map((r, i) => ({ r, i }))
+    .sort((a, b) => {
+      const da = a.r.purchase_date || '\uffff'
+      const db = b.r.purchase_date || '\uffff'
+      return da < db ? -1 : da > db ? 1 : a.i - b.i
+    })
+    .map((x) => x.r)
+  for (const r of sortedRows) {
     const gross = Number(r.gross ?? 0)
     const discount = Number(r.discount ?? 0)
     const net = Number(r.net ?? 0)
@@ -195,9 +207,8 @@ function buildBatchReport(input) {
     sumPoints += points
     ws.addRow({
       purchase_date: thaiDate(r.purchase_date),
-      bill_no: r.bill_no ?? '',
       customer_code: r.customer_code ?? '',
-      phone: plainPhone(r.phone),
+      phone: reportPhone(r.phone),
       customer_name: r.customer_name ?? '',
       gross,
       discount,
@@ -210,7 +221,7 @@ function buildBatchReport(input) {
   }
   const total = ws.addRow({
     purchase_date: 'รวม',
-    bill_no: `${input.rows.length} บิล`,
+    customer_code: `${input.rows.length} รายการ`,
     gross: sumGross,
     discount: sumDiscount,
     net: sumNet,
@@ -239,10 +250,10 @@ function buildBatchReport(input) {
     ['อนุมัติเมื่อ', b.committed_at ? thaiDate(b.committed_at) : ''],
     ['ยกเลิกโดย', b.voided_by_name ?? ''],
     ['เหตุผลที่ยกเลิก', b.void_reason ?? ''],
-    ['จำนวนบิลที่ได้แต้ม', input.rows.length],
+    ['จำนวนรายการที่ได้แต้ม', input.rows.length],
     ['แต้มรวม', sumPoints],
     [],
-    ['รายงานนี้มีเลขที่บิลโดยตั้งใจ — ใช้เทียบกับบิลกระดาษ (ผู้อนุมัติ/ผู้จัดการ) · ห้ามส่งต่อภายนอก'],
+    ['รายงานสำหรับผู้อนุมัติ/ผู้จัดการ · ห้ามส่งต่อภายนอก'],
     [`ออกรายงานเมื่อ ${thaiDate(new Date().toISOString())}`],
   ]
   metaRows.forEach((r) => meta.addRow(r))
@@ -266,5 +277,5 @@ module.exports = {
   buildBatchReport,
   batchReportFilename,
   thaiDate,
-  plainPhone,
+  reportPhone,
 }

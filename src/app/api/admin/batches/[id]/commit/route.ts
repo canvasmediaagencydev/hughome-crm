@@ -27,6 +27,7 @@ interface RawRow {
 function explainRpcError(err: { code?: string; message?: string }): { status: number; error: string } {
   const msg = err.message ?? ''
 
+  // template v3 (2026-10-18) ไม่มีเลขที่บิลแล้ว · เก็บไว้เผื่อ unique index เดิม (pbl_bill_no_active_idx) เตะ
   if (err.code === '23505' && msg.includes('bill_no')) {
     return {
       status: 409,

@@ -38,7 +38,6 @@ interface PreviewRow {
   row_no: number
   customer_code: string | null
   purchase_date: string | null
-  bill_no: string | null
   phone: string | null
   customer_name: string | null
   gross: number | null
@@ -416,7 +415,6 @@ export default function BatchesPage() {
                     <th className="px-2 py-2">แถว</th>
                     <th className="px-2 py-2">รหัสลูกค้า</th>
                     <th className="px-2 py-2">วันที่ซื้อ</th>
-                    <th className="px-2 py-2">เลขที่บิล</th>
                     <th className="px-2 py-2">เบอร์</th>
                     <th className="px-2 py-2">ลูกค้า</th>
                     <th className="px-2 py-2 text-right">สุทธิ</th>
@@ -432,7 +430,6 @@ export default function BatchesPage() {
                       <td className="px-2 py-1.5">{r.row_no}</td>
                       <td className="px-2 py-1.5 font-mono">{r.customer_code ?? '—'}</td>
                       <td className="px-2 py-1.5">{r.purchase_date ?? '—'}</td>
-                      <td className="px-2 py-1.5 font-mono">{r.bill_no ?? '—'}</td>
                       <td className="px-2 py-1.5">{r.phone ?? '—'}</td>
                       <td className="px-2 py-1.5">{r.customer_name ?? '—'}</td>
                       <td className="px-2 py-1.5 text-right">{r.net?.toLocaleString() ?? '—'}</td>
@@ -610,8 +607,8 @@ export default function BatchesPage() {
             </DialogTitle>
             <DialogDescription>
               {voidTarget?.status === 'pending_approval'
-                ? 'ชุดนี้ยังไม่ได้ให้แต้มใคร — ปฏิเสธแล้วบัญชีต้องแก้ไฟล์และอัปโหลดใหม่ · เลขที่บิลในชุดกลับมาใช้ได้'
-                : 'แต้มของลูกค้า "ทุกคน" ในชุดนี้จะถูกดึงคืนทั้งหมด (ทุกบิล ไม่ใช่แค่แถวที่ผิด) · เลขที่บิลจะกลับมาคีย์ใหม่ได้ · ถ้าลูกค้าใช้แต้มบางส่วนไปแล้ว ระบบดึงคืนเฉพาะที่เหลือ'}
+                ? 'ชุดนี้ยังไม่ได้ให้แต้มใคร — ปฏิเสธแล้วบัญชีต้องแก้ไฟล์และอัปโหลดใหม่'
+                : 'แต้มของลูกค้า "ทุกคน" ในชุดนี้จะถูกดึงคืนทั้งหมด (ทุกรายการ ไม่ใช่แค่แถวที่ผิด) · ถ้าลูกค้าใช้แต้มบางส่วนไปแล้ว ระบบดึงคืนเฉพาะที่เหลือ'}
               {voidTarget && ` · ${voidTarget.file_name} (${voidTarget.total_points.toLocaleString()} แต้ม)`}
             </DialogDescription>
           </DialogHeader>

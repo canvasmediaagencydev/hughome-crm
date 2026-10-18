@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
       multiplier: Number(c.multiplier),
     })) as CampaignLookup[]
 
-    // ---------------- รอบแรก: อ่านไฟล์เพื่อดึงเบอร์/เลขบิลที่ต้องไปเช็คกับ DB ----------------
+    // ---------------- รอบแรก: อ่านไฟล์เพื่อดึงเบอร์ที่ต้องไปเช็คกับ DB ----------------
     // parse 2 รอบโดยตั้งใจ: รอบแรก lookup ว่าง → ได้ค่าที่ normalize แล้วมาไป query
     // รอบสองค่อยตัดสินสถานะจริง · ไฟล์ ≤ 5,000 แถว ต้นทุนน้อยกว่าการเขียน parser 2 โหมด
     const probe = await parseSalesBatch(buffer, {
@@ -153,11 +153,9 @@ export async function POST(request: NextRequest) {
       salesReps,
       activeCampaigns,
       usersByPhone: new Map(),
-      billsInUse: new Map(),
     })
 
     const phones = [...new Set(probe.rows.map((r) => r.phone).filter((p): p is string => !!p))]
-    const bills = [...new Set(probe.rows.map((r) => r.bill_no).filter((b): b is string => !!b))]
 
     // เบอร์ → user_id · user_id → customer_code (cross-check คอลัมน์ รหัสลูกค้า · เบอร์เป็น key เสมอ)
     const usersByPhone = new Map<string, string>()
@@ -175,32 +173,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // เลขบิลที่ถูกใช้ไปแล้ว (ledger ที่ยังไม่ถูก void)
-    //
-    // ใช้ .in() ไม่ใช่ .or(...ilike...) โดยตั้งใจ: ilike มองว่า % และ _ เป็น wildcard
-    // เลขบิลที่มี _ (เช่น INV_001) จะไป match บิลอื่นผิด ๆ แล้วโดนตีว่า "ใช้แล้ว"
-    // = ปฏิเสธยอดขายที่ถูกต้องแบบเงียบ ๆ · PostgREST ไม่เปิดให้ใส่ ESCAPE ด้วย
-    // .in() ให้ supabase-js escape เอง ไม่มี wildcard → ส่งทั้ง 3 รูปแบบตัวพิมพ์แทน
-    //
-    // ช่องที่เหลือ: ตัวพิมพ์ผสมแปลก ๆ (เก็บ "InV-001" แต่อัปมา "inv-001") จะหลุด preview
-    // แต่ unique index upper(btrim(bill_no)) จะเตะตอน commit (ทั้ง batch rollback) — ล้มดัง ไม่เงียบ
-    const billsInUse = new Map<string, string>()
-    const billVariants = [...new Set(bills.flatMap((b) => [b, b.toUpperCase(), b.toLowerCase()]))]
-    for (const part of chunk(billVariants, CHUNK)) {
-      const { data, error } = await supabase
-        .from('point_batch_ledger')
-        .select('bill_no, source_batch_id')
-        .eq('voided', false)
-        .in('bill_no', part)
-      if (error) {
-        console.error('[batches/upload] bill lookup failed:', error)
-        return NextResponse.json({ error: 'ตรวจเลขที่บิลซ้ำไม่สำเร็จ' }, { status: 500 })
-      }
-      for (const l of data ?? []) {
-        if (l.bill_no) billsInUse.set(l.bill_no.trim().toUpperCase(), l.source_batch_id ?? '')
-      }
-    }
-
     // ---------------- รอบสอง: ตัดสินสถานะจริง ----------------
     const result = await parseSalesBatch(buffer, {
       weekStart,
@@ -210,7 +182,6 @@ export async function POST(request: NextRequest) {
       activeCampaigns,
       usersByPhone,
       customerCodeByUserId,
-      billsInUse,
       duplicateAmountPolicy: 'warn', // Q2 ยังไม่ตอบ → เตือน ไม่ reject (สลับที่นี่ที่เดียวถ้าตอบว่า reject)
     })
 

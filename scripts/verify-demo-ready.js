@@ -96,13 +96,9 @@ async function main() {
   const bahtPerPoint = Number(setting?.setting_value)
   check('baht_per_point = 100', bahtPerPoint === 100, String(bahtPerPoint))
 
-  // ---------------- 3. เลขบิลยังไม่ถูกใช้ ----------------
-  console.log('\n[2] เลขบิลในไฟล์ demo ยังว่างอยู่ไหม')
-  const bills = EXPECT.expected.map((e) => e.bill)
-  const used = (await sb.from('point_batch_ledger').select('bill_no').eq('voided', false).in('bill_no', bills)).data ?? []
-  check('ยังไม่มีเลขบิล DM-2607-* ถูกใช้', used.length === 0,
-    used.length ? 'ถูกใช้แล้ว: ' + used.map((u) => u.bill_no).join(',') : '')
-
+  // ---------------- 3. ไฟล์ demo ยังไม่ค้างในระบบ ----------------
+  // spec v3 (2026-10-18) ไม่มีคอลัมน์ เลขที่บิล แล้ว → ไม่ต้องเช็กเลขบิลซ้ำ เหลือแค่ sha256/สถานะชุด
+  console.log('\n[2] ไฟล์ demo ยังไม่ค้างในระบบ')
   // ชุด voided เป็นประวัติที่ต้องเก็บ (ledger อ้างถึง) และไม่กัน sha256 ซ้ำ — นับเฉพาะชุดที่ยังไม่ voided
   const sha = (await sb.from('point_batches').select('id, file_name, status').like('file_name', 'demo-%').neq('status', 'voided')).data ?? []
   check('ไม่มีไฟล์ demo ค้างในสถานะที่กันอัปโหลดซ้ำ (previewed/pending/committed)', sha.length === 0,
@@ -121,7 +117,6 @@ async function main() {
     salesReps: reps,
     activeCampaigns: camps.filter((c) => c.is_active).map((c) => ({ ...c, multiplier: Number(c.multiplier) })),
     usersByPhone,
-    billsInUse: new Map(),
   })
 
   const s = result.summary

@@ -81,15 +81,14 @@ async function main() {
     salesReps: SALES_REPS,
     activeCampaigns: CAMPAIGNS,
     usersByPhone: USERS,
-    billsInUse: new Map(),
   })
 
   // ---------------- ตารางผลจริง ----------------
   console.log('ผลจาก parser:')
-  console.log('  แถว  เลขบิล        วันที่ซื้อ    สุทธิ   ตัวคูณ  แต้ม  สถานะ')
+  console.log('  แถว  วันที่ซื้อ    สุทธิ   ตัวคูณ  แต้ม  สถานะ')
   for (const r of result.rows) {
     console.log(
-      `  ${String(r.row_no).padStart(3)}  ${(r.bill_no ?? '—').padEnd(13)} ${(r.purchase_date ?? '—').padEnd(11)} ` +
+      `  ${String(r.row_no).padStart(3)}  ${(r.purchase_date ?? '—').padEnd(11)} ` +
         `${String(r.net ?? '—').padStart(6)}  ${String(r.multiplier).padStart(4)}  ${String(r.points ?? '—').padStart(4)}  ` +
         `${r.status}${r.errors.length ? ' · ' + r.errors.join(' / ') : ''}`
     )
@@ -109,14 +108,15 @@ async function main() {
   check('รวมแต้ม = 687 (ตรงกับที่คิดมือ)', s.total_points === EXPECT.totalPoints && s.total_points === 687, String(s.total_points))
 
   console.log('\n[เทียบแต้มรายแถว: parser vs คิดมือ]')
-  const byBill = new Map(result.rows.map((r) => [r.bill_no, r]))
+  // spec v3 ไม่มีเลขบิลแล้ว → จับคู่ด้วย row_no (เลขแถวใน Excel) ที่ build-demo-batch.js เขียนไว้
+  const byRow = new Map(result.rows.map((r) => [r.row_no, r]))
   for (const e of EXPECT.expected) {
-    const got = byBill.get(e.bill)
+    const got = byRow.get(e.row_no)
     if (e.points === null) {
-      check(`${e.bill} ต้องไม่ผ่าน (${e.note.replace('❌ ', '')})`, got && got.status !== 'valid', got?.status)
+      check(`แถว ${e.row_no} ต้องไม่ผ่าน (${e.note.replace('❌ ', '')})`, got && got.status !== 'valid', got?.status)
     } else {
       check(
-        `${e.bill} → ${e.points} แต้ม (×${e.mult})`,
+        `แถว ${e.row_no} → ${e.points} แต้ม (×${e.mult})`,
         got?.points === e.points && Number(got?.multiplier) === e.mult && got?.status === 'valid',
         `parser: ${got?.points} แต้ม ×${got?.multiplier} (${got?.status})`
       )
@@ -124,8 +124,8 @@ async function main() {
   }
 
   // ---------------- คิดมือละเอียด 1 แถวในแคมเปญ ----------------
-  console.log('\n[คิดมือทีละขั้น: DM-2607-006 ในช่วงแคมเปญ x2]')
-  const r6 = byBill.get('DM-2607-006')
+  console.log('\n[คิดมือทีละขั้น: แถว 7 (2026-07-24 · S04) ในช่วงแคมเปญ x2]')
+  const r6 = byRow.get(7)
   const gross = 15750
   const discount = 750
   const net = gross - discount // 15000

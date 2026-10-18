@@ -35,18 +35,19 @@ const d = (iso) => {
   return new Date(Date.UTC(y, m - 1, day)) // UTC เสมอ — parser อ่านด้วย getUTC*
 }
 
-// วันที่ | เลขบิล | เบอร์ | ชื่อ | ยอดซื้อ | ลดหนี้ | Maker | หมายเหตุ | เจตนา  (รหัสลูกค้าเว้นว่าง — ดูข้างล่าง)
+// วันที่ | เบอร์ | ชื่อ | ยอดซื้อ | ลดหนี้ | Maker | หมายเหตุ | เจตนา  (รหัสลูกค้าเว้นว่าง — ดูข้างล่าง)
+// spec v3 (2026-10-18): ไม่มีคอลัมน์ เลขที่บิล แล้ว → ระบุแถวด้วย row_no (= แถวใน Excel) แทน
 const ROWS = [
-  ['2026-07-20', 'DM-2607-001', '0800000001', 'สมชาย มั่นคง',      2500,  0,    'S01', '',                    'ปกติ · นอกแคมเปญ'],
-  ['2026-07-20', 'DM-2607-002', '0800000002', 'ปราณี ศรีสุข',       12000, 1500, 'S02', 'คืนกระเบื้อง 2 กล่อง', 'มียอดลดหนี้'],
-  ['2026-07-21', 'DM-2607-003', '0800000003', 'ธนากร ใจงาม',       4837,  0,    'S01', 'ผู้รับเหมา',           'เศษสตางค์ ปัดลง'],
-  ['2026-07-22', 'DM-2607-004', '0800000004', 'วรรณภา พูนผล',      850,   0,    'S03', '',                    'ปัดขึ้นครึ่งแต้ม'],
-  ['2026-07-23', 'DM-2607-005', '0800000005', 'อนุชา แก้วใส',       6000,  0,    'S02', '',                    'เข้าแคมเปญ x2'],
-  ['2026-07-24', 'DM-2607-006', '0800000006', 'จันทร์เพ็ญ ทองดี',  15750, 750,  'S04', 'ยอดใหญ่',             'x2 + ลดหนี้'],
-  ['2026-07-25', 'DM-2607-007', '0800000007', 'ประเสริฐ วงศ์ไทย',   3300,  300,  'S03', '',                    'x2 + ลดหนี้'],
-  ['2026-07-26', 'DM-2607-008', '0800000008', 'มาลี บุญมาก',        990,   0,    'S04', '',                    'x2 ปัดขึ้น'],
-  ['2026-07-24', 'DM-2607-009', '0899999999', 'ลูกค้ายังไม่สมัคร',   5000,  0,    'S01', '',                    '❌ เบอร์ไม่มีในระบบ → unmatched'],
-  ['2026-07-25', 'DM-2607-010', '0800000001', 'สมชาย มั่นคง',      1200,  1500, 'S02', 'คีย์ผิด',              '❌ ลดหนี้เกินยอดซื้อ → invalid'],
+  ['2026-07-20', '0800000001', 'สมชาย มั่นคง',      2500,  0,    'S01', '',                    'ปกติ · นอกแคมเปญ'],
+  ['2026-07-20', '0800000002', 'ปราณี ศรีสุข',       12000, 1500, 'S02', 'คืนกระเบื้อง 2 กล่อง', 'มียอดลดหนี้'],
+  ['2026-07-21', '0800000003', 'ธนากร ใจงาม',       4837,  0,    'S01', 'ผู้รับเหมา',           'เศษสตางค์ ปัดลง'],
+  ['2026-07-22', '0800000004', 'วรรณภา พูนผล',      850,   0,    'S03', '',                    'ปัดขึ้นครึ่งแต้ม'],
+  ['2026-07-23', '0800000005', 'อนุชา แก้วใส',       6000,  0,    'S02', '',                    'เข้าแคมเปญ x2'],
+  ['2026-07-24', '0800000006', 'จันทร์เพ็ญ ทองดี',  15750, 750,  'S04', 'ยอดใหญ่',             'x2 + ลดหนี้'],
+  ['2026-07-25', '0800000007', 'ประเสริฐ วงศ์ไทย',   3300,  300,  'S03', '',                    'x2 + ลดหนี้'],
+  ['2026-07-26', '0800000008', 'มาลี บุญมาก',        990,   0,    'S04', '',                    'x2 ปัดขึ้น'],
+  ['2026-07-24', '0899999999', 'ลูกค้ายังไม่สมัคร',   5000,  0,    'S01', '',                    '❌ เบอร์ไม่มีในระบบ → unmatched'],
+  ['2026-07-25', '0800000001', 'สมชาย มั่นคง',      1200,  1500, 'S02', 'คีย์ผิด',              '❌ ลดหนี้เกินยอดซื้อ → invalid'],
 ]
 
 async function main() {
@@ -60,13 +61,12 @@ async function main() {
     const row = ws.getRow(SPEC.headerRow + 1 + i)
     row.getCell(cellOf('customer_code')).value = ''
     row.getCell(cellOf('purchase_date')).value = d(r[0])
-    row.getCell(cellOf('bill_no')).value = r[1]
-    row.getCell(cellOf('phone')).value = r[2]
-    row.getCell(cellOf('customer_name')).value = r[3]
-    row.getCell(cellOf('gross')).value = r[4]
-    row.getCell(cellOf('discount')).value = r[5]
-    row.getCell(cellOf('sales_rep')).value = repLabel(byCode[r[6]])
-    row.getCell(cellOf('note')).value = r[7]
+    row.getCell(cellOf('phone')).value = r[1]
+    row.getCell(cellOf('customer_name')).value = r[2]
+    row.getCell(cellOf('gross')).value = r[3]
+    row.getCell(cellOf('discount')).value = r[4]
+    row.getCell(cellOf('sales_rep')).value = repLabel(byCode[r[5]])
+    row.getCell(cellOf('note')).value = r[6]
     row.commit()
   })
 
@@ -75,12 +75,14 @@ async function main() {
   await wb.xlsx.writeFile(outFile)
 
   // ---- คำนวณแต้มที่คาดหวัง (คิดมือ ไม่ผ่าน parser) เพื่อเอาไปเทียบกันทีหลัง ----
-  const expected = ROWS.map((r) => {
-    const net = r[4] - r[5]
+  // row_no = เลขแถวใน Excel (แถวหัว + 1 + index) — ตรงกับ ParsedRow.row_no ของ parser
+  const expected = ROWS.map((r, i) => {
+    const net = r[3] - r[4]
     const inCampaign = r[0] >= CAMPAIGN.from && r[0] <= CAMPAIGN.to
     const mult = inCampaign ? CAMPAIGN.multiplier : 1
-    const bad = r[2] === '0899999999' || r[5] > r[4]
-    return { bill: r[1], net, mult, points: bad ? null : Math.round((net / 100) * mult), note: r[8] }
+    const bad = r[1] === '0899999999' || r[4] > r[3]
+    const row_no = SPEC.headerRow + 1 + i
+    return { row_no, purchase_date: r[0], net, mult, points: bad ? null : Math.round((net / 100) * mult), note: r[7] }
   })
   const totalPoints = expected.filter((e) => e.points !== null).reduce((n, e) => n + e.points, 0)
 
@@ -89,7 +91,7 @@ async function main() {
   console.log('\nแต้มที่คาดหวัง (คิดมือ · baht_per_point = 100):')
   for (const e of expected) {
     console.log(
-      `  ${e.bill}  สุทธิ ${String(e.net).padStart(6)} × ${e.mult}  → ${String(e.points ?? '—').padStart(4)} แต้ม   ${e.note}`
+      `  แถว ${String(e.row_no).padStart(2)}  ${e.purchase_date}  สุทธิ ${String(e.net).padStart(6)} × ${e.mult}  → ${String(e.points ?? '—').padStart(4)} แต้ม   ${e.note}`
     )
   }
   console.log(`\n  รวมแต้มจากแถวที่ใช้ได้ = ${totalPoints}`)

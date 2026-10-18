@@ -104,7 +104,7 @@ export async function PATCH(
     const updates: { customer_code?: string | null; birthday?: string | null } = {};
 
     if (Object.prototype.hasOwnProperty.call(body, "customer_code")) {
-      // Q1 (2026-09-21): รหัสเป็นตัวเลขจากระบบเดิม · รูปแบบเก่ายังรับ (src/lib/customer-code.ts)
+      // Q1 (2026-09-21) + feedback 2026-10-18: ไม่ล็อกรูปแบบ — กันแค่ยาวเกิน/อักขระควบคุม (src/lib/customer-code.ts)
       const normalized = normalizeCustomerCode(customer_code);
       if (normalized !== null && !isValidCustomerCode(normalized)) {
         return NextResponse.json(

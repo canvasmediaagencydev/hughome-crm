@@ -2,8 +2,8 @@
  * GET /api/admin/reports/batches/:id/excel — รายงานชุดยอดขายรายสัปดาห์สำหรับผู้อนุมัติ/ผู้จัดการ
  * (MIGRATION_PLAN.md §8.2 · wiki/12 §5 · Sprint 9R A5)
  *
- *   1 แถว = 1 บิล · "มีเลขที่บิลโดยตั้งใจ" (ใช้เทียบบิลกระดาษ) ห้ามลบคอลัมน์นี้
- *   วันที่ซื้อ, เลขบิล, รหัสลูกค้า, เบอร์ (ไม่มีขีด), ชื่อ, ยอดซื้อ, ลดหนี้, สุทธิ, ตัวคูณ, แต้ม, Maker, สาขา · แถวท้าย: รวม
+ *   1 แถว = 1 รายการซื้อ · template v3 (2026-10-18) ไม่มีเลขที่บิลแล้ว
+ *   วันที่ซื้อ, รหัสลูกค้า, เบอร์ (xxx-xxxxxxx), ชื่อ, ยอดซื้อ, ลดหนี้, สุทธิ, ตัวคูณ, แต้ม, Maker, สาขา · แถวท้าย: รวม · เรียงวันที่ซื้อเก่า→ใหม่
  *
  * ข้อมูลมาจาก raw_rows ของชุด (แถวที่จะได้/ได้แต้ม: valid + duplicate_amount) — ตรงกับที่ RPC ให้แต้ม
  * ชื่อ/รหัสลูกค้าดึงสดจาก user_profiles (raw_rows เก็บชื่อที่ Maker พิมพ์มา อาจไม่ตรง)
@@ -89,7 +89,6 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
         const u = r.user_id ? userById.get(r.user_id) : undefined
         return {
           purchase_date: r.purchase_date,
-          bill_no: r.bill_no,
           customer_code: u?.customer_code ?? r.customer_code ?? null,
           phone: r.phone,
           customer_name: u?.name || r.customer_name || null,

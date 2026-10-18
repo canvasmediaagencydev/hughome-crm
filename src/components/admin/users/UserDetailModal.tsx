@@ -177,7 +177,7 @@ export function UserDetailModal({
                       type="text"
                       value={editingCodeValue}
                       onChange={(e) => setEditingCodeValue(e.target.value)}
-                      placeholder="AR-10297 หรือ 50ลส-1030"
+                      placeholder="รหัสลูกค้า"
                       className="text-sm font-mono px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 w-36"
                       disabled={savingCode}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCode(); if (e.key === 'Escape') setIsEditingCode(false) }}

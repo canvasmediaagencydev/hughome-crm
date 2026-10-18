@@ -53,8 +53,6 @@ export interface ParseContext {
    * ไม่ส่งมา = ข้ามการ cross-check (สคริปต์เก่า/บาง e2e)
    */
   customerCodeByUserId?: Map<string, string | null>
-  /** upper(trim(bill_no)) ของ ledger ที่ voided=false → batch id ที่ใช้ไปแล้ว */
-  billsInUse: Map<string, string>
   /**
    * เบอร์ + วันที่ซื้อ + ยอดสุทธิ ซ้ำกันในไฟล์เดียวกัน:
    *   'warn'   (ค่าเริ่มต้น) → status duplicate_amount ให้แต้มได้ แต่ preview นับและโชว์
@@ -68,7 +66,6 @@ export interface ParsedRow {
   row_no: number
   customer_code: string | null
   purchase_date: string | null
-  bill_no: string | null
   phone: string | null
   phone_raw: string | null
   customer_name: string | null
@@ -304,7 +301,6 @@ export async function parseSalesBatch(buffer: Buffer, ctx: ParseContext): Promis
   const findCampaign = (date: string) =>
     ctx.activeCampaigns.find((c) => date >= c.starts_on && date <= c.ends_on) ?? null
 
-  const billSeenInFile = new Map<string, number>()
   /** `${phone}|${purchase_date}|${net}` → row_no แรกที่เจอ */
   const amountSeenInFile = new Map<string, number>()
   const dupPolicy = ctx.duplicateAmountPolicy ?? 'warn'
@@ -326,26 +322,6 @@ export async function parseSalesBatch(buffer: Buffer, ctx: ParseContext): Promis
     if (dateError) errors.push(dateError)
     else if (purchaseDate && (purchaseDate < ctx.weekStart || purchaseDate > ctx.weekEnd)) {
       errors.push(`วันที่ซื้อ ${purchaseDate} อยู่นอกช่วง ${ctx.weekStart} ถึง ${ctx.weekEnd} — แยกไฟล์ตามสัปดาห์`)
-    }
-
-    // ---- เลขที่บิล ----
-    const billRaw = cellText(row.getCell(colIndex('bill_no')))
-    let billNo: string | null = billRaw.trim() || null
-    if (!billNo) {
-      errors.push('ไม่ได้กรอกเลขที่บิล')
-    } else if (billNo.length > 64) {
-      errors.push(`เลขที่บิลยาวเกิน 64 ตัวอักษร (${billNo.length})`)
-      billNo = null
-      // eslint-disable-next-line no-control-regex
-    } else if (/[\x00-\x1f\x7f]/.test(billNo)) {
-      errors.push('เลขที่บิลมีอักขระควบคุมที่ใช้ไม่ได้')
-      billNo = null
-    } else {
-      const norm = billNo.toUpperCase()
-      const dupRow = billSeenInFile.get(norm)
-      if (dupRow) errors.push(`เลขที่บิลซ้ำกับแถวที่ ${dupRow} ในไฟล์เดียวกัน`)
-      else if (ctx.billsInUse.has(norm)) errors.push('เลขที่บิลนี้เคยได้แต้มไปแล้ว (อยู่ใน batch ที่ยังไม่ถูกยกเลิก)')
-      else billSeenInFile.set(norm, r)
     }
 
     // ---- เบอร์โทร + จับคู่ลูกค้า ----
@@ -454,7 +430,6 @@ export async function parseSalesBatch(buffer: Buffer, ctx: ParseContext): Promis
       row_no: r,
       customer_code: customerCode,
       purchase_date: purchaseDate,
-      bill_no: billNo,
       phone,
       phone_raw: phoneRaw || null,
       customer_name: cellText(row.getCell(colIndex('customer_name'))) || null,

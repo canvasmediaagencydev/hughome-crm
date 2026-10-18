@@ -91,7 +91,7 @@ export default function AdminReportsPage() {
   const [batches, setBatches] = useState<BatchRow[] | null>(null)
   const canViewBatches = hasPermission(PERMISSIONS.BATCHES_VIEW)
 
-  // รายงานชุดยอดขาย (มีเลขบิล) — ดาวน์โหลดได้จากที่นี่ด้วย ไม่ต้องไปหน้า /admin/batches
+  // รายงานชุดยอดขาย — ดาวน์โหลดได้จากที่นี่ด้วย ไม่ต้องไปหน้า /admin/batches
   useEffect(() => {
     if (!canViewBatches) return
     axiosAdmin
@@ -227,7 +227,7 @@ export default function AdminReportsPage() {
             รายงานข้อมูลลูกค้า
           </h1>
           <p className="text-slate-600 mt-1">
-            ตาราง = ลูกค้าที่สมัครในช่วง · ไฟล์ Excel = ลูกค้าทุกคน 1 แถวต่อคน (รหัส, เบอร์ 10 หลัก, แต้ม, แต้มที่จะหมดอายุ,
+            ตาราง = ลูกค้าที่สมัครในช่วง · ไฟล์ Excel = ลูกค้าทุกคน 1 แถวต่อคน (รหัส, เบอร์ xxx-xxxxxxx, แต้ม, แต้มที่จะหมดอายุ,
             ยอดซื้อสุทธิ + จำนวนบิลในช่วงที่เลือก, แท็ก) — ไม่มีเลขที่บิล
           </p>
         </div>
@@ -430,14 +430,14 @@ export default function AdminReportsPage() {
           </div>
         )}
 
-        {/* รายงานชุดยอดขาย (สำหรับผู้อนุมัติ · มีเลขที่บิล) */}
+        {/* รายงานชุดยอดขาย (สำหรับผู้อนุมัติ) */}
         {canViewBatches && (
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 mt-6">
             <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
               <FileSpreadsheet className="w-5 h-5" /> รายงานชุดยอดขายรายสัปดาห์
             </h2>
             <p className="text-sm text-slate-600 mt-1 mb-4">
-              1 แถว = 1 บิล · มีเลขที่บิล, Maker และสาขา สำหรับผู้อนุมัติ/ผู้จัดการเทียบกับบิลกระดาษ · ห้ามส่งต่อภายนอก
+              1 แถว = 1 รายการซื้อ เรียงวันที่ซื้อเก่าไปใหม่ · มี Maker และสาขา สำหรับผู้อนุมัติ/ผู้จัดการ · ห้ามส่งต่อภายนอก
             </p>
             {batches === null ? (
               <p className="text-slate-400 text-sm">กำลังโหลด…</p>

@@ -46,14 +46,14 @@ const DEMO_BATCH = {
 }
 const R = (code, name) => `${code} · ${name}`
 const DEMO_ROWS = [
-  { purchase_date: '2026-07-20', bill_no: 'DM-2607-001', customer_code: 'HH-000101', phone: '0800000001', customer_name: 'สมชาย มั่นคง', gross: 2500, discount: 0, net: 2500, multiplier: 1, points: 25, sales_rep: R('S01', 'สมชาย มั่นคง') },
-  { purchase_date: '2026-07-20', bill_no: 'DM-2607-002', customer_code: 'HH-000102', phone: '0800000002', customer_name: 'ปราณี ศรีสุข', gross: 12000, discount: 1500, net: 10500, multiplier: 1, points: 105, sales_rep: R('S02', 'ปราณี ศรีสุข') },
-  { purchase_date: '2026-07-21', bill_no: 'DM-2607-003', customer_code: 'HH-000103', phone: '0800000003', customer_name: 'ธนากร ใจงาม', gross: 4837, discount: 0, net: 4837, multiplier: 1, points: 48, sales_rep: R('S01', 'สมชาย มั่นคง') },
-  { purchase_date: '2026-07-22', bill_no: 'DM-2607-004', customer_code: null, phone: '0800000004', customer_name: 'วรรณภา พูนผล', gross: 850, discount: 0, net: 850, multiplier: 1, points: 9, sales_rep: R('S03', 'ธนากร ใจงาม') },
-  { purchase_date: '2026-07-23', bill_no: 'DM-2607-005', customer_code: 'HH-000105', phone: '0800000005', customer_name: 'อนุชา แก้วใส', gross: 6000, discount: 0, net: 6000, multiplier: 2, points: 120, sales_rep: R('S02', 'ปราณี ศรีสุข') },
-  { purchase_date: '2026-07-24', bill_no: 'DM-2607-006', customer_code: 'HH-000106', phone: '0800000006', customer_name: 'จันทร์เพ็ญ ทองดี', gross: 15750, discount: 750, net: 15000, multiplier: 2, points: 300, sales_rep: R('S04', 'จันทร์เพ็ญ ทองดี') },
-  { purchase_date: '2026-07-25', bill_no: 'DM-2607-007', customer_code: 'HH-000107', phone: '0800000007', customer_name: 'ประเสริฐ วงศ์ไทย', gross: 3300, discount: 300, net: 3000, multiplier: 2, points: 60, sales_rep: R('S03', 'ธนากร ใจงาม') },
-  { purchase_date: '2026-07-26', bill_no: 'DM-2607-008', customer_code: 'HH-000108', phone: '0800000008', customer_name: 'มาลี บุญมาก', gross: 990, discount: 0, net: 990, multiplier: 2, points: 20, sales_rep: R('S04', 'จันทร์เพ็ญ ทองดี') },
+  { purchase_date: '2026-07-20', customer_code: 'HH-000101', phone: '0800000001', customer_name: 'สมชาย มั่นคง', gross: 2500, discount: 0, net: 2500, multiplier: 1, points: 25, sales_rep: R('S01', 'สมชาย มั่นคง') },
+  { purchase_date: '2026-07-20', customer_code: 'HH-000102', phone: '0800000002', customer_name: 'ปราณี ศรีสุข', gross: 12000, discount: 1500, net: 10500, multiplier: 1, points: 105, sales_rep: R('S02', 'ปราณี ศรีสุข') },
+  { purchase_date: '2026-07-21', customer_code: 'HH-000103', phone: '0800000003', customer_name: 'ธนากร ใจงาม', gross: 4837, discount: 0, net: 4837, multiplier: 1, points: 48, sales_rep: R('S01', 'สมชาย มั่นคง') },
+  { purchase_date: '2026-07-22', customer_code: null, phone: '0800000004', customer_name: 'วรรณภา พูนผล', gross: 850, discount: 0, net: 850, multiplier: 1, points: 9, sales_rep: R('S03', 'ธนากร ใจงาม') },
+  { purchase_date: '2026-07-23', customer_code: 'HH-000105', phone: '0800000005', customer_name: 'อนุชา แก้วใส', gross: 6000, discount: 0, net: 6000, multiplier: 2, points: 120, sales_rep: R('S02', 'ปราณี ศรีสุข') },
+  { purchase_date: '2026-07-24', customer_code: 'HH-000106', phone: '0800000006', customer_name: 'จันทร์เพ็ญ ทองดี', gross: 15750, discount: 750, net: 15000, multiplier: 2, points: 300, sales_rep: R('S04', 'จันทร์เพ็ญ ทองดี') },
+  { purchase_date: '2026-07-25', customer_code: 'HH-000107', phone: '0800000007', customer_name: 'ประเสริฐ วงศ์ไทย', gross: 3300, discount: 300, net: 3000, multiplier: 2, points: 60, sales_rep: R('S03', 'ธนากร ใจงาม') },
+  { purchase_date: '2026-07-26', customer_code: 'HH-000108', phone: '0800000008', customer_name: 'มาลี บุญมาก', gross: 990, discount: 0, net: 990, multiplier: 2, points: 20, sales_rep: R('S04', 'จันทร์เพ็ญ ทองดี') },
 ]
 
 /** โหมด --from-db: ตัวเลขจริง ชื่อ/เบอร์/รหัสจำลอง (อ่านอย่างเดียว) */
@@ -113,7 +113,6 @@ async function loadFromDb() {
     .filter((r) => r.status === 'valid' || r.status === 'duplicate_amount')
     .map((r, i) => ({
       purchase_date: r.purchase_date,
-      bill_no: `BILL-${String(i + 1).padStart(4, '0')}`,
       customer_code: `HH-${String(100 + i).padStart(6, '0')}`,
       phone: `08000000${String((i % 9) + 1).padStart(2, '0')}`,
       customer_name: `ลูกค้า${i + 1} ตัวอย่าง`,
