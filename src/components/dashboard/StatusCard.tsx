@@ -2,6 +2,7 @@ import { memo } from 'react'
 import { IoMdRefresh } from "react-icons/io"
 import { formatThaiMonth } from '@/lib/bangkok-date'
 import type { NextExpiry } from '@/types/user'
+import { NumberTicker } from '@/components/ui/number-ticker'
 
 interface StatusCardProps {
   points: number
@@ -41,9 +42,10 @@ export const StatusCard = memo(({ points, nextExpiry, isRefreshing, onRefresh }:
         <div className="text-white mb-6">
           <h3 className="text-lg font-semibold mb-0.5 text-gray-300">คะแนนสะสม</h3>
           <div className="flex items-baseline space-x-2">
-            <span className="text-4xl font-bold bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent">
-              {points?.toLocaleString() || '0'}
-            </span>
+            <NumberTicker
+              value={points ?? 0}
+              className="text-4xl font-bold bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent"
+            />
             <span className="text-amber-400 font-semibold text-lg">แต้ม</span>
           </div>
           {nextExpiry && nextExpiry.points > 0 && (

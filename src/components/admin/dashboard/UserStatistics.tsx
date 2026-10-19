@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Users } from 'lucide-react'
+import { NumberTicker } from '@/components/ui/number-ticker'
 import { DashboardMetrics } from '@/hooks/useDashboard'
 
 interface UserStatisticsProps {
@@ -33,19 +34,19 @@ export function UserStatistics({ metrics, loading }: UserStatisticsProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="text-center p-4 bg-slate-50 rounded-lg">
             <div className="text-2xl font-bold text-slate-900">
-              {loading ? '-' : metrics.contractorCount.toLocaleString()}
+              {loading ? '-' : <NumberTicker value={metrics.contractorCount} />}
             </div>
             <div className="text-sm text-slate-600">ช่าง</div>
           </div>
           <div className="text-center p-4 bg-slate-50 rounded-lg">
             <div className="text-2xl font-bold text-slate-900">
-              {loading ? '-' : metrics.homeownerCount.toLocaleString()}
+              {loading ? '-' : <NumberTicker value={metrics.homeownerCount} />}
             </div>
             <div className="text-sm text-slate-600">เจ้าของบ้าน</div>
           </div>
           <div className="text-center p-4 bg-slate-50 rounded-lg">
             <div className="text-2xl font-bold text-slate-900">
-              {loading ? '-' : metrics.newUsersInRange.toLocaleString()}
+              {loading ? '-' : <NumberTicker value={metrics.newUsersInRange} />}
             </div>
             <div className="text-sm text-slate-600">สมัครใหม่ในช่วงที่เลือก</div>
           </div>

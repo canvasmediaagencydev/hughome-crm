@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { ShinyButton } from '@/components/ui/shiny-button'
+import { NumberTicker } from '@/components/ui/number-ticker'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
@@ -404,7 +406,7 @@ export default function BatchesPage() {
               <span className="rounded bg-red-100 px-3 py-1 text-red-800">ผิดพลาด {preview.summary.invalid}</span>
               <span className="rounded bg-amber-100 px-3 py-1 text-amber-800">ไม่พบลูกค้า {preview.summary.unmatched}</span>
               <span className="rounded bg-blue-100 px-3 py-1 font-semibold text-blue-800">
-                รวม {preview.summary.total_points.toLocaleString()} แต้ม
+                รวม <NumberTicker value={preview.summary.total_points} /> แต้ม
               </span>
             </div>
 
@@ -461,19 +463,19 @@ export default function BatchesPage() {
                 </p>
               )}
               {preview.status === 'previewed' && awardable > 0 && canUpload && (
-                <Button onClick={submit} disabled={busy}>
+                <ShinyButton onClick={submit} disabled={busy}>
                   <Send className="mr-1 h-4 w-4" />
                   {busy ? 'กำลังส่ง…' : `ส่งให้ผู้อนุมัติ — ${awardable} แถว · ${preview.summary.total_points.toLocaleString()} แต้ม`}
-                </Button>
+                </ShinyButton>
               )}
               {preview.status === 'previewed' && !canUpload && (
                 <p className="text-sm text-slate-500">ชุดนี้ยังไม่ได้ส่งให้ผู้อนุมัติ — รอบัญชีกด "ส่งให้ผู้อนุมัติ"</p>
               )}
               {preview.status === 'pending_approval' && canApprove && (
-                <Button onClick={approve} disabled={busy} className="bg-green-600 hover:bg-green-700">
+                <ShinyButton onClick={approve} disabled={busy} className="bg-green-600 hover:bg-green-700">
                   <CheckCircle2 className="mr-1 h-4 w-4" />
                   {busy ? 'กำลังให้แต้ม…' : `อนุมัติ (แต้มเข้า) — ${preview.summary.total_points.toLocaleString()} แต้ม`}
-                </Button>
+                </ShinyButton>
               )}
               {preview.status === 'pending_approval' && canApprove && previewBatchRow && (
                 <Button variant="outline" onClick={() => openVoid(previewBatchRow)} disabled={busy}>

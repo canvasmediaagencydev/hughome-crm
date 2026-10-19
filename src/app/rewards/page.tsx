@@ -2,6 +2,8 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { Button } from '@/components/ui/button'
+import { NumberTicker } from '@/components/ui/number-ticker'
+import { ConfettiBurst } from '@/components/ui/confetti-burst'
 import {
   Dialog,
   DialogContent,
@@ -43,6 +45,8 @@ type Redemption = Tables<'redemptions'> & {
 
 function RewardsContent() {
   const [rewards, setRewards] = useState<Reward[]>([])
+  /** เปลี่ยนค่า = ยิง confetti หนึ่งครั้ง (หลังแลกสำเร็จ) */
+  const [confettiKey, setConfettiKey] = useState<number | null>(null)
   const [redemptions, setRedemptions] = useState<Redemption[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingRewards, setLoadingRewards] = useState(true)
@@ -142,6 +146,7 @@ function RewardsContent() {
 
       if (response.ok) {
         toast.success('แลกรางวัลสำเร็จ!')
+        setConfettiKey(Date.now())
         setUserPoints(data.newBalance)
 
         const cachedSession = UserSessionManager.getCachedSession()
@@ -173,6 +178,7 @@ function RewardsContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-28">
+      <ConfettiBurst burstKey={confettiKey} />
       {/* Hero Header with Points */}
       <div className="relative bg-gradient-to-br from-red-600 via-red-500 to-orange-500 overflow-hidden">
         {/* Decorative blobs */}
@@ -229,9 +235,10 @@ function RewardsContent() {
               </div>
               <p className="text-gray-400 text-xs mb-1">แต้มคงเหลือของคุณ</p>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-white font-bold text-3xl tabular-nums bg-gradient-to-r from-white to-gray-200 bg-clip-text text-transparent">
-                  {userPoints.toLocaleString()}
-                </span>
+                <NumberTicker
+                  value={userPoints}
+                  className="text-white font-bold text-3xl bg-gradient-to-r from-white to-gray-200 bg-clip-text text-transparent"
+                />
                 <span className="text-amber-400 font-semibold text-sm">แต้ม</span>
               </div>
             </div>
