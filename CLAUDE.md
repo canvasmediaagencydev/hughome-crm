@@ -70,10 +70,10 @@ If you find a doc or comment mentioning receipts/OCR, it is stale — trust the 
 
 | | |
 |---|---|
-| Branch | `pilot-phase1` → Vercel production https://pilot-phase1.vercel.app (latest push `94d50b1` 2026-09-25; Vercel account on Pro) |
+| Branch | `pilot-phase1` → Vercel production https://pilot-phase1.vercel.app (latest deploy `79483b0` 2026-10-19; Vercel account on Pro) · **Preview deploys fail** (OTP keys Production-only — `wiki/07`) |
 | Supabase | pilot project `vltzkxmblmrvsmaookhl` (`hughome-pilot`, org of `canvasmediaagency@gmail.com`, Tokyo), `app_config.tenant_code = 'pilot'` · replaced `zoaxqouayhjkyterzzdt` on 2026-09-14 — see `wiki/07` |
 | Migrations | `001`–`027` all applied to pilot (`027` on 2026-10-18 via SQL Editor, `e2e-batch-flow.js` 35/35 after) · (`024`–`026` on 2026-09-21 via SQL Editor; `verify-schema.js` 23/23, `verify-types.js` clean, `e2e-batch-flow.js` 35/35) |
-| Sprints done | 0 – 8 · 9R deployed `ec5e79f` 2026-09-21 · **Sprint 10 part 1 same day**: email team notify (Resend), Telegram/LINE-group creation removed, customer-code import, Rollback = super_admin only · Sprint 5 leftover `POST /:id/review` on hold (Q12) · **2026-09-25** (`94d50b1`): SMS OTP via ThaiBulkSMS (verified on a phone), LINE Login channel published, `wiki/13` §10–§11 clicked on prod (money path clean — `wiki/13` §12) |
+| Sprints done | 0 – 8 · 9R deployed `ec5e79f` 2026-09-21 · **Sprint 10 part 1 same day**: email team notify (Resend), Telegram/LINE-group creation removed, customer-code import, Rollback = super_admin only · Sprint 5 leftover `POST /:id/review` on hold (Q12) · **2026-09-25** (`94d50b1`): SMS OTP via ThaiBulkSMS (verified on a phone), LINE Login channel published, `wiki/13` §10–§11 clicked on prod (money path clean — `wiki/13` §12) · **2026-10-18** (`5b017c5`): customer feedback — template v3, free customer code, report sort/phone (`wiki/15`) · **2026-10-19** (`79483b0`): motion UI from 21st.dev / Magic UI (`wiki/09`) |
 | Sprints left | prove role separation (`wiki/13` 10.2/10.5/10.7, needs a second admin account) · own SMS sender name · 10–11 — see `wiki/09` Remaining · open questions Q1 Q2 Q3 Q6–Q12 in `wiki/14` §4 |
 | Customer requirements | **`wiki/14-customer-meeting-2026-09-delta.md`** — answered and built 2026-09-21: Q1 (numeric codes imported from the old system), Q2 (duplicate = warning), Q3 (Rollback = super_admin), Q4 (expiry from approval date), Q5 (Excel v2), Q6 (email instead of Telegram/LINE group), Q7 (no customer push). Still open: Q8 Q9 Q10 Q11-sender-domain Q12 |
 | Rehearsal | `wiki/13` §1–6 + 8.3 clicked 2026-09-14 · §10–§11 clicked 2026-09-25 — money path clean both times (`wiki/13` §12). Still open: §7 redeem/cancel from a phone, live role-separation check. Findings: `wiki/09` Open debt |
@@ -113,7 +113,8 @@ These come from `docs/PROMPTS.md` and have been enforced all along.
 
 Next.js 15.5.2 (App Router, Turbopack) · React 19.1.0 · TypeScript 5 (strict) · Tailwind CSS 4 ·
 shadcn/ui · Supabase (Postgres + RLS + Storage) · LINE Login via LIFF SDK 2.27.2 + Messaging API ·
-`exceljs` for all Excel read/write.
+`exceljs` for all Excel read/write. `framer-motion` for UI motion (2026-10-19; components in
+`src/components/ui/` — `number-ticker`, `confetti-burst`, `magic-card`, `shiny-button`).
 
 > `xlsx@0.18.5` was **removed** (prototype pollution + ReDoS — unusable for reading uploaded files).
 > Do not reintroduce it.
@@ -189,6 +190,7 @@ npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts 
 | `src/app/api/admin/campaigns/*`, `src/lib/campaigns.ts` | campaign CRUD; overlap pre-check + `23P01` translation naming the conflicting campaign; `campaigns.manage` gate |
 | `src/config/env.ts`, `src/config/tenant.ts` | Boot-time env validation and tenant config. No defaults by design. |
 | `src/config/tenant-guard.ts` | Checks the connected DB belongs to this tenant. Currently **soft** — see debt list. |
+| `src/components/ui/number-ticker.tsx` etc. | Motion components (Magic UI, MIT, via 21st.dev). Must honour `prefers-reduced-motion`; a ticker showing points must land on the exact value (upstream stops one short — fixed here). Adding one needs the owner's approval and must not pull a new npm package without asking |
 | `src/lib/phone.ts` | Canonical Thai phone normalization. Identity is the local 10-digit form. |
 | `src/lib/thaibulksms-otp.ts`, `src/app/api/phone/*` | Customer SMS OTP via ThaiBulkSMS OTP Manager; the provider token lives in the signed session cookie, bound to the phone, deleted after verify |
 | `supabase/migrations/` | `001`–`027` up, `rollback/` down. |
@@ -199,6 +201,13 @@ npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts 
 
 ## 8. Known debt (do not be surprised by these)
 
+- **Vercel Preview builds fail.** `THAIBULKSMS_OTP_KEY` / `THAIBULKSMS_OTP_SECRET` are on Production
+  only, so a branch other than `pilot-phase1` stops at the env check. The owner must add them in the
+  Vercel dashboard, because agent writes to Vercel secrets are blocked by the Claude Code permission
+  classifier. The shell's `VERCEL_TOKEN` is invalid, so run the CLI as `env -u VERCEL_TOKEN vercel …`.
+  A second Vercel project, `hughomecrm`, on the same repo fails every push; it is not the pilot.
+- **Pushing `pilot-phase1` is a production deploy.** The permission classifier blocks it from the
+  agent, so the owner runs the push with `! git push …`. Work on a feature branch and hand over the command.
 - **`tenant-guard` is soft.** It throws on a real mismatch, but `src/instrumentation.ts` catches the
   error and only logs. Making it fail closed requires first confirming `NEXT_PUBLIC_TENANT_CODE` on
   Vercel is exactly `pilot`, or the whole site returns errors.

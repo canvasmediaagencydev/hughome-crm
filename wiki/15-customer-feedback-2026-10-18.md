@@ -1,7 +1,7 @@
 # 15 — Customer feedback 2026-10-18
 
-Four change requests the customer sent as one screenshot (2026-10-18). All four are built in code.
-Item 2 also needs migration `027` applied **before** the code is deployed.
+Four change requests the customer sent as one screenshot (2026-10-18). **All four are built and
+deployed** (`5b017c5`), and migration `027` was applied on 2026-10-18 (`e2e-batch-flow.js` 35/35).
 
 | # | Customer's words | What changed | Where |
 |---|---|---|---|
@@ -27,6 +27,11 @@ Kept on purpose: the `bill_no` column, `pbl_bill_no_len` and `pbl_bill_no_active
 ledger rows keep their bill numbers, and they still block each other from being reused.
 
 ## Deploy order
+
+> What actually happened on 2026-10-18: the code went out first, and the first run of `027` landed
+> in the wrong Supabase project. Approvals failed with the old `missing purchase_date/bill_no/sales_rep_id`
+> error (each batch rolled back, no points moved) until `027` was re-run on `vltzkxmblmrvsmaookhl`.
+> Before pasting a migration, check the project name in the SQL Editor header (`hughome-pilot`).
 
 1. Paste `supabase/migrations/027_bill_no_optional.sql` into the SQL Editor (pilot `vltzkxmblmrvsmaookhl`).
 2. Deploy the code.

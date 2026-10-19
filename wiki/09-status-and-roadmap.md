@@ -8,10 +8,10 @@ are marked as such.
 
 | | |
 |---|---|
-| Branch / deploy | `pilot-phase1` → https://pilot-phase1.vercel.app, commit `784603a` (Sprint 6–8 pushed 2026-09-14) |
+| Branch / deploy | `pilot-phase1` → https://pilot-phase1.vercel.app, commit `79483b0` (deployed 2026-10-19) |
 | Supabase | pilot `vltzkxmblmrvsmaookhl`, `tenant_code = pilot` |
-| Migrations | `001`–`026` applied (`024`–`026` on 2026-09-21 through the SQL Editor) |
-| Sprints complete | 0, 1, 2, 2.1, 3, 3.1, pre-4, 4, 5 (partial), 6, 7, 8 · **9R code + DB complete 2026-09-21** (uncommitted, not deployed) |
+| Migrations | `001`–`027` applied (`024`–`026` on 2026-09-21, `027` on 2026-10-18, all through the SQL Editor) |
+| Sprints complete | 0, 1, 2, 2.1, 3, 3.1, pre-4, 4, 5 (partial), 6, 7, 8, 9R, 10 part 1–2 · customer feedback 2026-10-18 (`wiki/15`) · motion UI 2026-10-19 — all deployed |
 | Demo data | `docs/demo/` (10 rows · 687 points) · `verify-demo-ready.js` 19/19 |
 
 ### Demo data — resolved 2026-08-31
@@ -230,6 +230,41 @@ Q7 no customer push (weekly cut-off) · Q11 Resend, internal test mailbox = the 
   (non-money) findings are in `wiki/13` §12. Role separation (10.2/10.5/10.7) is confirmed in the role→permission
   config only; a live 403 needs a login that holds one role.
 
+### Customer feedback 2026-10-18 — template v3 (`5b017c5`, deployed)
+Four items from the customer's screenshot, detailed in `wiki/15`: free-format customer code,
+`เลขที่บิล` column removed (template v3, migration `027`), batch report sorted oldest purchase first,
+report phones as `xxx-xxxxxxx`. `027` was applied on 2026-10-18. The first attempt went to the wrong
+Supabase project, so approvals failed on prod until it was re-run on `vltzkxmblmrvsmaookhl`. After the
+re-run `e2e-batch-flow.js` passed 35/35, `test-parse-sales-batch.js` 44/44 and `verify-demo-batch.js` 17/17.
+A fresh v3 template (4 active Makers) was generated for the owner to send out.
+
+### Motion UI — 21st.dev / Magic UI components (`79483b0`, deployed 2026-10-19)
+The owner approved U1 U2 A1 A2, then asked for more on the admin side (A3). Built on `feat/ui-motion`,
+then fast-forwarded into `pilot-phase1`. Adds `framer-motion` (approved). The component code comes
+from Magic UI's public registry (MIT). It is the same author and code as on 21st.dev, whose own
+registry needs an API key.
+
+| Component | File | Used on |
+|---|---|---|
+| NumberTicker | `src/components/ui/number-ticker.tsx` | customer `/dashboard` `StatusCard`, `/rewards` header · admin `DashboardMetrics`, `UserStatistics`, batch preview "รวม X แต้ม" |
+| ConfettiBurst | `src/components/ui/confetti-burst.tsx` | `/rewards`, once after a successful redeem |
+| MagicCard | `src/components/ui/magic-card.tsx` | admin `DashboardMetrics` tiles (highlight tiles stay amber) |
+| ShinyButton | `src/components/ui/shiny-button.tsx` | `/admin/batches` "ส่งให้ผู้อนุมัติ" and "อนุมัติ (แต้มเข้า)" |
+
+Changes from the upstream code:
+- NumberTicker writes the exact target on `animationComplete`. Upstream stops one short (12,850
+  showed as 12,849), and a points balance must be exact.
+- ConfettiBurst is written with framer-motion instead of `canvas-confetti`, so no second dependency
+  was added.
+- MagicCard keeps gradient mode only, with no `next-themes`.
+- ShinyButton wraps the shadcn `Button` and does not mask its text, so the amounts on the buttons
+  stay readable.
+- Every component honours `prefers-reduced-motion`.
+
+First-load JS: `/dashboard` 240 → 263 kB, `/rewards` 172 → 224 kB, `/admin` 310 → 363 kB. Making
+framer-motion load lazily would shrink this if it matters. Checked visually on a temporary localhost
+page (removed). It was **not** clicked through on prod after login.
+
 ## Remaining
 
 > **2026-09-21 — the customer's latest meeting changed the plan below.** The full delta, its code
@@ -271,6 +306,16 @@ Each of these is a decision that was made explicitly and should not be revisited
 ## Open debt
 
 ### Operational
+- **Vercel Preview builds fail.** `THAIBULKSMS_OTP_KEY` / `THAIBULKSMS_OTP_SECRET` are set for
+  Production only, and `src/config/env.ts` throws at build without them, so every non-`pilot-phase1`
+  branch fails (seen on `feat/ui-motion`, 2026-10-19). Fix: add both to Preview in the Vercel
+  dashboard. Even then, customer pages cannot log in on a preview URL because the LIFF endpoint is
+  the production domain. Agent writes to Vercel secrets are blocked by the Claude Code permission
+  classifier, so the owner has to do it
+- `VERCEL_TOKEN` in the agent's shell is invalid; `vercel` works only as `env -u VERCEL_TOKEN vercel …`
+  (stored CLI login)
+- A second Vercel project, `hughomecrm`, is wired to the same repo and fails on every push (it did
+  for `0e63a9a` too). It is not the pilot. Disconnect it or fix it
 - Admin login on the new pilot works (password set 2026-09-14, not in the repo). The app still has no
   password-reset page, so a lost password needs `auth.admin.updateUserById` (service role)
 - **Supabase Auth on the pilot is flaky** — `GET /auth/v1/user` returned 504 twice in 23 s during the

@@ -7,7 +7,8 @@
 | Branch | `pilot-phase1` |
 | Target | Vercel **production**, https://pilot-phase1.vercel.app |
 | `main` | not used for the pilot; deliberately untouched |
-| Last verified commit | `e3d83aa` |
+| Last verified commit | `79483b0` (2026-10-19 — `/`, `/admin/login` 200, `/rewards` 307 to login) |
+| Preview deploys | **fail** — `THAIBULKSMS_OTP_*` are Production-only (see below) |
 
 Pushing `pilot-phase1` triggers the production deploy. A build took roughly 50 seconds in the one
 push observed (`/admin/batches` went 404 → 404 → 200 across three polls 25 s apart).
@@ -59,6 +60,12 @@ Server-only keys are validated server-side only, so they cannot leak into the cl
 (`.gitignore` has `.env*` with `!.env.example`). One owner-requested exception: on 2026-09-25 the two
 `THAIBULKSMS_OTP_*` lines were appended by an agent at the owner's explicit request. `RESEND_*` is on
 Vercel only, so local dev does not send team email.
+
+**Vercel scopes (checked 2026-10-19 with `vercel env ls`).** Every variable is on Production. Every
+variable except `THAIBULKSMS_OTP_KEY` and `THAIBULKSMS_OTP_SECRET` is also on Preview. Because the
+two OTP keys are required at boot, every Preview build stops at
+`❌ [env] Server env ไม่ถูกต้อง/ไม่ครบ`. To fix it, add both keys to Preview in the Vercel dashboard.
+The shell's `VERCEL_TOKEN` is invalid, so run the CLI as `env -u VERCEL_TOKEN vercel …`.
 
 ## Known values (pilot)
 
