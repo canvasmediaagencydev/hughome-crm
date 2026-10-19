@@ -15,6 +15,7 @@
 import { pushMessage } from '@/lib/line-messaging'
 import { decryptSecret } from '@/lib/secret-box'
 import { serverEnv } from '@/config/env'
+import { PERMISSIONS } from '@/types/admin'
 import type { createServerSupabaseClient } from '@/lib/supabase-server'
 import type { Tables } from '../../database.types'
 
@@ -28,6 +29,17 @@ export const CREATABLE_CHANNEL_TYPES = ['email'] as const
 
 export const TEAM_EVENTS = ['redemption.created', 'batch.submitted', 'issue.reported'] as const
 export type TeamEvent = (typeof TEAM_EVENTS)[number]
+
+/**
+ * คนที่ต้องกดอนุมัติ/จัดการเรื่องนั้น — ได้อีเมลอัตโนมัติจาก "รายการผู้ดูแลระบบ" (admin_users)
+ * โดยไม่ต้องเพิ่ม channel เอง (เจ้าของระบบขอ 2026-10-19) · ใช้สิทธิ์ ไม่ใช่ชื่อ role
+ * เพื่อให้ตรงกับคนที่เห็นปุ่มจริง
+ */
+const APPROVER_PERMISSION: Record<TeamEvent, string> = {
+  'batch.submitted': PERMISSIONS.BATCHES_APPROVE,
+  'redemption.created': PERMISSIONS.REDEMPTIONS_PROCESS,
+  'issue.reported': PERMISSIONS.ISSUES_MANAGE,
+}
 
 const TIMEOUT_MS = 5_000
 
@@ -207,9 +219,38 @@ export function buildBatchSubmittedText(p: BatchSubmittedPayload): string {
   ].join('\n')
 }
 
+/** อีเมลของผู้ดูแลระบบที่ active และถือสิทธิ์นี้ (ผ่าน role) · lowercase ไม่ซ้ำ */
+export async function loadApproverEmails(supabase: Supabase, permissionKey: string): Promise<string[]> {
+  const { data: perm, error: permErr } = await supabase
+    .from('admin_permissions')
+    .select('admin_role_permissions(role_id)')
+    .eq('permission_key', permissionKey)
+    .maybeSingle()
+  if (permErr) throw new Error(`load permission ${permissionKey}: ${permErr.message}`)
+  const roleIds = ((perm?.admin_role_permissions ?? []) as { role_id: string }[]).map((r) => r.role_id)
+  if (roleIds.length === 0) return []
+
+  const { data: links, error: linkErr } = await supabase
+    .from('admin_user_roles')
+    .select('admin_users!admin_user_roles_admin_user_id_fkey(email, is_active)')
+    .in('role_id', roleIds)
+  if (linkErr) throw new Error(`load admin users: ${linkErr.message}`)
+
+  const emails = new Set<string>()
+  for (const link of links ?? []) {
+    // join มาเป็น object หรือ array แล้วแต่ inference
+    const rel = link.admin_users as { email: string; is_active: boolean } | { email: string; is_active: boolean }[] | null
+    for (const u of Array.isArray(rel) ? rel : rel ? [rel] : []) {
+      if (u.is_active && u.email) emails.add(u.email.trim().toLowerCase())
+    }
+  }
+  return [...emails]
+}
+
 /**
- * ยิงเข้าทุก channel ที่ active และสมัคร event นี้ — ไม่ throw ไม่ว่ากรณีใด
- * (เรียกจาก after() ใน POST /api/rewards/redeem หลังตอบลูกค้าไปแล้ว)
+ * ยิงเข้าทุก channel ที่ active และสมัคร event นี้ + อีเมลผู้ดูแลระบบที่ต้องอนุมัติเรื่องนี้
+ * (ไม่ส่งซ้ำถ้าอีเมลนั้นมี channel อยู่แล้ว) — ไม่ throw ไม่ว่ากรณีใด
+ * (เรียกจาก after() หลังตอบ request ไปแล้ว)
  */
 export async function notifyTeam(supabase: Supabase, event: TeamEvent, text: string): Promise<void> {
   try {
@@ -220,9 +261,30 @@ export async function notifyTeam(supabase: Supabase, event: TeamEvent, text: str
       .contains('events', [event])
     if (error) {
       console.error('[team-notify] load channels failed:', error.message)
-      return
     }
-    await Promise.all((data ?? []).map((ch) => deliverAndRecord(supabase, ch, text)))
+    const channels = data ?? []
+    const channelEmails = new Set(
+      channels.filter((ch) => ch.type === 'email').map((ch) => ch.target_id.trim().toLowerCase())
+    )
+
+    let approverEmails: string[] = []
+    try {
+      approverEmails = (await loadApproverEmails(supabase, APPROVER_PERMISSION[event])).filter(
+        (e) => !channelEmails.has(e)
+      )
+    } catch (err) {
+      console.error('[team-notify] load approvers failed:', err instanceof Error ? err.message : err)
+    }
+
+    await Promise.all([
+      ...channels.map((ch) => deliverAndRecord(supabase, ch, text)),
+      ...approverEmails.map((to) =>
+        sendEmail(to, text).catch((err) => {
+          // ไม่มีแถว channel ให้จด last_error — log อย่างเดียว
+          console.error(`[team-notify] approver email ${event} failed:`, err instanceof Error ? err.message : err)
+        })
+      ),
+    ])
   } catch (err) {
     console.error('[team-notify] unexpected:', err instanceof Error ? err.message : err)
   }

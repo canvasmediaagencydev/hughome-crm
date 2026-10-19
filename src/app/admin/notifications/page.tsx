@@ -201,6 +201,10 @@ export default function NotificationsPage() {
           <p className="mt-1 text-sm text-slate-500">
             ลูกค้ากดแลกของ / บัญชีส่งชุดยอดขาย → อีเมลถึงทีมทันที (ชื่อ เบอร์ ของรางวัล แต้ม ลิงก์จัดการ)
           </p>
+          <p className="mt-1 text-sm text-slate-500">
+            ผู้ดูแลระบบที่มีสิทธิ์อนุมัติเรื่องนั้นได้อีเมลอัตโนมัติจากอีเมลใน &quot;ผู้ดูแลระบบ&quot; (ชุดยอดขาย → ผู้อนุมัติ ·
+            แลกรางวัล → ผู้ดำเนินการแลก · แจ้งปัญหา → super_admin) — channel ด้านล่างใช้เพิ่มผู้รับคนอื่น
+          </p>
         </div>
         <Button onClick={() => setOpen(true)}>
           <Plus className="mr-1 h-4 w-4" /> เพิ่ม channel

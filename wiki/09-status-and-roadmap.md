@@ -292,7 +292,9 @@ the administrator (canvas) account so bugs can be read and fixed.
 | 9R / 10 (finish) | prove role separation (`wiki/13` 10.2/10.5/10.7) with two admin accounts, one `accounting`, one `manager` · request an own SMS sender name (≤ 11 chars) · add `RESEND_*` + `THAIBULKSMS_OTP_*` to `.env.local` (owner) · `supabase gen types` once logged in (types already match) |
 | 5 (leftover) | `POST /:id/review` **on hold** — approval before points now exists; Q12 decides whether a post-approval spot-check is still wanted. `GET /:id` is done (9R) |
 | 8 (wrap-up) | set `NOTIFY_TOKEN_KEY` on Vercel + `.env.local` · set `NOTIFICATIONS_ENABLED=true` on prod (⚠️ Q7 first — the customer may not want customer pushes at all) · click through `wiki/13` §7b |
-| still waiting on a question | ⚠️ **Q8** points-threshold alert · ⚠️ **Q9** 300/500-baht rule · ⚠️ **Q10** meeting numbers · ⚠️ **Q11** sender domain (who owns the shop domain's DNS) · ⚠️ **Q12** post-approval spot-check |
+| answered 2026-10-19, to build | **Q2 revised** duplicate hold: phone + date + net checked in-file and against earlier awarded batches; held rows get no points until super_admin confirms each (needs a migration) · **Q8** points-threshold alert to the team by email (⚠️ threshold number still open) |
+| dropped 2026-10-19 | Q9 300/500-baht rule · Q10 meeting numbers |
+| still waiting on a question | ⚠️ **Q8** threshold number · ⚠️ **Q11** sender domain (who owns the shop domain's DNS) · ⚠️ **Q12** post-approval spot-check |
 | 10 (rest) | in-app bell (`admin_notifications`) + digests (`notification_schedules`, fifth cron) · dedicated sender domain (Q11) · **campaign image** square-only upload · Thai wording for point-history strings |
 | 11 | custom dashboard widgets · bell polish (bulk mark-read, filters) · Phase 2 data migration plan (real branch, ~700 customers, old IDs) |
 
