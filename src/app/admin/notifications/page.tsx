@@ -50,6 +50,7 @@ const TYPE_LABEL: Record<Channel['type'], string> = {
 const EVENT_LABEL: Record<string, string> = {
   'redemption.created': 'มีคำขอแลกรางวัลใหม่',
   'batch.submitted': 'มีชุดยอดขายรอผู้อนุมัติ',
+  'issue.reported': 'มีการแจ้งปัญหาการใช้งาน (ส่งให้ผู้ดูแลระบบ)',
 }
 const ALL_EVENTS = Object.keys(EVENT_LABEL)
 

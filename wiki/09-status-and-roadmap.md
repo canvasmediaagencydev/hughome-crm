@@ -265,6 +265,19 @@ First-load JS: `/dashboard` 240 → 263 kB, `/rewards` 172 → 224 kB, `/admin` 
 framer-motion load lazily would shrink this if it matters. Checked visually on a temporary localhost
 page (removed). It was **not** clicked through on prod after login.
 
+### Issue reports — "แจ้งปัญหาการใช้งาน" (branch `feat/issue-reports`, 2026-10-19 · **needs `028`**)
+The owner asked for a button that lets admin staff report usage problems, with the reports going to
+the administrator (canvas) account so bugs can be read and fixed.
+- **Button:** the sidebar has an amber "แจ้งปัญหาการใช้งาน" button on every admin page. It opens a
+  dialog with type, title and details, and attaches the current path and the browser user-agent.
+- **Storage and access:** reports are stored in `issue_reports` (migration `028`). `issues.report`
+  goes to every role and `issues.manage` to super_admin only.
+- **`/admin/issues`:** super_admin sees every report and sets the status (`open` → `in_progress` →
+  `resolved` / `wont_fix`) plus a note. Other admins see their own reports and the note.
+- **Email:** a new team event `issue.reported`. Tick it on an email channel at `/admin/notifications`
+  to get an email per report. Delivery runs in `after()`, so a failed email never fails the report.
+- No screenshot upload in v1. It would need a Storage bucket.
+
 ## Remaining
 
 > **2026-09-21 — the customer's latest meeting changed the plan below.** The full delta, its code

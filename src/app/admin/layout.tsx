@@ -25,8 +25,10 @@ import {
   Percent,
   IdCard,
   Bell,
+  Bug,
 } from 'lucide-react'
 import Link from 'next/link'
+import { ReportIssueDialog } from '@/components/admin/ReportIssueDialog'
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const {
@@ -123,6 +125,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   const canViewDashboard = hasPermission(PERMISSIONS.DASHBOARD_VIEW) || isSuperAdmin
+  const canReportIssue = hasPermission(PERMISSIONS.ISSUES_REPORT) || isSuperAdmin
 
 
   // Navigation items with permission checks
@@ -218,6 +221,14 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       current: pathname.startsWith('/admin/reports'),
       show: hasPermission(PERMISSIONS.USERS_VIEW),
     },
+    {
+      // ผู้ดูแลระบบเห็นทุกรายการ · คนอื่นเห็นเฉพาะที่ตัวเองแจ้ง (migration 028)
+      name: isSuperAdmin || hasPermission(PERMISSIONS.ISSUES_MANAGE) ? 'แจ้งปัญหา (ผู้ดูแลระบบ)' : 'แจ้งปัญหา',
+      href: '/admin/issues',
+      icon: Bug,
+      current: pathname.startsWith('/admin/issues'),
+      show: canReportIssue,
+    },
   ]
 
   // Filter navigation items based on permissions
@@ -297,8 +308,11 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          {/* Logout Button */}
-          <div className="p-4 border-t border-slate-800">
+          {/* Report issue + Logout */}
+          <div className="p-4 border-t border-slate-800 space-y-2">
+            {canReportIssue && (
+              <ReportIssueDialog className="w-full justify-center text-amber-200 border-amber-700/60 bg-amber-900/30 hover:bg-amber-900/50 hover:text-amber-100 hover:border-amber-600 transition-all duration-200" />
+            )}
             <Button
               onClick={handleLogout}
               variant="outline"

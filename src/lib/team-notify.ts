@@ -26,7 +26,7 @@ export type ChannelType = (typeof CHANNEL_TYPES)[number]
 /** ประเภทที่สร้างใหม่ได้จาก UI/API (Q6: อีเมลเท่านั้น · telegram/line_group เหลือแค่แถวเก่า) */
 export const CREATABLE_CHANNEL_TYPES = ['email'] as const
 
-export const TEAM_EVENTS = ['redemption.created', 'batch.submitted'] as const
+export const TEAM_EVENTS = ['redemption.created', 'batch.submitted', 'issue.reported'] as const
 export type TeamEvent = (typeof TEAM_EVENTS)[number]
 
 const TIMEOUT_MS = 5_000
@@ -148,6 +148,34 @@ export function buildRedemptionCreatedText(p: RedemptionCreatedPayload): string 
   ]
   if (p.pickupCode) lines.push(`รหัสรับของ: ${p.pickupCode}`)
   lines.push(`จัดการ: ${p.adminUrl}`)
+  return lines.join('\n')
+}
+
+// ---------------------------------------------------------------------------
+// Event: issue.reported — admin กดแจ้งปัญหาการใช้งาน (migration 028)
+// ---------------------------------------------------------------------------
+export interface IssueReportedPayload {
+  tenantName: string
+  reporterName: string
+  categoryLabel: string
+  title: string
+  description: string
+  pageUrl: string | null
+  /** absolute URL ของหน้า /admin/issues */
+  adminUrl: string
+}
+
+export function buildIssueReportedText(p: IssueReportedPayload): string {
+  // ตัดรายละเอียดให้สั้นพออ่านในอีเมล/แชท — ฉบับเต็มอยู่ที่ /admin/issues
+  const desc = p.description.length > 600 ? p.description.slice(0, 600) + '…' : p.description
+  const lines = [
+    `🐞 [${p.tenantName}] มีการแจ้งปัญหาการใช้งาน`,
+    `แจ้งโดย: ${p.reporterName}`,
+    `ประเภท: ${p.categoryLabel}`,
+    `หัวข้อ: ${p.title}`,
+  ]
+  if (p.pageUrl) lines.push(`หน้าที่แจ้ง: ${p.pageUrl}`)
+  lines.push('', desc, '', `ดู/อัปเดตสถานะ: ${p.adminUrl}`)
   return lines.join('\n')
 }
 

@@ -1,6 +1,6 @@
 # 06 — RBAC
 
-29 permissions, 6 roles. Seeded by migrations `012` and `018`.
+32 permissions, 6 roles. Seeded by migrations `012`, `018`, `024` and `028`.
 Constants live in `src/types/admin.ts` as `PERMISSIONS`.
 
 ## Enforcement
@@ -42,6 +42,7 @@ notifications.manage
 reports.view
 settings.edit
 admins.manage
+issues.report / manage        ← new in migration 028: report = every role · manage = super_admin only
 sales.entry                    ← reserved, no UI
 ```
 

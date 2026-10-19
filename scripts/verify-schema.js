@@ -75,8 +75,8 @@ async function main() {
 
   // --- 018: permissions ---
   const perms = await count('admin_permissions')
-  // 018 = 29 · 024 เพิ่ม batches.approve = 30
-  record(perms.count === 30, '018+024 · admin_permissions = 30', `ได้ ${perms.count ?? perms.error}`)
+  // 018 = 29 · 024 เพิ่ม batches.approve = 30 · 028 เพิ่ม issues.report + issues.manage = 32
+  record(perms.count === 32, '018+024+028 · admin_permissions = 32', `ได้ ${perms.count ?? perms.error}`)
 
   const newKeys = await count(
     'admin_permissions',
@@ -116,6 +116,13 @@ async function main() {
   )
   const mgrVoidCount = Number((mgrVoid.headers.get('content-range') ?? '/x').split('/')[1])
   record(mgrVoidCount === 0, '026 · manager ไม่มี batches.void แล้ว (Rollback = super_admin)', `ได้ ${Number.isNaN(mgrVoidCount) ? mgrVoid.status : mgrVoidCount}`)
+
+  // --- 028: issue_reports (ปุ่มแจ้งปัญหาการใช้งาน) ---
+  record(await tableExists('issue_reports'), '028 · ตาราง issue_reports')
+  for (const key of ['issues.report', 'issues.manage']) {
+    const p = await count('admin_permissions', `&permission_key=eq.${key}`)
+    record(p.count === 1, `028 · permission ${key} มีอยู่`, `ได้ ${p.count ?? p.error}`)
+  }
 
   // --- สรุป ---
   const failed = results.filter((r) => !r.ok)

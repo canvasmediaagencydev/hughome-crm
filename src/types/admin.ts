@@ -170,6 +170,10 @@ export const PERMISSIONS = {
   // Admins
   ADMINS_MANAGE: 'admins.manage',
 
+  // Issue reports (migration 028) — report: ทุก role · manage: super_admin (ผู้ดูแลระบบ canvas)
+  ISSUES_REPORT: 'issues.report',
+  ISSUES_MANAGE: 'issues.manage',
+
   // Sales (reserved — no UI yet)
   SALES_ENTRY: 'sales.entry',
 } as const

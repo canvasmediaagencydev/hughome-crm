@@ -191,9 +191,10 @@ npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts 
 | `src/config/env.ts`, `src/config/tenant.ts` | Boot-time env validation and tenant config. No defaults by design. |
 | `src/config/tenant-guard.ts` | Checks the connected DB belongs to this tenant. Currently **soft** — see debt list. |
 | `src/components/ui/number-ticker.tsx` etc. | Motion components (Magic UI, MIT, via 21st.dev). Must honour `prefers-reduced-motion`; a ticker showing points must land on the exact value (upstream stops one short — fixed here). Adding one needs the owner's approval and must not pull a new npm package without asking |
+| `src/app/api/admin/issues/*`, `/admin/issues`, `src/components/admin/ReportIssueDialog.tsx`, `src/lib/issue-reports.ts` | "แจ้งปัญหาการใช้งาน" (migration 028): every admin reports from the sidebar button, which attaches the current page. Reports land in `issue_reports`; super_admin (the canvas account) sees all of them and sets status and a note, and the reporter sees only their own. Email goes through `notification_channels` event `issue.reported` |
 | `src/lib/phone.ts` | Canonical Thai phone normalization. Identity is the local 10-digit form. |
 | `src/lib/thaibulksms-otp.ts`, `src/app/api/phone/*` | Customer SMS OTP via ThaiBulkSMS OTP Manager; the provider token lives in the signed session cookie, bound to the phone, deleted after verify |
-| `supabase/migrations/` | `001`–`027` up, `rollback/` down. |
+| `supabase/migrations/` | `001`–`028` up, `rollback/` down. |
 | `supabase/seed/seed_demo_data.sql` | Demo data. **Outside** the migration path on purpose. |
 | `database.types.ts` | Generated Supabase types. Verify with `scripts/verify-types.js`. |
 
