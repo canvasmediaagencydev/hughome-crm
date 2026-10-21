@@ -120,7 +120,7 @@ export default function AdminSignup() {
 
           <div className="mt-4 text-center">
             <p className="text-sm text-gray-600">
-              มีบัญชีแล้ว? <a href="/admin/login" className="text-blue-600 hover:underline">เข้าสู่ระบบ</a>
+              มีบัญชีแล้ว? <a href="/admin/login" className="text-brand hover:underline">เข้าสู่ระบบ</a>
             </p>
           </div>
         </CardContent>

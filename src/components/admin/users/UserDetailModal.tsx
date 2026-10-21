@@ -19,6 +19,7 @@ import { useEffect, useState } from 'react'
 import { useAdminAuth } from '@/hooks/useAdminAuth'
 import { PERMISSIONS } from '@/types/admin'
 import { axiosAdmin } from '@/lib/axios-admin'
+import { formatThaiPhone } from '@/lib/phone'
 import axios from 'axios'
 
 interface UserDetailModalProps {
@@ -178,14 +179,14 @@ export function UserDetailModal({
                       value={editingCodeValue}
                       onChange={(e) => setEditingCodeValue(e.target.value)}
                       placeholder="รหัสลูกค้า"
-                      className="text-sm font-mono px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 w-36"
+                      className="text-sm font-mono px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-red-300 w-36"
                       disabled={savingCode}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCode(); if (e.key === 'Escape') setIsEditingCode(false) }}
                     />
                     <button
                       onClick={handleSaveCode}
                       disabled={savingCode}
-                      className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                      className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
                     >
                       {savingCode ? '...' : 'บันทึก'}
                     </button>
@@ -209,7 +210,7 @@ export function UserDetailModal({
                   {canEditUsers && (
                     <button
                       onClick={handleEditCode}
-                      className="p-0.5 text-slate-300 hover:text-blue-500 transition-colors"
+                      className="p-0.5 text-slate-300 hover:text-red-500 transition-colors"
                       title="แก้ไขรหัสลูกค้า"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -252,11 +253,11 @@ export function UserDetailModal({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-slate-200">
                     <span className="text-sm text-slate-600">เบอร์โทร</span>
-                    <span className="text-sm font-medium text-slate-900">{user.phone || '-'}</span>
+                    <span className="text-sm font-medium text-slate-900">{formatThaiPhone(user.phone) || '-'}</span>
                   </div>
                   <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-slate-200">
                     <span className="text-sm text-slate-600">แต้มคงเหลือ</span>
-                    <span className="text-sm font-bold text-blue-600">{formatPoints(user.points_balance || 0)}</span>
+                    <span className="text-sm font-bold text-red-600">{formatPoints(user.points_balance || 0)}</span>
                   </div>
                   <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-slate-200">
                     <span className="text-sm text-slate-600">สมัครเมื่อ</span>
@@ -282,7 +283,7 @@ export function UserDetailModal({
                             <button
                               type="button"
                               onClick={handleEditBirthday}
-                              className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                              className="text-xs text-red-600 hover:text-red-700 font-medium"
                             >
                               แก้ไข
                             </button>
@@ -298,7 +299,7 @@ export function UserDetailModal({
                             value={editingBirthdayValue}
                             max={new Date().toISOString().slice(0, 10)}
                             onChange={(e) => setEditingBirthdayValue(e.target.value)}
-                            className="flex-1 px-2 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:border-blue-500"
+                            className="flex-1 px-2 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:border-red-400"
                           />
                         </div>
                         <div className="flex justify-end gap-2">
@@ -314,7 +315,7 @@ export function UserDetailModal({
                             type="button"
                             onClick={handleSaveBirthday}
                             disabled={savingBirthday}
-                            className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded font-medium"
+                            className="px-3 py-1 text-xs bg-red-600 hover:bg-red-700 disabled:bg-slate-300 text-white rounded font-medium"
                           >
                             {savingBirthday ? 'กำลังบันทึก...' : 'บันทึก'}
                           </button>
@@ -336,7 +337,7 @@ export function UserDetailModal({
                     <div className="relative">
                       <button
                         onClick={() => setShowTagPicker(!showTagPicker)}
-                        className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                        className="text-sm text-red-600 hover:text-red-700 font-medium"
                       >
                         + เพิ่ม Tag
                       </button>
@@ -431,7 +432,7 @@ export function UserDetailModal({
                         )}
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-slate-900">{redemption.rewards.name}</div>
-                          <div className="text-sm text-blue-600 font-semibold mt-1">{formatPoints(redemption.points_used)} แต้ม</div>
+                          <div className="text-sm text-red-600 font-semibold mt-1">{formatPoints(redemption.points_used)} แต้ม</div>
                           <div className="text-xs text-slate-500 mt-1">{formatDate(redemption.created_at, { includeTime: true })}</div>
                           {redemption.pickup_code && (
                             <div className="text-xs text-slate-600 mt-1">
@@ -470,7 +471,7 @@ export function UserDetailModal({
                       value={newNoteContent}
                       onChange={(e) => setNewNoteContent(e.target.value)}
                       placeholder="เขียนบันทึกเกี่ยวกับผู้ใช้คนนี้..."
-                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
                       rows={3}
                       disabled={submittingNote}
                     />
@@ -478,7 +479,7 @@ export function UserDetailModal({
                       <button
                         onClick={() => addNote(user.id)}
                         disabled={submittingNote || !newNoteContent.trim()}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {submittingNote ? 'กำลังบันทึก...' : 'เพิ่มบันทึก'}
                       </button>
@@ -538,7 +539,7 @@ export function UserDetailModal({
                                 <div className="flex gap-1">
                                   <button
                                     onClick={() => startEditing(note)}
-                                    className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"
+                                    className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"
                                     title="แก้ไข"
                                   >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -565,7 +566,7 @@ export function UserDetailModal({
                             <textarea
                               value={editNoteContent}
                               onChange={(e) => setEditNoteContent(e.target.value)}
-                              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
                               rows={3}
                               disabled={submittingNote}
                             />
@@ -580,7 +581,7 @@ export function UserDetailModal({
                               <button
                                 onClick={() => updateNote(user.id, note.id)}
                                 disabled={submittingNote || !editNoteContent.trim()}
-                                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 {submittingNote ? 'กำลังบันทึก...' : 'บันทึก'}
                               </button>

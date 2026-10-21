@@ -21,6 +21,7 @@ import { PERMISSIONS } from '@/types/admin'
 import { Tables } from '../../../../database.types'
 import { toast } from 'sonner'
 import { axiosAdmin } from '@/lib/axios-admin'
+import { formatThaiPhone, formatThaiPhoneInput } from '@/lib/phone'
 
 type SalesRep = Tables<'sales_reps'>
 
@@ -146,7 +147,7 @@ export default function SalesRepsPage() {
                     <tr key={r.id} className="border-b last:border-0">
                       <td className="py-2 pr-4 font-mono">{r.code}</td>
                       <td className="py-2 pr-4">{r.full_name}</td>
-                      <td className="py-2 pr-4 text-slate-500">{r.phone ?? '—'}</td>
+                      <td className="py-2 pr-4 text-slate-500">{formatThaiPhone(r.phone) || '—'}</td>
                       <td className="py-2 pr-4">
                         <Badge variant={r.is_active ? 'default' : 'secondary'}>
                           {r.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
@@ -198,9 +199,9 @@ export default function SalesRepsPage() {
               <Label htmlFor="phone">เบอร์โทร (ไม่บังคับ)</Label>
               <Input
                 id="phone"
-                placeholder="0812345678"
+                placeholder="081-2345678"
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                onChange={(e) => setForm({ ...form, phone: formatThaiPhoneInput(e.target.value) })}
               />
             </div>
           </div>

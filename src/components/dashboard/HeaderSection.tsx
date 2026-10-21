@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { bangkokDateOf, formatThaiDate } from '@/lib/bangkok-date'
+import { BrandLogo } from '@/components/brand/BrandLogo'
 
 interface HeaderSectionProps {
   firstName?: string
@@ -35,16 +36,16 @@ export const HeaderSection = memo(({ firstName, lastName, userRole, customerCode
   }
 
   return (
-    <div className="relative bg-gradient-to-br from-red-600 via-red-500 to-orange-500 overflow-hidden">
+    <div className="relative bg-brand-gradient overflow-hidden">
       {/* Decorative Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
-        <div className="absolute top-20 -left-10 w-32 h-32 bg-yellow-300/10 rounded-full blur-2xl"></div>
-        <div className="absolute bottom-0 right-1/3 w-24 h-24 bg-orange-300/10 rounded-full blur-xl"></div>
+        <div className="absolute top-20 -left-10 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
       </div>
 
       {/* Content */}
-      <div className="relative px-6 pt-8 pb-6">
+      <div className="relative px-6 pt-5 pb-6">
+        <BrandLogo tone="white" height={28} priority className="mb-4" />
 
         {/* Greeting Section */}
         <div className="space-y-3">

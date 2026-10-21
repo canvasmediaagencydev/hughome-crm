@@ -19,6 +19,7 @@ import { Pagination } from '@/components/Pagination'
 import { StatusBadge } from '@/components/StatusBadge'
 import { formatDate, formatPoints, getUserDisplayName } from '@/lib/utils'
 import { axiosAdmin } from '@/lib/axios-admin'
+import { formatThaiPhone } from '@/lib/phone'
 import { toast } from 'sonner'
 import {
   NEXT_STATUS,
@@ -68,7 +69,7 @@ function errorMessage(e: unknown, fallback: string): string {
 
 const NEXT_BUTTON: Record<RedemptionStatus, { label: string; className: string } | null> = {
   requested: { label: 'อนุมัติ', className: 'bg-green-600 hover:bg-green-700' },
-  approved: { label: 'ของพร้อมรับ', className: 'bg-blue-600 hover:bg-blue-700' },
+  approved: { label: 'ของพร้อมรับ', className: 'bg-red-600 hover:bg-red-700' },
   ready: { label: 'ส่งมอบแล้ว', className: 'bg-slate-900 hover:bg-slate-800' },
   delivered: null,
   cancelled: null,
@@ -238,7 +239,7 @@ export default function AdminRedemptionsPage() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-300 focus:border-red-400"
               />
             </div>
             <button
@@ -324,7 +325,7 @@ export default function AdminRedemptionsPage() {
                           <div className="flex-1 min-w-0">
                             <h3 className="text-base font-semibold text-slate-900 truncate">{redemption.rewards.name}</h3>
                             <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-slate-500">
-                              <span className="text-blue-500 font-semibold">{formatPoints(redemption.points_used)}</span>
+                              <span className="text-red-500 font-semibold">{formatPoints(redemption.points_used)}</span>
                               <span>×{redemption.quantity}</span>
                               <span>{formatDate(redemption.created_at, { includeTime: true })}</span>
                               {redemption.pickup_code && (
@@ -345,7 +346,7 @@ export default function AdminRedemptionsPage() {
                           {redemption.user_profiles.phone && (
                             <div className="flex items-center gap-1.5">
                               <FaPhone className="text-slate-400 w-3 h-3" />
-                              <span>{redemption.user_profiles.phone}</span>
+                              <span>{formatThaiPhone(redemption.user_profiles.phone)}</span>
                             </div>
                           )}
                         </div>
@@ -423,7 +424,7 @@ export default function AdminRedemptionsPage() {
                 onChange={(e) => setAdminNotes(e.target.value)}
                 placeholder="ระบุเหตุผลการยกเลิก..."
                 rows={3}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-300 focus:border-red-400"
               />
             </div>
             <div className="flex gap-3">

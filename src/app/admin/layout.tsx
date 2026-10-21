@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { AdminAuthProvider, useAdminAuth } from '@/hooks/useAdminAuth'
 import { ReactQueryProvider } from '@/lib/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { Toaster } from '@/components/ui/sonner'
 import { Button } from '@/components/ui/button'
 import { PERMISSIONS } from '@/types/admin'
@@ -29,6 +30,8 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { ReportIssueDialog } from '@/components/admin/ReportIssueDialog'
+import { AdminInboxBell, useAdminInbox, inboxCountByPath } from '@/components/admin/AdminInboxBell'
+import { BrandLogo, BrandMark } from '@/components/brand/BrandLogo'
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const {
@@ -48,6 +51,14 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [loadError, setLoadError] = useState(false)
+  // งานค้างต่อเมนู (จุดแดง) — ยิงเฉพาะเมื่อ login แล้ว · cache เดียวกับกระดิ่ง
+  const { data: inbox } = useAdminInbox(isAuthenticated && pathname !== '/admin/login')
+  const pendingByPath = inboxCountByPath(inbox?.items)
+  const queryClient = useQueryClient()
+  // เปลี่ยนหน้า = มักเพิ่งกดอนุมัติ/ส่งงานมา → นับใหม่ทันที ไม่ต้องรอรอบ 60 วินาที
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ['admin-inbox'] })
+  }, [pathname, queryClient])
 
   useEffect(() => {
     // Only redirect if we're done loading AND not authenticated
@@ -103,7 +114,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                 setLoadError(false)
                 await refetch()
               }}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-red-600 hover:bg-red-700 text-white"
             >
               ลองใหม่อีกครั้ง
             </Button>
@@ -252,8 +263,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col h-full">
           {/* Logo/Header */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-slate-800">
-            <div className="flex mx-auto items-center justify-center">
-              <h1 className="text-lg font-semibold text-white tracking-tight">Admin Panel</h1>
+            <div className="flex mx-auto items-center justify-center gap-2">
+              <BrandLogo tone="white" height={26} priority />
+              <span className="rounded bg-brand px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">Admin</span>
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -266,7 +278,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           {/* User Info */}
           <div className="px-4 py-4 border-b border-slate-800">
             <div className="flex items-center">
-              <div className="w-9 h-9 bg-slate-700 rounded-full flex items-center justify-center text-slate-200 font-medium text-sm ring-2 ring-slate-600">
+              <div className="w-9 h-9 bg-slate-700 rounded-full flex items-center justify-center text-slate-200 font-medium text-sm ring-2 ring-white/20">
                 {adminUser?.full_name?.[0]?.toUpperCase() ||
                   user?.email?.[0]?.toUpperCase() ||
                   'A'}
@@ -288,21 +300,30 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
             {navigation.map((item) => {
               const Icon = item.icon
+              const pending = pendingByPath.get(item.href) ?? 0
               return (
                 <Link
                   key={item.name}
                   href={item.href}
                   className={`group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
                     item.current
-                      ? 'bg-slate-800 text-white'
-                      : 'text-slate-300 hover:bg-slate-800/50 hover:text-white'
+                      ? 'bg-brand text-white shadow-sm'
+                      : 'text-slate-200 hover:bg-white/10 hover:text-white'
                   }`}
                   onClick={() => setSidebarOpen(false)}
                 >
                   <Icon className={`mr-3 h-5 w-5 flex-shrink-0 transition-colors ${
-                    item.current ? 'text-blue-400' : 'text-slate-400 group-hover:text-slate-300'
+                    item.current ? 'text-white' : 'text-slate-300 group-hover:text-white'
                   }`} />
-                  <span>{item.name}</span>
+                  <span className="flex-1">{item.name}</span>
+                  {pending > 0 && (
+                    <span
+                      className="ml-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 ring-1 ring-white/70 px-1.5 text-[11px] font-semibold leading-none text-white"
+                      aria-label={`รอดำเนินการ ${pending} รายการ`}
+                    >
+                      {pending > 99 ? '99+' : pending}
+                    </span>
+                  )}
                 </Link>
               )
             })}
@@ -331,15 +352,26 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile header with menu button */}
         <div className="lg:hidden bg-white shadow-sm border-b border-slate-200 px-4 py-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-900">Admin Panel</h2>
-          <Button
-            onClick={() => setSidebarOpen(true)}
-            variant="outline"
-            size="sm"
-            className="border-slate-200 text-slate-700 hover:bg-slate-100"
-          >
-            <Menu className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <BrandMark className="h-7 w-auto" />
+            <span className="text-base font-semibold text-ink">Hug Point Admin</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <AdminInboxBell />
+            <Button
+              onClick={() => setSidebarOpen(true)}
+              variant="outline"
+              size="sm"
+              className="relative border-slate-200 text-slate-700 hover:bg-slate-100"
+            >
+              <Menu className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Desktop top bar — กระดิ่งขวาบน */}
+        <div className="hidden lg:flex items-center justify-end h-14 px-6 bg-white border-b border-slate-200">
+          <AdminInboxBell />
         </div>
 
         {/* Page content */}

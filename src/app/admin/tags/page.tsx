@@ -198,7 +198,7 @@ export default function TagsPage() {
                     <td className="px-6 py-4 text-sm">
                       <button
                         onClick={() => router.push(`/admin/users?tag=${tag.id}`)}
-                        className="text-blue-600 hover:text-blue-800 hover:underline font-medium transition-colors"
+                        className="text-red-600 hover:text-blue-800 hover:underline font-medium transition-colors"
                       >
                         {tag.user_count || 0} คน
                       </button>
@@ -211,7 +211,7 @@ export default function TagsPage() {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => openEditModal(tag)}
-                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="แก้ไข"
                           >
                             <Pencil className="w-4 h-4" />
@@ -250,7 +250,7 @@ export default function TagsPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="เช่น VIP, กรุงเทพ, แคมเปญ 2026"
-                  className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-300 focus:border-red-400 transition-all"
                   autoFocus
                 />
               </div>

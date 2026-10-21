@@ -4,16 +4,47 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * HugHome CI (BRANDING GUIDEBOOK-HUGHOME · Corporate Colors) — 2026-10-21
+ *   brand  #E71C24  แดงหลัก          brand-2 #ED4136  ปลาย gradient แดง
+ *   ink    #414042  เทาเข้ม (ตัวอักษร/โลโก้ไทย)   ink-2 #58595B   silver #BABCBE
+ * สเกล red-500…800 ถูกแทนด้วยแดง CI เพื่อให้ทุกจุดที่ใช้ red-* อยู่แล้ว (ปุ่ม, header, แถบล่าง) ตรงแบรนด์
+ * โดยไม่ต้องไล่แก้ทีละไฟล์ · red-50…300 (พื้นหลัง error/badge อ่อน) คงของ Tailwind
+ */
+@theme {
+  --color-brand: #E71C24;
+  --color-brand-2: #ED4136;
+  --color-brand-dark: #B8141B;
+  --color-brand-soft: #FBD9DA;
+  --color-ink: #414042;
+  --color-ink-2: #58595B;
+  --color-silver: #BABCBE;
+
+  --color-red-500: #ED4136;
+  --color-red-600: #E71C24;
+  --color-red-700: #C8161E;
+  --color-red-800: #A11117;
+
+  /* เทาเข้มของ CI แทน slate-900/800 (sidebar หลังบ้าน, หัวข้อ, ปุ่มดำ) */
+  --color-slate-900: #414042;
+  --color-slate-800: #58595B;
+}
+
+/* gradient แดงตาม CI: #E71C24 → #ED4136 */
+.bg-brand-gradient {
+  background-image: linear-gradient(135deg, #E71C24 0%, #ED4136 100%);
+}
+
 :root {
   /* shadcn/ui CSS variables */
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
+  --primary: #E71C24;
+  --primary-foreground: #FFFFFF;
   --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
+  --secondary-foreground: #414042;
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
@@ -22,10 +53,10 @@
   --destructive-foreground: 0 0% 98%;
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: #ED4136;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --foreground: #414042;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);

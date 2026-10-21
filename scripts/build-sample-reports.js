@@ -136,11 +136,11 @@ async function main() {
 
   fs.mkdirSync(OUT_DIR, { recursive: true })
 
-  const wb1 = buildCustomerExport({ rangeStart: RANGE.start, rangeEnd: RANGE.end, customers: data.customers })
+  const wb1 = buildCustomerExport({ rangeStart: RANGE.start, rangeEnd: RANGE.end, sort: 'date', customers: data.customers })
   const f1 = path.join(OUT_DIR, 'sample_customers_export.xlsx')
   await wb1.xlsx.writeFile(f1)
 
-  const wb2 = buildBatchReport({ branchName: BRANCH, batch: data.batch, rows: data.rows })
+  const wb2 = buildBatchReport({ branchName: BRANCH, sort: 'date', batch: data.batch, rows: data.rows })
   const f2 = path.join(OUT_DIR, 'sample_batch_report.xlsx')
   await wb2.xlsx.writeFile(f2)
 

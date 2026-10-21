@@ -384,7 +384,7 @@ export default function AdminRewards() {
                         </p>
                       )}
                       <div className="flex justify-between items-center text-sm">
-                        <div className="flex items-center text-blue-400 font-semibold">
+                        <div className="flex items-center text-red-400 font-semibold">
                           <Gift className="mr-1 h-4 w-4" />
                           {reward.points_cost.toLocaleString()} แต้ม
                         </div>

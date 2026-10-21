@@ -10,6 +10,8 @@ interface UseUsersParams {
   initialRole?: string
   initialSearch?: string
   initialTagFilter?: string
+  /** เฉพาะลูกค้าที่ยังไม่มีรหัส (ลิงก์จากกระดิ่ง ?no_code=1) */
+  initialMissingCode?: boolean
 }
 
 async function fetchUsers(
@@ -21,6 +23,7 @@ async function fetchUsers(
   pointsMax: string,
   startDate: string,
   endDate: string,
+  missingCode: boolean,
 ) {
   const params = new URLSearchParams({
     page: page.toString(),
@@ -52,6 +55,10 @@ async function fetchUsers(
     params.append('end_date', endDate.trim())
   }
 
+  if (missingCode) {
+    params.append('missing_code', '1')
+  }
+
   const response = await axiosAdmin.get(`/api/admin/users?${params}`)
   return response.data
 }
@@ -62,6 +69,7 @@ export function useUsers(params: UseUsersParams = {}) {
     initialRole = 'all',
     initialSearch = '',
     initialTagFilter = '',
+    initialMissingCode = false,
   } = params
 
   const queryClient = useQueryClient()
@@ -74,6 +82,7 @@ export function useUsers(params: UseUsersParams = {}) {
   const [pointsMax, setPointsMax] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [missingCode, setMissingCodeState] = useState(initialMissingCode)
 
   // Debounce search (300ms)
   const debouncedSetSearch = useMemo(
@@ -96,8 +105,8 @@ export function useUsers(params: UseUsersParams = {}) {
     error,
     refetch
   } = useQuery({
-    queryKey: ['users', currentPage, roleFilter, debouncedSearch, tagFilter, pointsMin, pointsMax, startDate, endDate],
-    queryFn: () => fetchUsers(currentPage, roleFilter, debouncedSearch, tagFilter, pointsMin, pointsMax, startDate, endDate),
+    queryKey: ['users', currentPage, roleFilter, debouncedSearch, tagFilter, pointsMin, pointsMax, startDate, endDate, missingCode],
+    queryFn: () => fetchUsers(currentPage, roleFilter, debouncedSearch, tagFilter, pointsMin, pointsMax, startDate, endDate, missingCode),
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
@@ -122,8 +131,8 @@ export function useUsers(params: UseUsersParams = {}) {
   // Prefetch next page for better UX
   if (pagination && currentPage < pagination.totalPages) {
     queryClient.prefetchQuery({
-      queryKey: ['users', currentPage + 1, roleFilter, debouncedSearch, tagFilter, pointsMin, pointsMax, startDate, endDate],
-      queryFn: () => fetchUsers(currentPage + 1, roleFilter, debouncedSearch, tagFilter, pointsMin, pointsMax, startDate, endDate),
+      queryKey: ['users', currentPage + 1, roleFilter, debouncedSearch, tagFilter, pointsMin, pointsMax, startDate, endDate, missingCode],
+      queryFn: () => fetchUsers(currentPage + 1, roleFilter, debouncedSearch, tagFilter, pointsMin, pointsMax, startDate, endDate, missingCode),
       staleTime: 2 * 60 * 1000,
     })
   }
@@ -162,6 +171,11 @@ export function useUsers(params: UseUsersParams = {}) {
     setCurrentPage(1)
   }, [])
 
+  const setMissingCode = useCallback((value: boolean) => {
+    setMissingCodeState(value)
+    setCurrentPage(1)
+  }, [])
+
   const refreshUsers = useCallback(() => {
     refetch()
   }, [refetch])
@@ -195,5 +209,7 @@ export function useUsers(params: UseUsersParams = {}) {
     setEndDate,
     hasActiveFilters,
     handleClearFilters,
+    missingCode,
+    setMissingCode,
   }
 }

@@ -1,8 +1,7 @@
 {
   "crons": [
     { "path": "/api/cron/expire-points-monthly", "schedule": "0 18 * * *" },
-    { "path": "/api/cron/points-expiry-warning", "schedule": "0 2 1 * *" },
-    { "path": "/api/cron/birthday-greetings",    "schedule": "0 2 * * *" },
+    { "path": "/api/cron/points-expiry-warning", "schedule": "0 2 * * *" },
     { "path": "/api/cron/reconcile-balances",    "schedule": "0 3 * * *" }
   ]
 }

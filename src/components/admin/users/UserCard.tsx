@@ -4,6 +4,7 @@ import { FaUser, FaPhone, FaCoins, FaStickyNote } from 'react-icons/fa'
 import { RoleBadge } from '@/components/StatusBadge'
 import { TagBadge } from '@/components/TagBadge'
 import { formatDate, formatPoints, getUserDisplayName, getAvatarUrl } from '@/lib/utils'
+import { formatThaiPhone } from '@/lib/phone'
 
 interface UserCardProps {
   user: User & { latest_note?: { note_content: string; created_at: string } | null }
@@ -20,7 +21,7 @@ export function UserCard({ user, onViewDetails, onEditPoints, onEditRole }: User
         <img
           src={getAvatarUrl(user.picture_url, getUserDisplayName(user))}
           alt={getUserDisplayName(user)}
-          className="w-12 h-12 rounded-full object-cover ring-2 ring-slate-200 group-hover:ring-blue-400 transition-all"
+          className="w-12 h-12 rounded-full object-cover ring-2 ring-slate-200 group-hover:ring-red-300 transition-all"
         />
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-slate-900 truncate text-sm">{getUserDisplayName(user)}</h3>
@@ -40,11 +41,11 @@ export function UserCard({ user, onViewDetails, onEditPoints, onEditRole }: User
         {user.phone && (
           <div className="flex items-center gap-2 text-slate-600">
             <FaPhone className="w-3.5 h-3.5 text-slate-400" />
-            <span>{user.phone}</span>
+            <span>{formatThaiPhone(user.phone)}</span>
           </div>
         )}
         <div className="flex items-center gap-2 text-slate-600">
-          <FaCoins className="w-3.5 h-3.5 text-blue-400" />
+          <FaCoins className="w-3.5 h-3.5 text-red-400" />
           <span className="font-semibold text-slate-900">{formatPoints(user.points_balance || 0)} คะแนน</span>
         </div>
         <div className="text-xs text-slate-500">สมัคร: {formatDate(user.created_at)}</div>

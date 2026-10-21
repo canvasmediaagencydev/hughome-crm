@@ -261,7 +261,7 @@ export default function RolesPage() {
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-2">
                     {role.is_system && (
-                      <ShieldCheck className="h-4 w-4 text-blue-500" />
+                      <ShieldCheck className="h-4 w-4 text-red-500" />
                     )}
                     <span>{role.display_name}</span>
                     {role.is_system && (

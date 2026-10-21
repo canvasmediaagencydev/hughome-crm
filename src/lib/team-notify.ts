@@ -15,6 +15,7 @@
 import { pushMessage } from '@/lib/line-messaging'
 import { decryptSecret } from '@/lib/secret-box'
 import { serverEnv } from '@/config/env'
+import { formatThaiPhone } from '@/lib/phone'
 import { PERMISSIONS } from '@/types/admin'
 import type { createServerSupabaseClient } from '@/lib/supabase-server'
 import type { Tables } from '../../database.types'
@@ -154,7 +155,7 @@ export function buildRedemptionCreatedText(p: RedemptionCreatedPayload): string 
   const lines = [
     `🎁 [${p.tenantName}] มีคำขอแลกรางวัลใหม่`,
     `ลูกค้า: ${p.customerName}`,
-    `เบอร์: ${p.phone ?? '-'}`,
+    `เบอร์: ${formatThaiPhone(p.phone) || '-'}`,
     `ของรางวัล: ${p.rewardName}${p.quantity > 1 ? ` ×${p.quantity}` : ''}`,
     `ใช้แต้ม: ${p.pointsUsed.toLocaleString('th-TH')} แต้ม`,
   ]

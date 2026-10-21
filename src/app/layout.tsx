@@ -24,7 +24,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover', // ให้ env(safe-area-inset-bottom) ของแถบล่างทำงานบนจอมีขอบ/gesture bar
-  themeColor: '#dc2626', // Red theme color for PWA
+  themeColor: '#E71C24', // แดง CI ฮักโฮม
 };
 
 export default function RootLayout({

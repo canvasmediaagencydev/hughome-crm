@@ -40,7 +40,7 @@ If you find a doc or comment mentioning receipts/OCR, it is stale — trust the 
 2. **Sales staff cannot inflate their own numbers.** The people who key the amounts must not also
    control the multiplier. (Cross-week duplicate-bill protection went away with the bill column — `wiki/15`.)
 3. **Nothing silently half-happens.** A batch either awards every valid row or awards none.
-4. **Customers get told.** Points in, expiry warning, birthday — via LINE push.
+4. **Customers get told — only about expiring points, only by SMS** (meeting 2026-10-21, `wiki/16` M6). LINE push stays off (Q7).
 5. **Points expire fairly.** Step-wise expiry: each award is its own lot with its own expiry date,
    deducted FIFO when redeeming. **Since migration `025` (Q4 confirmed 2026-09-21): expiry = the day
    the approver released the batch + 365 days** (`earned_month` = approval month). Lots issued before
@@ -70,11 +70,11 @@ If you find a doc or comment mentioning receipts/OCR, it is stale — trust the 
 
 | | |
 |---|---|
-| Branch | `pilot-phase1` → Vercel production https://pilot-phase1.vercel.app (latest deploy `79483b0` 2026-10-19; Vercel account on Pro) · **Preview deploys fail** (OTP keys Production-only — `wiki/07`) |
+| Branch | `pilot-phase1` → Vercel production https://pilot-phase1.vercel.app (latest deploy `706514a` 2026-10-19; Vercel account on Pro) · **Preview deploys fail** (OTP keys Production-only — `wiki/07`) |
 | Supabase | pilot project `vltzkxmblmrvsmaookhl` (`hughome-pilot`, org of `canvasmediaagency@gmail.com`, Tokyo), `app_config.tenant_code = 'pilot'` · replaced `zoaxqouayhjkyterzzdt` on 2026-09-14 — see `wiki/07` |
-| Migrations | `001`–`027` all applied to pilot (`027` on 2026-10-18 via SQL Editor, `e2e-batch-flow.js` 35/35 after) · (`024`–`026` on 2026-09-21 via SQL Editor; `verify-schema.js` 23/23, `verify-types.js` clean, `e2e-batch-flow.js` 35/35) |
-| Sprints done | 0 – 8 · 9R deployed `ec5e79f` 2026-09-21 · **Sprint 10 part 1 same day**: email team notify (Resend), Telegram/LINE-group creation removed, customer-code import, Rollback = super_admin only · Sprint 5 leftover `POST /:id/review` on hold (Q12) · **2026-09-25** (`94d50b1`): SMS OTP via ThaiBulkSMS (verified on a phone), LINE Login channel published, `wiki/13` §10–§11 clicked on prod (money path clean — `wiki/13` §12) · **2026-10-18** (`5b017c5`): customer feedback — template v3, free customer code, report sort/phone (`wiki/15`) · **2026-10-19** (`79483b0`): motion UI from 21st.dev / Magic UI (`wiki/09`) |
-| Sprints left | prove role separation (`wiki/13` 10.2/10.5/10.7, needs a second admin account) · own SMS sender name · 10–11 — see `wiki/09` Remaining · open questions Q1 Q2 Q3 Q6–Q12 in `wiki/14` §4 |
+| Migrations | **`029` written, not applied** (expiry SMS dedupe kind — `wiki/16`) · `001`–`028` all applied to pilot (`028` on 2026-10-19, `verify-schema.js` 26/26 · `027` on 2026-10-18 via SQL Editor, `e2e-batch-flow.js` 35/35 after) · (`024`–`026` on 2026-09-21 via SQL Editor; `verify-schema.js` 23/23, `verify-types.js` clean, `e2e-batch-flow.js` 35/35) |
+| Sprints done | 0 – 8 · 9R deployed `ec5e79f` 2026-09-21 · **Sprint 10 part 1 same day**: email team notify (Resend), Telegram/LINE-group creation removed, customer-code import, Rollback = super_admin only · Sprint 5 leftover `POST /:id/review` on hold (Q12) · **2026-09-25** (`94d50b1`): SMS OTP via ThaiBulkSMS (verified on a phone), LINE Login channel published, `wiki/13` §10–§11 clicked on prod (money path clean — `wiki/13` §12) · **2026-10-18** (`5b017c5`): customer feedback — template v3, free customer code, report sort/phone (`wiki/15`) · **2026-10-19** (`79483b0`): motion UI from 21st.dev / Magic UI (`wiki/09`) · (`43cd3e1`): "แจ้งปัญหาการใช้งาน" issue reports (`028`) · (`706514a`): approver email from the admin list · final-meeting prep (go-live brief, customer answers to Q2/Q7–Q10) |
+| Sprints left | **2026-10-21 meeting M1–M7 built, not deployed** (`wiki/16` — apply `029`, set `THAIBULKSMS_SMS_*`, open questions there) · **Q2 revised duplicate hold** (in-file + cross-batch, super_admin confirms each row — needs a new migration) · Q8 threshold alert (number open) · prove role separation (`wiki/13` 10.2/10.5/10.7, needs a second admin account) · go-live checklist (`wiki/09` Next recommended step) · own SMS sender name · 10–11 — see `wiki/09` Remaining · still open: Q8 number, Q11, Q12 in `wiki/14` §4 |
 | Customer requirements | **`wiki/14-customer-meeting-2026-09-delta.md`** — answered and built 2026-09-21: Q1 (numeric codes imported from the old system), Q2 (duplicate = warning), Q3 (Rollback = super_admin), Q4 (expiry from approval date), Q5 (Excel v2), Q6 (email instead of Telegram/LINE group), Q7 (no customer push). **2026-10-19:** Q7 re-confirmed off · Q8 = team email alert (threshold number open) · Q2 revised = duplicates checked in-file + across earlier batches, held until super_admin confirms each row (not built) · Q9 Q10 dropped. Still open: Q8-threshold, Q11-sender-domain, Q12 |
 | Rehearsal | `wiki/13` §1–6 + 8.3 clicked 2026-09-14 · §10–§11 clicked 2026-09-25 — money path clean both times (`wiki/13` §12). Still open: §7 redeem/cancel from a phone, live role-separation check. Findings: `wiki/09` Open debt |
 
@@ -95,7 +95,7 @@ These come from `docs/PROMPTS.md` and have been enforced all along.
 - **Never touch `.env.local`.** It holds live pilot credentials.
 - **Never run a migration or write to Supabase without asking first.** Write the `.sql` file, hand it
   over to be pasted into the SQL Editor.
-- **Never edit an applied migration** (`001`–`026`, and `027` once applied). New change = new file.
+- **Never edit an applied migration** (`001`–`028`). New change = new file (next is `030`; `029` is written but not yet applied — `wiki/16`).
 - **Never `npm install` / `uninstall` without asking.**
 - **Never `git commit` or `git push` unless explicitly told to.**
 - **Never put a real phone number or a real person's name in the repo.**
@@ -191,8 +191,11 @@ npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts 
 | `src/config/env.ts`, `src/config/tenant.ts` | Boot-time env validation and tenant config. No defaults by design. |
 | `src/config/tenant-guard.ts` | Checks the connected DB belongs to this tenant. Currently **soft** — see debt list. |
 | `src/components/ui/number-ticker.tsx` etc. | Motion components (Magic UI, MIT, via 21st.dev). Must honour `prefers-reduced-motion`; a ticker showing points must land on the exact value (upstream stops one short — fixed here). Adding one needs the owner's approval and must not pull a new npm package without asking |
-| `src/app/api/admin/issues/*`, `/admin/issues`, `src/components/admin/ReportIssueDialog.tsx`, `src/lib/issue-reports.ts` | "แจ้งปัญหาการใช้งาน" (migration 028): every admin reports from the sidebar button, which attaches the current page. Reports land in `issue_reports`; super_admin (the canvas account) sees all of them and sets status and a note, and the reporter sees only their own. Email goes through `notification_channels` event `issue.reported` |
-| `src/lib/phone.ts` | Canonical Thai phone normalization. Identity is the local 10-digit form. |
+| `src/app/api/admin/issues/*`, `/admin/issues`, `src/components/admin/ReportIssueDialog.tsx`, `src/lib/issue-reports.ts` | "แจ้งปัญหาการใช้งาน" (migration 028): every admin reports from the sidebar button, which attaches the current page. Reports land in `issue_reports`; super_admin (the canvas account) sees all of them and sets status and a note, and the reporter sees only their own. Email goes through `notification_channels` event `issue.reported`, and to super_admin automatically (`706514a`) |
+| `src/lib/phone.ts` | Canonical Thai phone normalization. Identity is the local 10-digit form. Display is always `xxx-xxxxxxx` via `formatThaiPhone` (`wiki/16` M1). |
+| `src/app/api/admin/inbox`, `src/components/admin/AdminInboxBell.tsx` | Admin bell + red dot per sidebar item: live counts of work the caller's permissions can act on (`wiki/16` M7). No table. |
+| `src/components/brand/BrandLogo.tsx`, `public/brand/`, `src/app/globals.css` `@theme` | HugHome CI (2026-10-21): `BrandMark` (vector house, traced from the logo file) · `BrandLogo` (Thai wordmark PNG, `tone="white"` on red/ink only) · tokens `brand #E71C24`, `brand-2 #ED4136`, `ink #414042`, `ink-2 #58595B`, `silver #BABCBE`; Tailwind `red-500…800` and `slate-800/900` are remapped to CI, so `red-*` classes are brand red · `.bg-brand-gradient` = CI red gradient |
+| `src/lib/thaibulksms-sms.ts` | Expiry-warning SMS (ThaiBulkSMS SMS API, `THAIBULKSMS_SMS_KEY/SECRET/SENDER` — optional at boot, cron throws without them) |
 | `src/lib/thaibulksms-otp.ts`, `src/app/api/phone/*` | Customer SMS OTP via ThaiBulkSMS OTP Manager; the provider token lives in the signed session cookie, bound to the phone, deleted after verify |
 | `supabase/migrations/` | `001`–`028` up, `rollback/` down. |
 | `supabase/seed/seed_demo_data.sql` | Demo data. **Outside** the migration path on purpose. |
@@ -263,7 +266,8 @@ npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts 
 | `wiki/09-status-and-roadmap.md` | completed, remaining, locked decisions, open debt, next step |
 | `wiki/12-conflicts-and-unverified.md` | **read this when a document disagrees with the code** |
 | `wiki/14-customer-meeting-2026-09-delta.md` | the customer's requirements (2026-09-21) mapped onto the code, and what blocks them |
-| `wiki/15-customer-feedback-2026-10-18.md` | the customer's latest feedback: free-format customer code, no bill column (v3), report sort + phone format |
+| `wiki/15-customer-feedback-2026-10-18.md` | customer feedback: free-format customer code, no bill column (v3), report sort + phone format |
+| `wiki/16-customer-meeting-2026-10-21.md` | the latest meeting: dashed phones, sort choice, code import, phone search, expiry SMS, admin bell — deploy steps and open questions |
 
 `MIGRATION_PLAN.md` is the original decision record — long, and authoritative on *why*.
 

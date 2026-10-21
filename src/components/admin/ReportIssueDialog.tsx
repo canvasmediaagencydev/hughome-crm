@@ -92,7 +92,7 @@ export function ReportIssueDialog({ className }: { className?: string }) {
                 value={category}
                 onChange={(e) => setCategory(e.target.value as IssueCategory)}
                 disabled={sending}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
               >
                 {ISSUE_CATEGORIES.map((c) => (
                   <option key={c} value={c}>
@@ -130,7 +130,7 @@ export function ReportIssueDialog({ className }: { className?: string }) {
           </div>
 
           <DialogFooter className="gap-2 sm:justify-between">
-            <Link href="/admin/issues" className="text-sm text-blue-600 hover:underline self-center" onClick={() => setOpen(false)}>
+            <Link href="/admin/issues" className="text-sm text-red-600 hover:underline self-center" onClick={() => setOpen(false)}>
               ดูรายการที่เคยแจ้ง
             </Link>
             <div className="flex gap-2">

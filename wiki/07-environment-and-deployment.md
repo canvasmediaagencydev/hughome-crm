@@ -7,7 +7,7 @@
 | Branch | `pilot-phase1` |
 | Target | Vercel **production**, https://pilot-phase1.vercel.app |
 | `main` | not used for the pilot; deliberately untouched |
-| Last verified commit | `79483b0` (2026-10-19 — `/`, `/admin/login` 200, `/rewards` 307 to login) |
+| Last verified commit | `706514a` (2026-10-19 — `/`, `/admin/login`, `/admin/issues` 200, `/rewards` 307 to login; Vercel build 39 s) |
 | Preview deploys | **fail** — `THAIBULKSMS_OTP_*` are Production-only (see below) |
 
 Pushing `pilot-phase1` triggers the production deploy. A build took roughly 50 seconds in the one
@@ -135,8 +135,7 @@ from `docs/demo/reward-mockups/` were uploaded under `mockup/`. A fresh Phase 2 
 
 ```json
 { "path": "/api/cron/expire-points-monthly", "schedule": "0 18 * * *" }   // 01:00 Bangkok, daily
-{ "path": "/api/cron/points-expiry-warning", "schedule": "0 2 1 * *"  }   // 09:00 Bangkok, 1st of month
-{ "path": "/api/cron/birthday-greetings",    "schedule": "0 2 * * *"  }   // 09:00 Bangkok, daily
+{ "path": "/api/cron/points-expiry-warning", "schedule": "0 2 * * *"  }   // 09:00 Bangkok, daily (30 days before expiry — wiki/16 M6)
 { "path": "/api/cron/reconcile-balances",    "schedule": "0 3 * * *"  }   // 10:00 Bangkok, daily
 ```
 
@@ -146,8 +145,8 @@ database or LINE. `scripts/verify-cron-auth.js <base-url>` proves all four retur
 | Cron | Does | Money |
 |---|---|---|
 | `expire-points-monthly` | RPC `expire_ledger_batches(today)` — lots with `expires_at < today` → `points_remaining = 0`, balance down, `point_transactions` `expired`; then LINE "แต้มหมดอายุแล้ว" per affected user, deduped per day | RPC only |
-| `points-expiry-warning` | lots expiring within 3 months → one LINE warning per user, deduped per `(user, lot expires_at)` so a lot is warned once | read-only |
-| `birthday-greetings` | LINE greeting, deduped per `(user, year)` | read-only |
+| `points-expiry-warning` | daily · lots expiring within 30 days → one **SMS** per lot, 30 days before expiry (ThaiBulkSMS SMS API, since `wiki/16` M6), deduped per `(user, lot expires_at)` under kind `expiry_warning_sms` (migration `029`) so a lot is warned once · 500 if `THAIBULKSMS_SMS_*` is missing | read-only |
+| `birthday-greetings` | LINE greeting, deduped per `(user, year)` · **not scheduled since 2026-10-21** (removed from `vercel.json`, `wiki/16` M6) — route kept | read-only |
 | `reconcile-balances` | RPC `reconcile_balances()`; writes `balance_reconcile_log`; on drift logs `console.error` and returns **500** so Vercel marks the run failed. Never auto-fixes | read-only |
 
 > `expire-points-monthly` is scheduled **daily**, not on the 1st as the plan's name suggests. Since

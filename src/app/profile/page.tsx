@@ -10,6 +10,7 @@ import LoadingSpinner from '@/components/LoadingSpinner'
 import { FaUser, FaPhone, FaBirthdayCake, FaIdCard } from 'react-icons/fa'
 import { SiLine } from 'react-icons/si'
 import { bangkokDateOf, formatThaiDate } from '@/lib/bangkok-date'
+import { formatThaiPhone } from '@/lib/phone'
 
 interface UserProfile {
   id: string
@@ -133,11 +134,11 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-28">
       {/* Header Section */}
-      <div className="relative bg-gradient-to-br from-red-600 via-red-500 to-orange-500 overflow-hidden">
+      <div className="relative bg-brand-gradient overflow-hidden">
         {/* Decorative Background */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
-          <div className="absolute top-20 -left-10 w-32 h-32 bg-yellow-300/10 rounded-full blur-2xl"></div>
+          <div className="absolute top-20 -left-10 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
         </div>
 
         {/* Content */}
@@ -210,7 +211,7 @@ export default function ProfilePage() {
             <div className="flex-1">
               <p className="text-gray-500 text-xs mb-1">เบอร์โทรศัพท์</p>
               <p className="text-gray-900 font-semibold text-lg">
-                {profile?.phone || '-'}
+                {formatThaiPhone(profile?.phone) || '-'}
               </p>
             </div>
           </div>

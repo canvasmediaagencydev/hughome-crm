@@ -46,7 +46,7 @@ export function EditRoleModal({
                 value="contractor"
                 checked={newRole === 'contractor'}
                 onChange={(e) => setNewRole(e.target.value as 'contractor' | 'homeowner')}
-                className="mr-3 text-blue-600 focus:ring-blue-400"
+                className="mr-3 text-red-600 focus:ring-red-300"
               />
               <div>
                 <div className="font-medium text-slate-900">Contractor</div>
@@ -59,7 +59,7 @@ export function EditRoleModal({
                 value="homeowner"
                 checked={newRole === 'homeowner'}
                 onChange={(e) => setNewRole(e.target.value as 'contractor' | 'homeowner')}
-                className="mr-3 text-blue-600 focus:ring-blue-400"
+                className="mr-3 text-red-600 focus:ring-red-300"
               />
               <div>
                 <div className="font-medium text-slate-900">Homeowner</div>

@@ -8,10 +8,10 @@ are marked as such.
 
 | | |
 |---|---|
-| Branch / deploy | `pilot-phase1` → https://pilot-phase1.vercel.app, commit `79483b0` (deployed 2026-10-19) |
+| Branch / deploy | `pilot-phase1` → https://pilot-phase1.vercel.app, commit `706514a` (deployed 2026-10-19) |
 | Supabase | pilot `vltzkxmblmrvsmaookhl`, `tenant_code = pilot` |
-| Migrations | `001`–`027` applied (`024`–`026` on 2026-09-21, `027` on 2026-10-18, all through the SQL Editor) |
-| Sprints complete | 0, 1, 2, 2.1, 3, 3.1, pre-4, 4, 5 (partial), 6, 7, 8, 9R, 10 part 1–2 · customer feedback 2026-10-18 (`wiki/15`) · motion UI 2026-10-19 — all deployed |
+| Migrations | `001`–`028` applied (`024`–`026` on 2026-09-21, `027` on 2026-10-18, `028` on 2026-10-19, all through the SQL Editor) |
+| Sprints complete | 0, 1, 2, 2.1, 3, 3.1, pre-4, 4, 5 (partial), 6, 7, 8, 9R, 10 part 1–2 · customer feedback 2026-10-18 (`wiki/15`) · motion UI, issue reports, approver email 2026-10-19 — all deployed |
 | Demo data | `docs/demo/` (10 rows · 687 points) · `verify-demo-ready.js` 19/19 |
 
 ### Demo data — resolved 2026-08-31
@@ -265,7 +265,7 @@ First-load JS: `/dashboard` 240 → 263 kB, `/rewards` 172 → 224 kB, `/admin` 
 framer-motion load lazily would shrink this if it matters. Checked visually on a temporary localhost
 page (removed). It was **not** clicked through on prod after login.
 
-### Issue reports — "แจ้งปัญหาการใช้งาน" (branch `feat/issue-reports`, 2026-10-19 · **needs `028`**)
+### Issue reports — "แจ้งปัญหาการใช้งาน" (`43cd3e1`, `028` applied, deployed 2026-10-19)
 The owner asked for a button that lets admin staff report usage problems, with the reports going to
 the administrator (canvas) account so bugs can be read and fixed.
 - **Button:** the sidebar has an amber "แจ้งปัญหาการใช้งาน" button on every admin page. It opens a
@@ -276,7 +276,33 @@ the administrator (canvas) account so bugs can be read and fixed.
   `resolved` / `wont_fix`) plus a note. Other admins see their own reports and the note.
 - **Email:** a new team event `issue.reported`. Tick it on an email channel at `/admin/notifications`
   to get an email per report. Delivery runs in `after()`, so a failed email never fails the report.
+  Since `706514a` super_admin also gets it automatically (see below).
 - No screenshot upload in v1. It would need a Storage bucket.
+- Not clicked on prod yet (`/admin/issues` answers 200).
+
+### Approver email from the admin list (`706514a`, deployed 2026-10-19)
+The owner asked that approval emails go to the same addresses as the "ผู้ดูแลระบบ" list, without
+adding channels by hand.
+- `notifyTeam` (`src/lib/team-notify.ts`) now also emails every active `admin_users` row whose roles hold
+  the permission to act on the event: `batch.submitted` → `batches.approve` (super_admin, manager),
+  `redemption.created` → `redemptions.process` (super_admin, manager, reward_manager),
+  `issue.reported` → `issues.manage` (super_admin).
+- Addresses that already have an active email channel for the event are skipped, so nobody gets two copies.
+- A failed approver email is logged only (there is no channel row to write `last_error` to) and never
+  fails the caller. No migration.
+- The embed needs the FK hint `admin_users!admin_user_roles_admin_user_id_fkey`, because
+  `admin_user_roles` has two FKs to `admin_users` (`admin_user_id`, `assigned_by`) — PostgREST answers
+  `PGRST201` without it.
+- Checked read-only on 2026-10-19: the pilot has one admin (the canvas super_admin), so all three events
+  reach that one address until the shop's staff get their own accounts. A real send was **not** observed yet.
+
+### Final-meeting prep (2026-10-19)
+- Go-live brief for the customer meeting (changes since 2026-09-21, step-by-step trial per role A–E, asks,
+  caveats, go-live checklist): https://claude.ai/artifact/FjBkeo2urju4McwZgvyiqt (shared by link).
+- Meeting files outside the repo in `../final-meeting-files/`: the v3 demo upload (week 2026-07-20 → 07-26,
+  687 points), a blank v3 template, and the sample batch/customer reports (fake data).
+- Customer answers relayed by the owner: Q7 no customer push (again) · Q8 team email alert, number open ·
+  Q2 revised to a held duplicate that super_admin confirms row by row · Q9 and Q10 dropped (`wiki/14` §4).
 
 ## Remaining
 
@@ -412,7 +438,23 @@ Each of these is a decision that was made explicitly and should not be revisited
 
 ## Next recommended step
 
-Updated 2026-09-25. The pilot is ready for the customer's demo: sign-up with a real SMS OTP, the approval
+Updated 2026-10-19 (before the final meeting, go-live).
+
+**1. Build the Q2 duplicate hold** (`wiki/14` §4 Q2): in the parser/upload, match phone + purchase date + net
+against the file and against ledger rows of non-voided batches; held rows award nothing on approve; a
+super_admin-only per-row confirm (award / drop) moves money through a new RPC. Needs migration `029`
+(new row status + RPC). Hand the `.sql` over, never apply it from the agent.
+
+**2. Q8 threshold alert** once the number is given: a new team event, email only.
+
+**3. Go-live checklist** (in the brief): wipe demo/test data with a script the owner approves, admin accounts
+per real person and role (then prove 10.2/10.5/10.7 live), rewards with images and stock, real Makers and a
+fresh v3 template, rotate secrets pasted into chats, settle the Vercel invoice, consider a paid Supabase plan.
+
+**4. Observe one real approver email** on prod (submit a batch or report an issue) and the redeem → cancel
+path from a phone (`wiki/13` §7, §8.1–8.2).
+
+Previous plan, 2026-09-25: The pilot is ready for the customer's demo: sign-up with a real SMS OTP, the approval
 flow and both exports work on production, and the demo data is clean (`verify-demo-ready.js` 19/19).
 
 **1. Customer demo** — LIFF link https://liff.line.me/2010850077-4iXzuV6k. Watch for the known Supabase

@@ -32,6 +32,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth'
 import { PERMISSIONS } from '@/types/admin'
 import { toast } from 'sonner'
 import { axiosAdmin } from '@/lib/axios-admin'
+import { formatThaiPhone } from '@/lib/phone'
 
 type RowStatus = 'valid' | 'duplicate_amount' | 'invalid' | 'unmatched'
 type BatchStatus = 'draft' | 'previewed' | 'pending_approval' | 'committed' | 'voided'
@@ -432,7 +433,7 @@ export default function BatchesPage() {
                       <td className="px-2 py-1.5">{r.row_no}</td>
                       <td className="px-2 py-1.5 font-mono">{r.customer_code ?? '—'}</td>
                       <td className="px-2 py-1.5">{r.purchase_date ?? '—'}</td>
-                      <td className="px-2 py-1.5">{r.phone ?? '—'}</td>
+                      <td className="px-2 py-1.5">{formatThaiPhone(r.phone) || '—'}</td>
                       <td className="px-2 py-1.5">{r.customer_name ?? '—'}</td>
                       <td className="px-2 py-1.5 text-right">{r.net?.toLocaleString() ?? '—'}</td>
                       <td className="px-2 py-1.5">{r.sales_rep_name ?? '—'}</td>

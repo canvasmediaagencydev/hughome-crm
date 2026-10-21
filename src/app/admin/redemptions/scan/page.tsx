@@ -19,6 +19,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth'
 import { PERMISSIONS } from '@/types/admin'
 import { StatusBadge } from '@/components/StatusBadge'
 import { axiosAdmin } from '@/lib/axios-admin'
+import { formatThaiPhone } from '@/lib/phone'
 import { toast } from 'sonner'
 import { formatDate, formatPoints, getUserDisplayName } from '@/lib/utils'
 import { NEXT_STATUS, REDEMPTION_STATUS_LABEL, normalizePickupCode, type RedemptionStatus } from '@/lib/redemption-status'
@@ -176,7 +177,7 @@ function ScanContent() {
           <CardContent className="space-y-4">
             <div className="rounded-lg bg-slate-50 p-3 text-sm">
               <p className="font-medium text-slate-900">{found.user_profiles ? getUserDisplayName(found.user_profiles) : '-'}</p>
-              <p className="text-slate-500">{found.user_profiles?.phone ?? '-'}</p>
+              <p className="text-slate-500">{formatThaiPhone(found.user_profiles?.phone) || '-'}</p>
               <p className="mt-1 font-mono text-xs text-slate-500">รหัส {found.pickup_code}</p>
             </div>
 

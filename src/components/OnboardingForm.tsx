@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { IoHome } from "react-icons/io5";
 import { FaUsers } from "react-icons/fa";
 import axios from 'axios'
 import { UserSessionManager } from '@/lib/user-session'
+import { formatThaiPhoneInput } from '@/lib/phone'
+import { BrandLogo } from '@/components/brand/BrandLogo'
 
 interface OnboardingFormData {
   role: 'homeowner' | 'contractor'
@@ -144,7 +145,7 @@ export default function OnboardingForm() {
   }
 
   const handlePhoneChange = (value: string) => {
-    setFormData(prev => ({ ...prev, phone: value }))
+    setFormData(prev => ({ ...prev, phone: formatThaiPhoneInput(value) }))
     setPhoneVerified(false)
     setOtpSent(false)
     setOtpCode('')
@@ -220,13 +221,7 @@ export default function OnboardingForm() {
       <div className="w-full max-w-md mx-auto">
         <div className="bg-white px-6 sm:p-8 py-3">
           <div className="text-center mb-8">
-            <Image
-              src="/image/HUG HOME LOGO.svg"
-              alt="Hughome Logo"
-              width={250}
-              height={64}
-              className="mx-auto mb-4"
-            />
+            <BrandLogo height={56} priority className="mx-auto mb-4" />
             <p className="text-gray-500 text-sm">
               กรุณากรอกข้อมูลเพื่อเริ่มใช้งาน
             </p>
@@ -362,8 +357,8 @@ export default function OnboardingForm() {
                         ? 'border-red-300 bg-red-50'
                         : 'border-gray-300 bg-white'
                   }`}
-                  placeholder="0xx-xxx-xxxx"
-                  maxLength={20}
+                  placeholder="0xx-xxxxxxx"
+                  maxLength={11}
                 />
                 {!phoneVerified && (
                   <button

@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     const days = searchParams.get("days");
     const pointsMin = searchParams.get("points_min");
     const pointsMax = searchParams.get("points_max");
+    const missingCode = searchParams.get("missing_code") === "1";
 
     // If filtering by tag, get user IDs first
     let tagUserIds: string[] | null = null;
@@ -67,8 +68,20 @@ export async function GET(request: NextRequest) {
       query = query.lte('points_balance', parseInt(pointsMax));
     }
 
+    // ลูกค้าที่ยังไม่มีรหัส (สมัครผ่าน LINE ยังไม่ได้ผูกรหัสระบบเปิดบิล · ประชุม 2026-10-21)
+    if (missingCode) {
+      query = query.is('customer_code', null);
+    }
+
+    // ค้นหาด้วยเบอร์เป็นหลัก (ประชุม 2026-10-21): ข้อความที่มีแต่ตัวเลข/ขีด/ช่องว่าง/+ = เบอร์
+    // DB เก็บ 10 หลักติดกัน → ตัดขีดก่อนเทียบ ให้ "081-2345678" กับ "0812345678" เจอคนเดียวกัน
+    const rawSearch = search?.trim();
+    const isPhoneSearch = !!rawSearch && /^[\d\s\-+()]+$/.test(rawSearch) && /\d/.test(rawSearch);
+    let phoneDigits = isPhoneSearch ? rawSearch!.replace(/\D/g, '') : '';
+    if (phoneDigits.startsWith('66') && phoneDigits.length > 9) phoneDigits = '0' + phoneDigits.slice(2);
+
     // Store original search term for full name matching later
-    const originalSearch = search?.trim();
+    const originalSearch = isPhoneSearch ? undefined : rawSearch;
     const hasFullNameSearch = originalSearch && originalSearch.includes(' ');
 
     // Filter by role first
@@ -77,7 +90,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Handle search differently based on whether it's a full name search or not
-    if (originalSearch && !hasFullNameSearch) {
+    if (isPhoneSearch) {
+      // เบอร์ หรือรหัสลูกค้าที่เป็นตัวเลขล้วน (รหัสระบบเดิมบางชุดเป็นตัวเลข — Q1)
+      query = query.or(`phone.ilike.%${phoneDigits}%,customer_code.ilike.%${phoneDigits}%`);
+
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      query = query.range(from, to);
+    } else if (originalSearch && !hasFullNameSearch) {
       // Simple search (no space) - use database query
       const searchPattern = `%${originalSearch}%`;
       query = query.or(

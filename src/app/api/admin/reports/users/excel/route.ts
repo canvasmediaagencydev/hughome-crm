@@ -1,11 +1,12 @@
 /**
- * GET /api/admin/reports/users/excel?start=YYYY-MM-DD&end=YYYY-MM-DD[&role=contractor|homeowner]
+ * GET /api/admin/reports/users/excel?start=YYYY-MM-DD&end=YYYY-MM-DD[&role=contractor|homeowner][&sort=date|points]
  * รายงานลูกค้าสำหรับการตลาด (Sprint 9R A5 · wiki/14 §3 "Reports")
  *
  *   1 แถว = ลูกค้า 1 คน · ทุกคนที่ onboard แล้ว (role ไม่ว่าง) — ช่วงวันที่ใช้คำนวณ
  *   "ยอดซื้อสุทธิรวมในช่วง" และ "จำนวนบิลในช่วง" จาก ledger (ตามวันที่ซื้อ · ไม่นับชุดที่ถูก void)
  *   ไม่มีคอลัมน์เลขที่บิล — รายงานรายชุดคือ /api/admin/reports/batches/:id/excel
  *   เบอร์รูปแบบ xxx-xxxxxxx (feedback 2026-10-18) · คอลัมน์เป็น text กัน Excel ตัด 0
+ *   ประชุม 2026-10-21: ไม่มีคอลัมน์รหัสลูกค้า · sort=date (ค่าเริ่มต้น · วันที่สมัคร) | points (แต้มคงเหลือ)
  *
  * ตัวสร้างไฟล์อยู่ที่ src/lib/excel/build-reports.js (ใช้ร่วมกับ scripts/build-sample-reports.js)
  */
@@ -15,7 +16,7 @@ import { requirePermission } from '@/lib/admin-auth'
 import { adminAuthError } from '@/lib/admin-http'
 import { PERMISSIONS } from '@/types/admin'
 import { todayBangkok, isIsoDate } from '@/lib/bangkok-date'
-import { buildCustomerExport, customerExportFilename, XLSX_MIME } from '@/lib/excel/build-reports'
+import { buildCustomerExport, customerExportFilename, XLSX_MIME, REPORT_SORTS } from '@/lib/excel/build-reports'
 
 export const runtime = 'nodejs'
 
@@ -23,7 +24,6 @@ const PAGE = 1000 // PostgREST ตัดที่ 1,000 แถวต่อ query
 
 interface CustomerRow {
   id: string
-  customer_code: string | null
   first_name: string | null
   last_name: string | null
   phone: string | null
@@ -41,6 +41,10 @@ export async function GET(request: NextRequest) {
     const start = sp.get('start')
     const end = sp.get('end')
     const role = sp.get('role')
+    const sort = sp.get('sort') ?? 'date'
+    if (!REPORT_SORTS.includes(sort)) {
+      return NextResponse.json({ error: "sort ต้องเป็น 'date' หรือ 'points'" }, { status: 400 })
+    }
     if (!isIsoDate(start) || !isIsoDate(end)) {
       return NextResponse.json({ error: 'ต้องระบุ start และ end เป็น YYYY-MM-DD' }, { status: 400 })
     }
@@ -54,7 +58,7 @@ export async function GET(request: NextRequest) {
     for (let from = 0; ; from += PAGE) {
       let q = supabase
         .from('user_profiles')
-        .select('id, customer_code, first_name, last_name, phone, role, created_at, points_balance')
+        .select('id, first_name, last_name, phone, role, created_at, points_balance')
         .not('role', 'is', null)
         .order('created_at', { ascending: true })
         .range(from, from + PAGE - 1)
@@ -142,11 +146,11 @@ export async function GET(request: NextRequest) {
     const wb = buildCustomerExport({
       rangeStart: start,
       rangeEnd: end,
+      sort,
       customers: customers.map((c) => {
         const inRange = netByUser.get(c.id)
         const next = nextByUser.get(c.id)
         return {
-          customer_code: c.customer_code,
           first_name: c.first_name,
           last_name: c.last_name,
           phone: c.phone,

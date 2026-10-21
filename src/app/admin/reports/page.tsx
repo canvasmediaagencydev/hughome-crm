@@ -18,8 +18,11 @@ import {
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { toast } from 'sonner'
 import { axiosAdmin } from '@/lib/axios-admin'
+import { formatThaiPhone } from '@/lib/phone'
 
 type RoleFilter = 'all' | 'contractor' | 'homeowner'
+/** ลำดับแถวในไฟล์ Excel (ประชุม 2026-10-21) — ค่าเริ่มต้นวันที่ทั้ง 2 รายงาน */
+type ReportSort = 'date' | 'points'
 
 interface UserReport {
   created_at: string
@@ -65,15 +68,6 @@ function formatThaiDate(dateString: string): string {
   return formatted.replace(String(date.getFullYear()), String(buddhistYear))
 }
 
-function formatPhone(phone: string | null): string {
-  if (!phone) return '-'
-  const cleaned = phone.replace(/\D/g, '')
-  if (cleaned.length === 10) {
-    return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`
-  }
-  return phone
-}
-
 export default function AdminReportsPage() {
   const { hasPermission, loading: authLoading } = useAdminAuth()
 
@@ -85,6 +79,8 @@ export default function AdminReportsPage() {
   const [startDate, setStartDate] = useState(defaultStart)
   const [endDate, setEndDate] = useState(defaultEnd)
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
+  const [customerSort, setCustomerSort] = useState<ReportSort>('date')
+  const [batchSort, setBatchSort] = useState<ReportSort>('date')
   const [reportData, setReportData] = useState<ReportResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [downloading, setDownloading] = useState(false)
@@ -102,7 +98,7 @@ export default function AdminReportsPage() {
 
   const downloadBatchReport = async (b: BatchRow) => {
     try {
-      const res = await axiosAdmin.get(`/api/admin/reports/batches/${b.id}/excel`, { responseType: 'blob' })
+      const res = await axiosAdmin.get(`/api/admin/reports/batches/${b.id}/excel?sort=${batchSort}`, { responseType: 'blob' })
       const url = window.URL.createObjectURL(res.data as Blob)
       const a = document.createElement('a')
       a.href = url
@@ -170,7 +166,7 @@ export default function AdminReportsPage() {
 
     setDownloading(true)
     try {
-      const params = new URLSearchParams({ start: startDate, end: endDate })
+      const params = new URLSearchParams({ start: startDate, end: endDate, sort: customerSort })
       if (roleFilter !== 'all') params.set('role', roleFilter)
       const res = await axiosAdmin.get(`/api/admin/reports/users/excel?${params.toString()}`, {
         responseType: 'blob'
@@ -227,8 +223,8 @@ export default function AdminReportsPage() {
             รายงานข้อมูลลูกค้า
           </h1>
           <p className="text-slate-600 mt-1">
-            ตาราง = ลูกค้าที่สมัครในช่วง · ไฟล์ Excel = ลูกค้าทุกคน 1 แถวต่อคน (รหัส, เบอร์ xxx-xxxxxxx, แต้ม, แต้มที่จะหมดอายุ,
-            ยอดซื้อสุทธิ + จำนวนบิลในช่วงที่เลือก, แท็ก) — ไม่มีเลขที่บิล
+            ตาราง = ลูกค้าที่สมัครในช่วง · ไฟล์ Excel = ลูกค้าทุกคน 1 แถวต่อคน (เบอร์ xxx-xxxxxxx, แต้ม, แต้มที่จะหมดอายุ,
+            ยอดซื้อสุทธิ + จำนวนบิลในช่วงที่เลือก, แท็ก) — ไม่มีเลขที่บิลและรหัสลูกค้า (ผูกรหัสที่หน้า "นำเข้ารหัสลูกค้า")
           </p>
         </div>
 
@@ -255,7 +251,7 @@ export default function AdminReportsPage() {
                 className="w-44 mt-1"
               />
             </div>
-            <Button onClick={fetchReport} disabled={loading} className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={fetchReport} disabled={loading} className="bg-red-600 hover:bg-red-700">
               {loading ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
@@ -304,6 +300,26 @@ export default function AdminReportsPage() {
             >
               3 เดือนล่าสุด
             </Button>
+          </div>
+
+          <div className="mt-4">
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <span className="text-slate-700">เรียงไฟล์ Excel ตาม</span>
+              {([
+                { value: 'date', label: 'วันที่สมัคร (เก่า → ใหม่)' },
+                { value: 'points', label: 'จำนวนแต้ม (มาก → น้อย)' },
+              ] as const).map((opt) => (
+                <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="customer-sort"
+                    checked={customerSort === opt.value}
+                    onChange={() => setCustomerSort(opt.value)}
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
           </div>
 
           {/* Role filter */}
@@ -395,7 +411,7 @@ export default function AdminReportsPage() {
                       <TableCell>{formatThaiDate(user.created_at)}</TableCell>
                       <TableCell>{user.first_name || '-'}</TableCell>
                       <TableCell>{user.last_name || '-'}</TableCell>
-                      <TableCell className="text-center">{formatPhone(user.phone)}</TableCell>
+                      <TableCell className="text-center">{formatThaiPhone(user.phone) || '-'}</TableCell>
                       <TableCell className="text-center">
                         {user.role === 'contractor' ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
@@ -436,9 +452,28 @@ export default function AdminReportsPage() {
             <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
               <FileSpreadsheet className="w-5 h-5" /> รายงานชุดยอดขายรายสัปดาห์
             </h2>
-            <p className="text-sm text-slate-600 mt-1 mb-4">
-              1 แถว = 1 รายการซื้อ เรียงวันที่ซื้อเก่าไปใหม่ · มี Maker และสาขา สำหรับผู้อนุมัติ/ผู้จัดการ · ห้ามส่งต่อภายนอก
+            <p className="text-sm text-slate-600 mt-1 mb-3">
+              1 แถว = 1 รายการซื้อ · มี Maker และสาขา สำหรับผู้อนุมัติ/ผู้จัดการ · ห้ามส่งต่อภายนอก
             </p>
+            <div className="mb-4">
+              <div className="flex flex-wrap items-center gap-3 text-sm">
+              <span className="text-slate-700">เรียงไฟล์ Excel ตาม</span>
+              {([
+                { value: 'date', label: 'วันที่ซื้อ (เก่า → ใหม่)' },
+                { value: 'points', label: 'จำนวนแต้ม (มาก → น้อย)' },
+              ] as const).map((opt) => (
+                <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="batch-sort"
+                    checked={batchSort === opt.value}
+                    onChange={() => setBatchSort(opt.value)}
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
+            </div>
             {batches === null ? (
               <p className="text-slate-400 text-sm">กำลังโหลด…</p>
             ) : batches.length === 0 ? (

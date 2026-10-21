@@ -45,7 +45,7 @@ export function PointSettingsForm({
                 value={bahtPerPoint}
                 onChange={(e) => setBahtPerPoint(e.target.value)}
                 placeholder="100.00"
-                className="mt-1 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                className="mt-1 focus:ring-2 focus:ring-red-300 focus:border-red-400"
                 disabled={!canEdit}
               />
               <p className="text-xs text-slate-500 mt-1">

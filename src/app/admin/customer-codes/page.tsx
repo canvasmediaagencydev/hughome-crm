@@ -14,6 +14,7 @@ import { toast } from 'sonner'
 import { useAdminAuth } from '@/hooks/useAdminAuth'
 import { PERMISSIONS } from '@/types/admin'
 import { axiosAdmin } from '@/lib/axios-admin'
+import { formatThaiPhone } from '@/lib/phone'
 import { CUSTOMER_CODE_FORMAT_HINT } from '@/lib/customer-code'
 
 type RowStatus = 'will_set' | 'already_same' | 'conflict' | 'unmatched' | 'invalid' | 'duplicate_in_file'
@@ -89,7 +90,10 @@ export default function CustomerCodesPage() {
           <IdCard className="h-6 w-6" /> นำเข้ารหัสลูกค้า
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          รหัสจากระบบเดิมของร้าน จับคู่กับลูกค้าที่สมัครผ่าน LINE ด้วย "เบอร์โทร" · ไม่สร้างลูกค้าใหม่ ไม่แตะแต้ม
+          รหัสจากระบบเปิดบิลของร้าน (ให้ตรงกับ SCG) จับคู่กับลูกค้าที่สมัครผ่าน LINE ด้วย "เบอร์โทร" · ไม่สร้างลูกค้าใหม่ ไม่แตะแต้ม
+        </p>
+        <p className="mt-1 text-sm text-slate-500">
+          ไฟล์ตั้งต้น: หน้า "จัดการผู้ใช้" → "ดาวน์โหลดลูกค้าที่ยังไม่มีรหัส (Excel)" แล้วกรอกคอลัมน์ A
         </p>
       </div>
 
@@ -97,7 +101,7 @@ export default function CustomerCodesPage() {
         <CardHeader>
           <CardTitle className="text-base">ไฟล์ .xlsx</CardTitle>
           <CardDescription>
-            แผ่นแรก · แถว 1 หัวตาราง · คอลัมน์ A = รหัสลูกค้า ({CUSTOMER_CODE_FORMAT_HINT}) · คอลัมน์ B = เบอร์โทร 10 หลัก ·
+            แผ่นแรก · แถว 1 หัวตาราง · คอลัมน์ A = รหัสลูกค้า ({CUSTOMER_CODE_FORMAT_HINT}) · คอลัมน์ B = เบอร์โทร (081-2345678 หรือ 0812345678) ·
             ตรวจก่อนเสมอ (dry-run) แล้วค่อยกดบันทึก
           </CardDescription>
         </CardHeader>
@@ -164,7 +168,7 @@ export default function CustomerCodesPage() {
                     <tr key={r.row_no} className={'border-t ' + (r.status === 'will_set' || r.status === 'already_same' ? '' : r.status === 'unmatched' ? 'bg-amber-50' : 'bg-red-50')}>
                       <td className="px-2 py-1.5">{r.row_no}</td>
                       <td className="px-2 py-1.5 font-mono">{r.code ?? '—'}</td>
-                      <td className="px-2 py-1.5">{r.phone ?? r.phone_raw ?? '—'}</td>
+                      <td className="px-2 py-1.5">{formatThaiPhone(r.phone ?? r.phone_raw) || '—'}</td>
                       <td className="px-2 py-1.5">{r.user_name ?? '—'}</td>
                       <td className="px-2 py-1.5 font-mono">{r.current_code ?? '—'}</td>
                       <td className={'px-2 py-1.5 ' + STATUS[r.status].cls}>

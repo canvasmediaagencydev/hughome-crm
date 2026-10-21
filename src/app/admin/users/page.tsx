@@ -3,7 +3,10 @@
 import { useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { FaUser } from 'react-icons/fa'
-import { Shield, ChevronDown, ChevronUp, CheckSquare, Square, X, Tag as TagIcon } from 'lucide-react'
+import { Shield, ChevronDown, ChevronUp, CheckSquare, Square, X, Tag as TagIcon, IdCard, Download, Upload } from 'lucide-react'
+import Link from 'next/link'
+import { toast } from 'sonner'
+import { axiosAdmin } from '@/lib/axios-admin'
 import { Pagination } from '@/components/Pagination'
 import { EmptyState } from '@/components/EmptyState'
 import { User } from '@/types'
@@ -28,6 +31,7 @@ function AdminUsersContent() {
   const { hasPermission, loading: authLoading } = useAdminAuth()
   const searchParams = useSearchParams()
   const tagFromUrl = searchParams.get('tag') || ''
+  const noCodeFromUrl = searchParams.get('no_code') === '1'
 
   // Show loading while checking authentication
   if (authLoading) {
@@ -96,7 +100,28 @@ function AdminUsersContent() {
     setEndDate,
     hasActiveFilters,
     handleClearFilters,
-  } = useUsers({ initialTagFilter: tagFromUrl })
+    missingCode,
+    setMissingCode,
+  } = useUsers({ initialTagFilter: tagFromUrl, initialMissingCode: noCodeFromUrl })
+
+  // ผูกรหัสลูกค้าผ่าน Excel (ประชุม 2026-10-21): ดาวน์โหลดคนที่ยังไม่มีรหัส → กรอก → อัปโหลดที่ /admin/customer-codes
+  const [downloadingMissing, setDownloadingMissing] = useState(false)
+  const downloadMissingCodes = async () => {
+    setDownloadingMissing(true)
+    try {
+      const res = await axiosAdmin.get('/api/admin/users/missing-codes/excel', { responseType: 'blob' })
+      const url = window.URL.createObjectURL(res.data as Blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'customers_missing_code.xlsx'
+      a.click()
+      window.URL.revokeObjectURL(url)
+    } catch {
+      toast.error('ดาวน์โหลดไม่สำเร็จ')
+    } finally {
+      setDownloadingMissing(false)
+    }
+  }
 
   const { data: allTags } = useTags()
 
@@ -225,6 +250,33 @@ function AdminUsersContent() {
           />
         </div>
 
+        {/* รหัสลูกค้า: ลูกค้าสมัครผ่าน LINE ยังไม่มีรหัส — ผู้จัดการผูกรหัสจากระบบเปิดบิลผ่าน Excel */}
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+          <IdCard className="h-4 w-4 text-slate-500" />
+          <span className="text-sm font-medium text-slate-700">รหัสลูกค้า</span>
+          <label className="ml-2 flex cursor-pointer items-center gap-1.5 text-sm text-slate-700">
+            <input type="checkbox" checked={missingCode} onChange={(e) => setMissingCode(e.target.checked)} />
+            เฉพาะยังไม่มีรหัส
+          </label>
+          {canEdit && (
+            <div className="ml-auto flex flex-wrap gap-2">
+              <button
+                onClick={downloadMissingCodes}
+                disabled={downloadingMissing}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                <Download className="h-4 w-4" /> ดาวน์โหลดลูกค้าที่ยังไม่มีรหัส (Excel)
+              </button>
+              <Link
+                href="/admin/customer-codes"
+                className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800"
+              >
+                <Upload className="h-4 w-4" /> อัปโหลดรหัสลูกค้า (Excel)
+              </Link>
+            </div>
+          )}
+        </div>
+
         {/* Advanced Filters */}
         <div className="mb-4">
           <button
@@ -234,7 +286,7 @@ function AdminUsersContent() {
             {showAdvancedFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             ตัวกรองขั้นสูง
             {hasActiveFilters && (
-              <span className="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+              <span className="ml-1 px-1.5 py-0.5 bg-blue-100 text-red-700 rounded text-xs font-medium">
                 กำลังใช้งาน
               </span>
             )}
@@ -251,7 +303,7 @@ function AdminUsersContent() {
                     value={pointsMin}
                     onChange={(e) => { setPointsMin(e.target.value); }}
                     placeholder="เช่น 100"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-red-300 focus:border-red-400"
                   />
                 </div>
                 <div>
@@ -262,7 +314,7 @@ function AdminUsersContent() {
                     value={pointsMax}
                     onChange={(e) => { setPointsMax(e.target.value); }}
                     placeholder="เช่น 500"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-red-300 focus:border-red-400"
                   />
                 </div>
               </div>
@@ -273,7 +325,7 @@ function AdminUsersContent() {
                     type="date"
                     value={startDate}
                     onChange={(e) => { setStartDate(e.target.value); }}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-red-300 focus:border-red-400"
                   />
                 </div>
                 <div>
@@ -282,7 +334,7 @@ function AdminUsersContent() {
                     type="date"
                     value={endDate}
                     onChange={(e) => { setEndDate(e.target.value); }}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-red-300 focus:border-red-400"
                   />
                 </div>
               </div>
@@ -350,7 +402,7 @@ function AdminUsersContent() {
               เลือกทั้งหมดในหน้านี้ ({currentUserIds.length} คน)
             </button>
             {selectedUserIds.size > 0 && (
-              <span className="text-sm text-blue-600 font-medium">
+              <span className="text-sm text-red-600 font-medium">
                 เลือกแล้ว {selectedUserIds.size} คน
               </span>
             )}
@@ -433,7 +485,7 @@ function AdminUsersContent() {
               <select
                 value={bulkTagId}
                 onChange={(e) => setBulkTagId(e.target.value)}
-                className="flex-1 max-w-xs px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                className="flex-1 max-w-xs px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-red-300 focus:border-red-400"
               >
                 <option value="">เลือก Tag...</option>
                 {allTags?.map((tag) => (

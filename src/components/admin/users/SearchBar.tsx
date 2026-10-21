@@ -23,12 +23,13 @@ export function SearchBar({
         <div className="flex-1 relative">
           <HiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
           <input
-            type="text"
-            placeholder="ค้นหาด้วยชื่อ เบอร์โทร หรือรหัสลูกค้า..."
+            type="search"
+            inputMode="search"
+            placeholder="ค้นหาด้วยเบอร์โทร เช่น 081-2345678 (หรือชื่อ / รหัสลูกค้า)"
             value={searchInput}
             onChange={(e) => onSearchInputChange(e.target.value)}
             onKeyPress={onKeyPress}
-            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all bg-white"
+            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-red-300 focus:border-red-400 transition-all bg-white"
           />
         </div>
         <button

@@ -180,17 +180,17 @@ function RewardsContent() {
     <div className="min-h-screen bg-gray-50 pb-28">
       <ConfettiBurst burstKey={confettiKey} />
       {/* Hero Header with Points */}
-      <div className="relative bg-gradient-to-br from-red-600 via-red-500 to-orange-500 overflow-hidden">
+      <div className="relative bg-brand-gradient overflow-hidden">
         {/* Decorative blobs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-12 -right-10 w-44 h-44 bg-white/10 rounded-full blur-3xl" />
-          <div className="absolute top-16 -left-12 w-36 h-36 bg-yellow-300/15 rounded-full blur-2xl" />
-          <div className="absolute bottom-0 right-1/3 w-28 h-28 bg-orange-300/15 rounded-full blur-xl" />
+          <div className="absolute top-16 -left-12 w-36 h-36 bg-white/5 rounded-full blur-2xl" />
+          <div className="absolute bottom-0 right-1/3 w-28 h-28 bg-white/5 rounded-full blur-xl" />
         </div>
 
         <div className="relative px-5 pt-7 pb-10">
           <div className="flex items-center gap-2 mb-1">
-            <HiOutlineSparkles className="w-4 h-4 text-amber-200" />
+            <HiOutlineSparkles className="w-4 h-4 text-white/80" />
             <span className="text-white/85 text-xs font-medium tracking-wide uppercase">
               Hug Point Rewards
             </span>
@@ -222,9 +222,9 @@ function RewardsContent() {
 
       {/* Points Card - Floating overlap */}
       <div className="px-4 -mt-6 relative z-10">
-        <div className="relative bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 rounded-2xl p-5 shadow-xl border border-white/10 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-transparent to-amber-500/15" />
-          <div className="absolute -top-8 -right-6 w-28 h-28 bg-amber-500/20 rounded-full blur-2xl" />
+        <div className="relative bg-gradient-to-br from-ink via-ink to-ink-2 rounded-2xl p-5 shadow-xl border border-white/10 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-transparent to-slate-400/10" />
+          <div className="absolute -top-8 -right-6 w-28 h-28 bg-red-500/10 rounded-full blur-2xl" />
           <div className="relative z-10 flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1.5">
@@ -239,11 +239,11 @@ function RewardsContent() {
                   value={userPoints}
                   className="text-white font-bold text-3xl bg-gradient-to-r from-white to-gray-200 bg-clip-text text-transparent"
                 />
-                <span className="text-amber-400 font-semibold text-sm">แต้ม</span>
+                <span className="text-red-500 font-semibold text-sm">แต้ม</span>
               </div>
             </div>
-            <div className="w-14 h-14 bg-gradient-to-br from-amber-400/30 to-amber-600/20 rounded-2xl flex items-center justify-center border border-amber-300/20">
-              <HiOutlineGift className="w-7 h-7 text-amber-300" />
+            <div className="w-14 h-14 bg-gradient-to-br from-red-500/30 to-red-600/20 rounded-2xl flex items-center justify-center border border-red-300/20">
+              <HiOutlineGift className="w-7 h-7 text-white" />
             </div>
           </div>
         </div>
@@ -261,7 +261,7 @@ function RewardsContent() {
             aria-selected={activeTab === 'rewards'}
             className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 active:scale-[0.97] ${
               activeTab === 'rewards'
-                ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-md shadow-red-500/25'
+                ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-md shadow-red-500/25'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
             onClick={() => setActiveTab('rewards')}
@@ -274,7 +274,7 @@ function RewardsContent() {
             aria-selected={activeTab === 'history'}
             className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 active:scale-[0.97] ${
               activeTab === 'history'
-                ? 'bg-gradient-to-r from-red-600 to-orange-500 text-white shadow-md shadow-red-500/25'
+                ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-md shadow-red-500/25'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
             onClick={() => setActiveTab('history')}
@@ -356,7 +356,7 @@ function RewardsContent() {
                               className={`px-2 py-0.5 rounded-full text-[10px] font-bold text-white shadow-sm ${
                                 isOutOfStock
                                   ? 'bg-gray-700/90'
-                                  : 'bg-orange-500/95'
+                                  : 'bg-red-600/95'
                               }`}
                             >
                               {isOutOfStock
@@ -405,7 +405,7 @@ function RewardsContent() {
                           size="sm"
                           className={`w-full mt-auto h-9 text-xs font-semibold rounded-xl transition-all active:scale-[0.97] ${
                             canAfford && !isOutOfStock
-                              ? 'bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white shadow-sm shadow-red-500/20'
+                              ? 'bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white shadow-sm shadow-red-500/20'
                               : 'bg-gray-100 text-gray-400 hover:bg-gray-100'
                           }`}
                           onClick={() => handleOpenRedeemDialog(reward)}
@@ -569,7 +569,7 @@ function RewardsContent() {
         <DialogContent className="sm:max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-red-500 flex items-center justify-center">
                 <HiOutlineGift className="h-4 w-4 text-white" />
               </div>
               ยืนยันการแลกรางวัล
@@ -674,7 +674,7 @@ function RewardsContent() {
             <Button
               onClick={handleRedeem}
               disabled={submitting}
-              className="w-full sm:flex-1 bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 rounded-xl shadow-md shadow-red-500/25"
+              className="w-full sm:flex-1 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 rounded-xl shadow-md shadow-red-500/25"
             >
               {submitting ? 'กำลังดำเนินการ...' : 'ยืนยันการแลก'}
             </Button>

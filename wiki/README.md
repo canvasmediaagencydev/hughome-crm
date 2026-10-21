@@ -23,6 +23,9 @@ This wiki is the depth behind it.
 | [13 — Manual test plan](13-manual-test-plan.md) | Clicking the pilot end to end to hunt bugs before writing more code |
 | [14 — Customer meeting Sept 2026 delta](14-customer-meeting-2026-09-delta.md) | **Before Sprint 9.** What the customer changed on 2026-09-21, mapped onto the code, and the 12 questions that block it |
 | [15 — Customer feedback 2026-10-18](15-customer-feedback-2026-10-18.md) | Free-format customer code, bill column removed (template v3 + migration 027), report sort and phone format |
+| [16 — Customer meeting 2026-10-21](16-customer-meeting-2026-10-21.md) | Dashed phones everywhere, report sort choice, no code in customer report, code import from users page, phone search, expiry SMS (migration 029, not applied), admin bell + red dots |
+
+Go-live brief for the final customer meeting (2026-10-19): https://claude.ai/artifact/FjBkeo2urju4McwZgvyiqt — status and the next build are in `09` "Next recommended step".
 
 ## The one-paragraph version
 

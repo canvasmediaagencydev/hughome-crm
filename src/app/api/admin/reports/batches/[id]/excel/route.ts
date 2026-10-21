@@ -3,7 +3,8 @@
  * (MIGRATION_PLAN.md §8.2 · wiki/12 §5 · Sprint 9R A5)
  *
  *   1 แถว = 1 รายการซื้อ · template v3 (2026-10-18) ไม่มีเลขที่บิลแล้ว
- *   วันที่ซื้อ, รหัสลูกค้า, เบอร์ (xxx-xxxxxxx), ชื่อ, ยอดซื้อ, ลดหนี้, สุทธิ, ตัวคูณ, แต้ม, Maker, สาขา · แถวท้าย: รวม · เรียงวันที่ซื้อเก่า→ใหม่
+ *   วันที่ซื้อ, รหัสลูกค้า, เบอร์ (xxx-xxxxxxx), ชื่อ, ยอดซื้อ, ลดหนี้, สุทธิ, ตัวคูณ, แต้ม, Maker, สาขา · แถวท้าย: รวม
+ *   ?sort=date (ค่าเริ่มต้น · วันที่ซื้อเก่า→ใหม่) | points (แต้มมาก→น้อย) — ประชุม 2026-10-21
  *
  * ข้อมูลมาจาก raw_rows ของชุด (แถวที่จะได้/ได้แต้ม: valid + duplicate_amount) — ตรงกับที่ RPC ให้แต้ม
  * ชื่อ/รหัสลูกค้าดึงสดจาก user_profiles (raw_rows เก็บชื่อที่ Maker พิมพ์มา อาจไม่ตรง)
@@ -16,14 +17,18 @@ import { adminAuthError } from '@/lib/admin-http'
 import { PERMISSIONS } from '@/types/admin'
 import { TENANT } from '@/config/tenant'
 import { isAwardable, type ParsedRow } from '@/lib/excel/parse-sales-batch'
-import { buildBatchReport, batchReportFilename, XLSX_MIME } from '@/lib/excel/build-reports'
+import { buildBatchReport, batchReportFilename, XLSX_MIME, REPORT_SORTS } from '@/lib/excel/build-reports'
 
 export const runtime = 'nodejs'
 
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await requirePermission(PERMISSIONS.BATCHES_VIEW)
     const { id } = await params
+    const sort = new URL(request.url).searchParams.get('sort') ?? 'date'
+    if (!REPORT_SORTS.includes(sort)) {
+      return NextResponse.json({ error: "sort ต้องเป็น 'date' หรือ 'points'" }, { status: 400 })
+    }
     const supabase = createServerSupabaseClient()
 
     const { data: batch, error } = await supabase
@@ -73,6 +78,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
     const wb = buildBatchReport({
       branchName: TENANT.name,
+      sort,
       batch: {
         file_name: batch.file_name,
         week_start: batch.week_start,

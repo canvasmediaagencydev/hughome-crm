@@ -14,11 +14,11 @@ interface StatusCardProps {
 
 export const StatusCard = memo(({ points, nextExpiry, isRefreshing, onRefresh }: StatusCardProps) => (
   <div className="px-6 mt-4">
-    <div className="relative bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 rounded-3xl p-6 shadow-xl border border-gray-700/50 overflow-hidden">
+    <div className="relative bg-gradient-to-br from-ink via-ink to-ink-2 rounded-3xl p-6 shadow-xl border border-gray-700/50 overflow-hidden">
       {/* Premium background pattern */}
-      <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-transparent to-amber-500/10"></div>
+      <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-transparent to-slate-400/10"></div>
       <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-radial from-red-500/20 to-transparent rounded-full -translate-y-16 translate-x-16"></div>
-      <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-radial from-amber-500/20 to-transparent rounded-full translate-y-12 -translate-x-12"></div>
+      <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-radial from-red-500/10 to-transparent rounded-full translate-y-12 -translate-x-12"></div>
 
       {/* Content */}
       <div className="relative z-10">
@@ -46,10 +46,10 @@ export const StatusCard = memo(({ points, nextExpiry, isRefreshing, onRefresh }:
               value={points ?? 0}
               className="text-4xl font-bold bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent"
             />
-            <span className="text-amber-400 font-semibold text-lg">แต้ม</span>
+            <span className="text-red-500 font-semibold text-lg">แต้ม</span>
           </div>
           {nextExpiry && nextExpiry.points > 0 && (
-            <p className="mt-2 text-xs text-amber-200/90">
+            <p className="mt-2 text-xs text-silver">
               ⏰ แต้ม {nextExpiry.points.toLocaleString()} แต้ม จะหมดอายุ {formatThaiMonth(nextExpiry.expires_at)}
             </p>
           )}

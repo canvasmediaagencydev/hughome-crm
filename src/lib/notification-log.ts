@@ -1,5 +1,5 @@
 /**
- * notification_log (migration 022) — กัน LINE push ซ้ำต่อ (user, kind, window_key)
+ * notification_log (migration 022 · 029) — กัน LINE push / SMS ซ้ำต่อ (user, kind, window_key)
  *
  * รูปแบบใช้งานใน cron:
  *   1. loadSentKeys() ก่อนส่ง → ข้ามคนที่เคยส่ง window นี้แล้ว
@@ -11,7 +11,8 @@ import type { Json } from '../../database.types'
 
 type Supabase = ReturnType<typeof createServerSupabaseClient>
 
-export type NotificationKind = 'expiry_warning' | 'expiry_executed' | 'birthday'
+/** expiry_warning_sms = SMS เตือนหมดอายุ (migration 029 · ประชุม 2026-10-21) — dedupe แยกจาก LINE เดิม */
+export type NotificationKind = 'expiry_warning' | 'expiry_executed' | 'birthday' | 'expiry_warning_sms'
 
 export function sentKey(userId: string, windowKey: string): string {
   return `${userId}|${windowKey}`

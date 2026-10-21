@@ -90,7 +90,7 @@ function IssueCard({
             {issue.page_url && (
               <>
                 {' · หน้า '}
-                <a href={issue.page_url} className="font-mono text-blue-600 hover:underline">
+                <a href={issue.page_url} className="font-mono text-red-600 hover:underline">
                   {issue.page_url}
                 </a>
               </>
@@ -112,7 +112,7 @@ function IssueCard({
               value={status}
               onChange={(e) => setStatus(e.target.value as IssueStatus)}
               disabled={saving}
-              className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
             >
               {ISSUE_STATUSES.map((s) => (
                 <option key={s} value={s}>
@@ -143,7 +143,7 @@ function IssueCard({
       ) : (
         issue.admin_note && (
           <div className="mt-4 rounded-md bg-blue-50 p-3 text-sm text-blue-900">
-            <p className="mb-1 text-xs font-medium text-blue-700">
+            <p className="mb-1 text-xs font-medium text-red-700">
               ตอบกลับจากผู้ดูแลระบบ{issue.handled_at ? ` · ${thaiDateTime(issue.handled_at)}` : ''}
             </p>
             <p className="whitespace-pre-wrap break-words">{issue.admin_note}</p>

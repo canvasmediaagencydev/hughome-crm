@@ -23,3 +23,23 @@ export function toE164Thai(input: string | null | undefined): string | null {
   const local = normalizeThaiPhone(input)
   return local ? '+66' + local.slice(1) : null
 }
+
+/**
+ * เบอร์สำหรับแสดงผล → 'xxx-xxxxxxx' ทั้งระบบ (ประชุมลูกค้า 2026-10-21 · รูปแบบเดียวกับ reportPhone ใน
+ * build-reports.js). ไม่ใช่ 10 หลัก → คืนตามที่เก็บ ไม่เดารูปแบบ · ว่าง → ''
+ * ใช้แสดงเท่านั้น — เก็บ/เทียบยังเป็น 10 หลักติดกันเสมอ (normalizeThaiPhone)
+ */
+export function formatThaiPhone(phone: string | null | undefined): string {
+  if (!phone) return ''
+  const digits = String(phone).replace(/\D/g, '')
+  return digits.length === 10 ? `${digits.slice(0, 3)}-${digits.slice(3)}` : String(phone)
+}
+
+/**
+ * ช่องกรอกเบอร์ → ใส่ขีดให้ระหว่างพิมพ์ ('0812' → '081-2', ครบ → '081-2345678')
+ * รับเฉพาะตัวเลขสูงสุด 10 หลัก · ฝั่ง server normalize ด้วย normalizeThaiPhone อยู่แล้ว ขีดไม่มีผล
+ */
+export function formatThaiPhoneInput(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 10)
+  return digits.length > 3 ? `${digits.slice(0, 3)}-${digits.slice(3)}` : digits
+}

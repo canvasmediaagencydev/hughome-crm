@@ -97,6 +97,13 @@ const serverSchema = z.object({
   //   ระหว่างทดสอบใช้ "onboarding@resend.dev" ได้ แต่ Resend จะส่งให้เฉพาะอีเมลที่สมัครบัญชีเท่านั้น
   RESEND_API_KEY: z.string().regex(/^re_[A-Za-z0-9_]+$/, 'RESEND_API_KEY must start with re_').optional(),
   NOTIFY_EMAIL_FROM: z.string().min(3).optional(),
+
+  // ประชุมลูกค้า 2026-10-21 — เตือนลูกค้าแต้มใกล้หมดอายุทาง SMS (ThaiBulkSMS "SMS API" คนละ key กับ OTP)
+  // optional ตอน boot · cron points-expiry-warning throw ถ้าขาดตัวใด (src/lib/thaibulksms-sms.ts)
+  // SENDER: ชื่อผู้ส่งที่อนุมัติแล้วในบัญชี ThaiBulkSMS — ไม่มีค่าเริ่มต้น
+  THAIBULKSMS_SMS_KEY: z.string().min(1).optional(),
+  THAIBULKSMS_SMS_SECRET: z.string().min(1).optional(),
+  THAIBULKSMS_SMS_SENDER: z.string().min(1).max(11).optional(),
 })
 
 export type ClientEnv = z.infer<typeof clientSchema>

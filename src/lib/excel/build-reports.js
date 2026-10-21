@@ -10,6 +10,9 @@
  * ทำไม 2 รายงาน (wiki/12 §5, wiki/14 §3 "Reports"):
  *   - ฝั่งการตลาดของลูกค้าเอาไปใช้ต่อ → ห้ามมีเลขบิล · เบอร์รูปแบบ xxx-xxxxxxx (feedback ลูกค้า 2026-10-18)
  *   - ผู้อนุมัติ/ผู้จัดการใช้ตรวจรายชุด · template v3 (feedback ลูกค้า 2026-10-18) ไม่มีเลขที่บิลแล้ว จึงไม่มีคอลัมน์นี้
+ *
+ * ประชุมลูกค้า 2026-10-21: ทั้ง 2 รายงานเลือกเรียงได้ "วันที่" หรือ "แต้ม" (ค่าเริ่มต้น = วันที่)
+ * และรายงานลูกค้าไม่มีคอลัมน์รหัสลูกค้า — ผู้จัดการกรอกรหัสภายหลังผ่านหน้านำเข้ารหัสลูกค้า
  */
 const ExcelJS = require('exceljs')
 
@@ -53,6 +56,21 @@ function reportPhone(phone) {
   return digits.length === 10 ? `${digits.slice(0, 3)}-${digits.slice(3)}` : digits
 }
 
+const REPORT_SORTS = ['date', 'points']
+
+/** 'date' | 'points' เท่านั้น — ค่าอื่น throw (route ตรวจก่อนแล้ว · ไม่มีค่าเริ่มต้นแอบใส่ในนี้) */
+function assertSort(sort) {
+  if (!REPORT_SORTS.includes(sort)) throw new Error(`sort ต้องเป็น ${REPORT_SORTS.join(' | ')} (ได้ "${sort}")`)
+}
+
+/** เรียงแบบคงลำดับเดิมเมื่อเท่ากัน (Array.sort ไม่ได้รับประกันใน engine เก่า) */
+function stableSort(arr, cmp) {
+  return arr
+    .map((v, i) => ({ v, i }))
+    .sort((a, b) => cmp(a.v, b.v) || a.i - b.i)
+    .map((x) => x.v)
+}
+
 function styleHeader(ws, colCount) {
   const header = ws.getRow(1)
   header.font = { bold: true }
@@ -70,7 +88,7 @@ function styleHeader(ws, colCount) {
 // 1. Customer export — 1 แถว = 1 ลูกค้า · ไม่มีคอลัมน์เลขที่บิลโดยเจตนา
 // ---------------------------------------------------------------------------
 const CUSTOMER_COLUMNS = [
-  { key: 'customer_code', header: 'รหัสลูกค้า', width: 14, numFmt: '@' },
+  // ไม่มีรหัสลูกค้า (ประชุม 2026-10-21) — ลูกค้าสมัครผ่าน LINE ยังไม่มีรหัส ผู้จัดการผูกรหัสภายหลัง
   { key: 'first_name', header: 'ชื่อ', width: 16 },
   { key: 'last_name', header: 'นามสกุล', width: 18 },
   { key: 'phone', header: 'เบอร์โทร', width: 14, numFmt: '@' },
@@ -87,8 +105,9 @@ const CUSTOMER_COLUMNS = [
 /**
  * @param {{
  *   rangeStart: string, rangeEnd: string,
+ *   sort: 'date' | 'points',   date = วันที่สมัครเก่าไปใหม่ · points = แต้มคงเหลือมากไปน้อย (เท่ากันเรียงวันที่สมัคร)
  *   customers: {
- *     customer_code: string|null, first_name: string|null, last_name: string|null, phone: string|null,
+ *     first_name: string|null, last_name: string|null, phone: string|null,
  *     role: string|null, created_at: string, points_balance: number,
  *     next_expiry_points: number|null, next_expiry_date: string|null,
  *     net_in_range: number, bills_in_range: number, tags: string[]
@@ -100,6 +119,7 @@ function buildCustomerExport(input) {
     throw new Error('buildCustomerExport ต้องได้ rangeStart/rangeEnd เป็น YYYY-MM-DD')
   }
   if (!Array.isArray(input.customers)) throw new Error('buildCustomerExport ต้องได้ customers เป็น array')
+  assertSort(input.sort)
 
   const wb = new ExcelJS.Workbook()
   wb.creator = 'HugHome CRM'
@@ -107,9 +127,13 @@ function buildCustomerExport(input) {
   ws.columns = CUSTOMER_COLUMNS.map((c) => ({ header: c.header, key: c.key, width: c.width }))
   for (const c of CUSTOMER_COLUMNS) if (c.numFmt) ws.getColumn(c.key).numFmt = c.numFmt
 
-  for (const u of input.customers) {
+  const byDate = (a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0)
+  const customers = stableSort(
+    input.customers,
+    input.sort === 'points' ? (a, b) => (b.points_balance ?? 0) - (a.points_balance ?? 0) || byDate(a, b) : byDate
+  )
+  for (const u of customers) {
     ws.addRow({
-      customer_code: u.customer_code ?? '',
       first_name: u.first_name ?? '',
       last_name: u.last_name ?? '',
       phone: reportPhone(u.phone),
@@ -134,6 +158,7 @@ function buildCustomerExport(input) {
   meta.addRow([`ช่วงที่ใช้คำนวณ "ยอดซื้อสุทธิรวมในช่วง" และ "จำนวนบิลในช่วง": ${thaiDate(input.rangeStart)} ถึง ${thaiDate(input.rangeEnd)} (ตามวันที่ซื้อ)`])
   meta.addRow(['1 แถว = ลูกค้า 1 คน · รายงานนี้ไม่มีเลขที่บิล (รายงานรายชุดอยู่ที่หน้า "อัปโหลดยอดขาย")'])
   meta.addRow(['เบอร์โทรเป็นข้อความรูปแบบ xxx-xxxxxxx · แต้มคงเหลือ = ณ เวลาที่ออกรายงาน'])
+  meta.addRow([input.sort === 'points' ? 'เรียงตาม: แต้มคงเหลือ มากไปน้อย' : 'เรียงตาม: วันที่สมัคร เก่าไปใหม่'])
   meta.addRow([`ออกรายงานเมื่อ ${thaiDate(new Date().toISOString())}`])
   meta.getColumn(1).width = 110
   meta.getRow(1).font = { bold: true, size: 13 }
@@ -171,11 +196,13 @@ const BATCH_COLUMNS = [
  *   rows: { purchase_date: string|null, customer_code: string|null, phone: string|null,
  *           customer_name: string|null, gross: number|null, discount: number, net: number|null,
  *           multiplier: number, points: number|null, sales_rep: string|null }[]
+ *   sort: 'date' | 'points'   date = วันที่ซื้อเก่าไปใหม่ · points = แต้มมากไปน้อย (เท่ากันเรียงวันที่ซื้อ)
  * }} input  rows = เฉพาะแถวที่ได้แต้ม (valid + duplicate_amount)
  */
 function buildBatchReport(input) {
   if (!input || !input.branchName) throw new Error('buildBatchReport ต้องได้ branchName (TENANT.name)')
   if (!input.batch || !Array.isArray(input.rows)) throw new Error('buildBatchReport ต้องได้ batch + rows')
+  assertSort(input.sort)
 
   const wb = new ExcelJS.Workbook()
   wb.creator = 'HugHome CRM'
@@ -187,15 +214,17 @@ function buildBatchReport(input) {
   let sumDiscount = 0
   let sumNet = 0
   let sumPoints = 0
-  // เรียงวันที่ซื้อจากเก่าไปใหม่ (feedback ลูกค้า 2026-10-18) · วันเดียวกันคงลำดับตามไฟล์ · ไม่มีวันที่ไว้ท้าย
-  const sortedRows = input.rows
-    .map((r, i) => ({ r, i }))
-    .sort((a, b) => {
-      const da = a.r.purchase_date || '\uffff'
-      const db = b.r.purchase_date || '\uffff'
-      return da < db ? -1 : da > db ? 1 : a.i - b.i
-    })
-    .map((x) => x.r)
+  // date: วันที่ซื้อเก่าไปใหม่ (feedback 2026-10-18) · points: แต้มมากไปน้อย (ประชุม 2026-10-21)
+  // เท่ากันคงลำดับตามไฟล์ · ไม่มีวันที่ไว้ท้าย
+  const byDate = (a, b) => {
+    const da = a.purchase_date || '\uffff'
+    const db = b.purchase_date || '\uffff'
+    return da < db ? -1 : da > db ? 1 : 0
+  }
+  const sortedRows = stableSort(
+    input.rows,
+    input.sort === 'points' ? (a, b) => Number(b.points ?? 0) - Number(a.points ?? 0) || byDate(a, b) : byDate
+  )
   for (const r of sortedRows) {
     const gross = Number(r.gross ?? 0)
     const discount = Number(r.discount ?? 0)
@@ -250,6 +279,7 @@ function buildBatchReport(input) {
     ['อนุมัติเมื่อ', b.committed_at ? thaiDate(b.committed_at) : ''],
     ['ยกเลิกโดย', b.voided_by_name ?? ''],
     ['เหตุผลที่ยกเลิก', b.void_reason ?? ''],
+    ['เรียงตาม', input.sort === 'points' ? 'แต้ม มากไปน้อย' : 'วันที่ซื้อ เก่าไปใหม่'],
     ['จำนวนรายการที่ได้แต้ม', input.rows.length],
     ['แต้มรวม', sumPoints],
     [],
@@ -270,6 +300,7 @@ function batchReportFilename(batch) {
 
 module.exports = {
   XLSX_MIME,
+  REPORT_SORTS,
   CUSTOMER_COLUMNS,
   BATCH_COLUMNS,
   buildCustomerExport,
