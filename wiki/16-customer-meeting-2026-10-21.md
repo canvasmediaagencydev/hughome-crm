@@ -1,7 +1,8 @@
 # 16 — Customer meeting 2026-10-21
 
-Seven change requests from the customer meeting on 2026-10-21. All seven are built in the working
-tree. None of them is committed or deployed yet. Migration `029` is **written but not applied**.
+Seven change requests from the customer meeting on 2026-10-21. All seven are deployed to production
+(commit `0bfff69`, 2026-10-21). Migration `029` was applied to `hughome-pilot` the same day via the SQL
+Editor. Still open: the `THAIBULKSMS_SMS_*` variables on Vercel (step 2 below).
 
 | # | Customer's words (summary) | What changed | Where |
 |---|---|---|---|
