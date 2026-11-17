@@ -12,13 +12,12 @@ function DashboardPage() {
   const [hasInitialRefresh, setHasInitialRefresh] = useState(false)
 
   // Custom hooks
-  const { userData, isLoading, transformUserData } = useUserSession()
+  const { userData, isLoading, transformUserData, updateUserData } = useUserSession()
 
   const { isRefreshing, refreshUserData } = useUserRefresh({
     transformUserData,
-    onSuccess: () => {
-      // userData is managed internally by useUserSession
-    },
+    // without this the screen keeps the cached balance until the app is reopened
+    onSuccess: updateUserData,
   })
 
   // Auto-refresh points on initial load (only once)

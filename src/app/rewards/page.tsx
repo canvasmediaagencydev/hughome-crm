@@ -79,6 +79,16 @@ function RewardsContent() {
     setUserId(cachedSession.user.id)
     setUserPoints(cachedSession.user.points_balance || 0)
 
+    // cached balance can be a day old (opened straight from the rich menu) — pull the live one
+    fetch('/api/user/refresh', { method: 'POST' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data?.success) return
+        UserSessionManager.updateUserData({ ...cachedSession.user, ...data.updates })
+        setUserPoints(data.updates.points_balance || 0)
+      })
+      .catch(() => {})
+
     fetchRewards()
     fetchRedemptions(cachedSession.user.id)
   }, [router])

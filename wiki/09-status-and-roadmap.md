@@ -8,8 +8,8 @@ are marked as such.
 
 | | |
 |---|---|
-| Branch / deploy | `pilot-phase1` → https://pilot-phase1.vercel.app, commit `706514a` (deployed 2026-10-19) |
-| Supabase | pilot `vltzkxmblmrvsmaookhl`, `tenant_code = pilot` |
+| Branch / deploy | `pilot-phase1` → **https://hugpoint-faham.vercel.app** (since 2026-11-17; `pilot-phase1.vercel.app` kept as alias), commit `ae72c5f` (deployed 2026-11-17 with `vercel deploy --prod` — not pushed, the agent's GitHub account has no write access) |
+| Supabase | `vltzkxmblmrvsmaookhl`, org HugHome (Pro), `tenant_code = fa_ham` since 2026-11-17 — now the **live Fa Ham instance**, see Go-live below |
 | Migrations | `001`–`028` applied (`024`–`026` on 2026-09-21, `027` on 2026-10-18, `028` on 2026-10-19, all through the SQL Editor) |
 | Sprints complete | 0, 1, 2, 2.1, 3, 3.1, pre-4, 4, 5 (partial), 6, 7, 8, 9R, 10 part 1–2 · customer feedback 2026-10-18 (`wiki/15`) · motion UI, issue reports, approver email 2026-10-19 — all deployed |
 | Demo data | **Customer side wiped 2026-11-17 for go-live** (11 users, 3 voided batches, all ledger/transactions/logs; backup `../backups/pre-golive-2026-11-17.json`). Admin side (admins, demo Makers S01–S04, rewards) kept on purpose until the owner says so. The 3 demo campaigns were deleted 2026-11-17 (none referenced by the ledger). `verify-demo-ready.js` now fails by design — do not re-seed |
@@ -30,6 +30,78 @@ in `seed_demo_data.sql`, so a fresh Phase 2 seed reproduces the same state.
 `node scripts/verify-demo-ready.js` is now **19/19**. Re-run it after touching any seed.
 `seed_mockdata50_customers.sql` is kept with a conflict warning in its header; running it again
 re-breaks the demo file, and `repair-demo-data.js` undoes it.
+
+## Go-live — Fa Ham (2026-11-17)
+
+The pilot became the real Fa Ham instance on 2026-11-17. The customer link has **not** been handed out yet;
+two staff are testing internally first.
+
+### Done 2026-11-17
+
+| Area | What |
+|---|---|
+| Data | Customer side wiped (backup `../backups/pre-golive-2026-11-17.json`) · 3 demo campaigns deleted (no ledger rows referenced them) · admin side otherwise kept |
+| Supabase | Project moved to org **HugHome** (Pro) · `app_config.tenant_code = fa_ham` · Auth **Site URL** was `http://localhost:3000`, now `https://hugpoint-faham.vercel.app` |
+| LINE | Real OA `@184eoync` under provider Hug Point · Login channel `2012655061` **Published** · LIFF `2012655061-yUW2Z7f7` endpoint `https://hugpoint-faham.vercel.app` · new long-lived `LINE_CHANNEL_ACCESS_TOKEN` (quota call: limit 300, consumed 0) — details in `wiki/07` |
+| Domain | `hugpoint-faham.vercel.app` added to the Vercel project; code builds URLs from the request origin, so nothing in code changed |
+| Code | Thai strings in point history (`UserDetailModal`) and the admin login error (`ae72c5f`) |
+| Docs | Customer guide (Claude Docs) links switched to the real OA, LIFF and new domain |
+| Admins | Two test admins created by the owner in the Supabase dashboard (Add user, auto-confirm), linked by script: one `super_admin`, one `manager` + `customer_support` + `reward_manager` |
+| Internal test | Checklist artifact (26 steps, `db`-backed) plus an offline HTML copy that exports results, in `../test-files/` · test sales file for the two test customers in `../test-files/` (real phones — never commit) |
+
+### Found during go-live
+
+- **`/admin/signup` cannot create admins on this project.** Supabase "Confirm email" is on and the default
+  SMTP only mails org members, so `auth.signUp` fails for staff addresses and no user is created. The agent
+  is blocked from toggling auth settings. Working path: owner adds the user in the Supabase dashboard
+  (Add user → Create new user, auto-confirm), then insert `admin_users` + roles. Long-term: custom SMTP via
+  Resend (owner enters the key), then signup works with confirmation.
+- **Upload week defaults to last week** (`lastWeekRange()` in `src/app/admin/batches/page.tsx`). A tester
+  uploaded a current-week file with the default and every row was rejected as out of week — correct
+  behaviour, confusing UX. **Fixed same day:** the preview now names the file's date range and offers a
+  one-click switch to the week that covers it (`suggestWeek`); the week helpers also use local dates
+  (the old `toISOString()` shifted the day before 07:00 Bangkok time).
+- **Customer app showed 0 after points were awarded.** `/dashboard` refreshed from `/api/user/refresh` but
+  dropped the result (`onSuccess` was a no-op), so the screen kept the 24 h cached balance; `/rewards` never
+  refreshed at all. **Fixed same day** in `dashboard/page.tsx`, `useUserSession.ts`, `rewards/page.tsx`.
+- A row that is both out of week and unmatched counts under "ผิดพลาด", so the "ไม่พบลูกค้า" badge reads 0.
+- `accounting` has no `reports.view` or `dashboard.view`; decide whether that is intended.
+
+### Before the customer link goes out
+
+| # | Item | Owner |
+|---|---|---|
+| 1 | Finish internal test (checklist) and fix anything that fails | staff · Canvas |
+| 2 | Wipe test customers, batches, redemptions again (same script as 2026-11-17) | Canvas |
+| 3 | Lower or remove the two test admins; real admin list per person and role | owner |
+| 4 | Real Makers (replace S01–S04), real rewards with images and stock, confirm 100 baht = 1 point | customer |
+| 5 | Import customer codes from the old system (`/admin/customer-codes`) | customer · Canvas |
+| 6 | PDPA consent at sign-up — needs the policy text | customer → code change |
+| 7 | Rich menu on OA `@184eoync` (brief below) | Canvas design · owner approves |
+| 8 | Settle the Vercel invoice | owner |
+| 9 | `THAIBULKSMS_SMS_KEY/SECRET/SENDER` on Vercel before the first points near expiry | owner |
+| 10 | Push `ae72c5f` + `11a9a02` + later commits to GitHub (agent account lacks write access) | owner |
+| 11 | Rotate secrets that were pasted into chats earlier | owner |
+| 12 | OA greeting message and auto-reply text pointing to the LIFF link | Canvas · owner |
+
+### Rich menu brief (OA `@184eoync`)
+
+- Size 2500 × 1686 px (large, 6 areas) or 2500 × 843 px (compact, 3 areas); JPG/PNG ≤ 1 MB; HugHome CI
+  (red `#E71C24`, ink `#414042`), Thai labels, large icons.
+- Chat bar text: `สะสมแต้ม Hug Point`. Default: shown open.
+- Areas (large layout):
+
+| Area | Label | Action |
+|---|---|---|
+| A (wide) | สะสมแต้ม / ดูแต้มของฉัน | Link `https://liff.line.me/2012655061-yUW2Z7f7` |
+| B | แลกของรางวัล | Link `https://liff.line.me/2012655061-yUW2Z7f7/rewards` |
+| C | ประวัติแต้ม | Link `https://liff.line.me/2012655061-yUW2Z7f7/dashboard` |
+| D | ข้อมูลของฉัน | Link `https://liff.line.me/2012655061-yUW2Z7f7/profile` |
+| E | โทรหาร้าน | Link `https://liff.line.me/2012655061-yUW2Z7f7/call` |
+| F | Facebook ร้าน | Link `https://liff.line.me/2012655061-yUW2Z7f7/facebook` |
+
+- LIFF sub-paths (`/rewards`, `/profile`, …) open the matching page of the app; not yet clicked from a
+  rich menu — verify each after publishing.
 
 ## Completed
 

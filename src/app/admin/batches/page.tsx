@@ -124,16 +124,30 @@ const apiError = (e: unknown, fallback: string) => {
   return [d?.error ?? fallback, ...(d?.details ?? [])].join('\n')
 }
 
+const ymd = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+/** จันทร์–อาทิตย์ของสัปดาห์ที่มีวันนี้ (local date — toISOString เลื่อนวันตอนเช้ามืดเวลาไทย) */
+function weekOf(d: Date) {
+  const day = d.getDay() === 0 ? 7 : d.getDay()
+  const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() - day + 1)
+  const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6)
+  return { start: ymd(monday), end: ymd(sunday) }
+}
+
 /** วันจันทร์ของสัปดาห์ที่แล้ว → ค่าเริ่มต้นที่บัญชีใช้บ่อยสุด (ส่งไฟล์ของสัปดาห์ที่ผ่านมา) */
 function lastWeekRange() {
   const now = new Date()
-  const day = now.getDay() === 0 ? 7 : now.getDay()
-  const monday = new Date(now)
-  monday.setDate(now.getDate() - day + 1 - 7)
-  const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
-  const f = (d: Date) => d.toISOString().slice(0, 10)
-  return { start: f(monday), end: f(sunday) }
+  return weekOf(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7))
+}
+
+/** ถ้าวันที่ซื้อในไฟล์อยู่นอกสัปดาห์ที่เลือก → เสนอสัปดาห์ที่ครอบทุกแถว (เฉพาะเมื่ออยู่ในสัปดาห์เดียวกัน) */
+function suggestWeek(rows: PreviewRow[], selected: { start: string; end: string }) {
+  const dates = rows.map((r) => r.purchase_date).filter((d): d is string => !!d).sort()
+  if (!dates.length || dates.every((d) => d >= selected.start && d <= selected.end)) return null
+  const [y, m, d] = dates[0].split('-').map(Number)
+  const w = weekOf(new Date(y, m - 1, d))
+  return { week: w, fits: dates[dates.length - 1] <= w.end, first: dates[0], last: dates[dates.length - 1] }
 }
 
 async function downloadBlob(url: string, filename: string, fallbackError: string) {
@@ -410,6 +424,27 @@ export default function BatchesPage() {
                 รวม <NumberTicker value={preview.summary.total_points} /> แต้ม
               </span>
             </div>
+
+            {(() => {
+              const s = suggestWeek(preview.rows, { start: preview.week_start, end: preview.week_end })
+              if (!s) return null
+              return (
+                <div className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  วันที่ซื้อในไฟล์อยู่ช่วง {s.first} ถึง {s.last} แต่เลือกสัปดาห์ {preview.week_start} → {preview.week_end}
+                  {s.fits ? (
+                    <>
+                      {' '}·{' '}
+                      <button type="button" className="font-semibold underline" onClick={() => { setWeek(s.week); setPreview(null) }}>
+                        เปลี่ยนเป็นสัปดาห์ {s.week.start} → {s.week.end}
+                      </button>{' '}
+                      แล้วอัปไฟล์อีกครั้ง
+                    </>
+                  ) : (
+                    ' · ไฟล์นี้มียอดหลายสัปดาห์ ต้องแยกไฟล์ตามสัปดาห์'
+                  )}
+                </div>
+              )
+            })()}
 
             <div className="max-h-[26rem] overflow-auto rounded border">
               <table className="w-full text-xs">

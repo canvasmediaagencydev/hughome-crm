@@ -76,6 +76,7 @@ If you find a doc or comment mentioning receipts/OCR, it is stale — trust the 
 | Sprints done | 0 – 8 · 9R deployed `ec5e79f` 2026-09-21 · **Sprint 10 part 1 same day**: email team notify (Resend), Telegram/LINE-group creation removed, customer-code import, Rollback = super_admin only · Sprint 5 leftover `POST /:id/review` on hold (Q12) · **2026-09-25** (`94d50b1`): SMS OTP via ThaiBulkSMS (verified on a phone), LINE Login channel published, `wiki/13` §10–§11 clicked on prod (money path clean — `wiki/13` §12) · **2026-10-18** (`5b017c5`): customer feedback — template v3, free customer code, report sort/phone (`wiki/15`) · **2026-10-19** (`79483b0`): motion UI from 21st.dev / Magic UI (`wiki/09`) · (`43cd3e1`): "แจ้งปัญหาการใช้งาน" issue reports (`028`) · (`706514a`): approver email from the admin list · final-meeting prep (go-live brief, customer answers to Q2/Q7–Q10) |
 | Sprints left | **2026-10-21 meeting M1–M7 deployed** (`0bfff69`; `029` applied · still to do: set `THAIBULKSMS_SMS_*` on Vercel + redeploy, open questions in `wiki/16` · customer step-by-step guide is a Claude Docs doc, link in `wiki/16`) · **Q2 revised duplicate hold** (in-file + cross-batch, super_admin confirms each row — needs a new migration) · Q8 threshold alert (number open) · prove role separation (`wiki/13` 10.2/10.5/10.7, needs a second admin account) · go-live checklist (`wiki/09` Next recommended step) · own SMS sender name · 10–11 — see `wiki/09` Remaining · still open: Q8 number, Q11, Q12 in `wiki/14` §4 |
 | Customer requirements | **`wiki/14-customer-meeting-2026-09-delta.md`** — answered and built 2026-09-21: Q1 (numeric codes imported from the old system), Q2 (duplicate = warning), Q3 (Rollback = super_admin), Q4 (expiry from approval date), Q5 (Excel v2), Q6 (email instead of Telegram/LINE group), Q7 (no customer push). **2026-10-19:** Q7 re-confirmed off · Q8 = team email alert (threshold number open) · Q2 revised = duplicates checked in-file + across earlier batches, held until super_admin confirms each row (not built) · Q9 Q10 dropped. Still open: Q8-threshold, Q11-sender-domain, Q12 |
+| **Go-live (Fa Ham)** | **2026-11-17: this instance is now the real Fa Ham branch** — real OA `@184eoync`, Login channel `2012655061` published, LIFF `2012655061-yUW2Z7f7`, domain `hugpoint-faham.vercel.app`, customer data wiped. Link not handed to customers yet; two staff testing internally. Done list, findings, pre-launch checklist and rich-menu brief: `wiki/09` → Go-live |
 | Rehearsal | `wiki/13` §1–6 + 8.3 clicked 2026-09-14 · §10–§11 clicked 2026-09-25 — money path clean both times (`wiki/13` §12). Still open: §7 redeem/cancel from a phone, live role-separation check. Findings: `wiki/09` Open debt |
 
 Living status: **`wiki/09-status-and-roadmap.md`** and `docs/PHASE1_STATUS.md`.
@@ -205,6 +206,11 @@ npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts 
 
 ## 8. Known debt (do not be surprised by these)
 
+- **`/admin/signup` cannot create admins** (2026-11-17): Supabase "Confirm email" is on and the default SMTP only
+  mails org members, so `auth.signUp` fails for staff. Owner adds users in the Supabase dashboard (auto-confirm),
+  then the agent links `admin_users` + roles. The agent may not set passwords or toggle auth settings.
+- **Upload week defaults to last week** (`lastWeekRange()`); since 2026-11-17 the preview offers a one-click switch
+  to the week the file's dates fall in (`suggestWeek`) — see `wiki/09` Go-live findings.
 - **Vercel Preview builds fail.** `THAIBULKSMS_OTP_KEY` / `THAIBULKSMS_OTP_SECRET` are on Production
   only, so a branch other than `pilot-phase1` stops at the env check. The owner must add them in the
   Vercel dashboard, because agent writes to Vercel secrets are blocked by the Claude Code permission
@@ -248,8 +254,7 @@ npx supabase gen types typescript --project-id vltzkxmblmrvsmaookhl > /tmp/t.ts 
   (`36442f5`); `/call` formats the 9-digit number as 052-000-369.
 - A fresh Phase 2 database will `CREATE promo_codes` in `005` and `DROP` it in `015`. Harmless noise,
   kept so the migration history stays honest.
-- Operational: the new pilot admin has no working password until set via `auth.admin.updateUserById`;
-  reward images missing.
+- Operational: reward images missing; rewards and Makers S01–S04 are still demo data (`wiki/09` Go-live checklist).
 
 ---
 

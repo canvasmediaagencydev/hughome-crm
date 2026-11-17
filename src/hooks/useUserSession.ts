@@ -7,6 +7,7 @@ interface UseUserSessionResult {
   userData: UserData | null
   isLoading: boolean
   transformUserData: (user: any) => UserData
+  updateUserData: (newData: UserData) => void
 }
 
 export function useUserSession(): UseUserSessionResult {
@@ -64,6 +65,7 @@ export function useUserSession(): UseUserSessionResult {
   return {
     userData,
     isLoading,
-    transformUserData
+    transformUserData,
+    updateUserData
   }
 }
