@@ -5,7 +5,7 @@
 | | |
 |---|---|
 | Branch | `pilot-phase1` |
-| Target | Vercel **production**, https://pilot-phase1.vercel.app |
+| Target | Vercel **production**, https://hugpoint-faham.vercel.app (since 2026-11-17; old alias https://pilot-phase1.vercel.app still served). Supabase Auth Site URL set to the same |
 | `main` | not used for the pilot; deliberately untouched |
 | Last verified commit | `706514a` (2026-10-19 — `/`, `/admin/login`, `/admin/issues` 200, `/rewards` 307 to login; Vercel build 39 s) |
 | Preview deploys | **fail** — `THAIBULKSMS_OTP_*` are Production-only (see below) |
@@ -75,7 +75,7 @@ The shell's `VERCEL_TOKEN` is invalid, so run the CLI as `env -u VERCEL_TOKEN ve
 | `app_config.tenant_code` | `pilot` |
 | `NEXT_PUBLIC_TENANT_CODE` (local) | `pilot` — matches |
 | `NOTIFICATIONS_ENABLED` (local) | `false` — LINE push is off |
-| **Real branch LINE (since 2026-11-17)** | OA `@184eoync` (ฮักโฮมฟ้าฮ่ามHughome) · Messaging API enabled under new provider **Hug Point** (`2005818097`, linked permanently), Messaging API channel `2012655008` · LINE Login channel `2012655061` "Hug Point ฟ้าฮ่าม" (region Thailand, OA linked, **Developing** until the owner approves Publish) · LIFF `2012655061-yUW2Z7f7` (Full, openid+profile, add-friend Normal, endpoint `https://pilot-phase1.vercel.app`). Vercel Production now uses these three IDs; `LINE_CHANNEL_ACCESS_TOKEN` still the test OA's until the owner sets the new one. The test rows below stay for testing |
+| **Real branch LINE (since 2026-11-17)** | OA `@184eoync` (ฮักโฮมฟ้าฮ่ามHughome) · Messaging API enabled under new provider **Hug Point** (`2005818097`, linked permanently), Messaging API channel `2012655008` · LINE Login channel `2012655061` "Hug Point ฟ้าฮ่าม" (region Thailand, OA linked, **Published** 2026-11-17) · LIFF `2012655061-yUW2Z7f7` (Full, openid+profile, add-friend Normal, endpoint `https://hugpoint-faham.vercel.app`). Vercel Production now uses these three IDs; `LINE_CHANNEL_ACCESS_TOKEN` (Production + Preview) replaced with a long-lived token from channel `2012655008` on 2026-11-17; `/api/admin/quota?refresh=1` returned limit 300, consumed 0. The test rows below stay for testing |
 | LIFF | `2010850077-4iXzuV6k` — link https://liff.line.me/2010850077-4iXzuV6k |
 | LINE Login channel | `2010850077` `Hughome_CRM_Demo` (provider `hughome_CRM_demo`) — **Published** 2026-09-25. While it was *Developing* only channel admins could log in; everyone else got LINE's `400 Bad Request`. Cannot go back to Developing |
 | LINE OA | `@779oabsu` |
