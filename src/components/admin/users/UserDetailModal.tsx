@@ -22,6 +22,14 @@ import { axiosAdmin } from '@/lib/axios-admin'
 import { formatThaiPhone } from '@/lib/phone'
 import axios from 'axios'
 
+// The RPCs write English descriptions into point_transactions; translate the known prefixes for display only.
+const thaiTxDescription = (d: string) =>
+  d.replace(/^Batch award · bill /, 'แต้มจากยอดซื้อ · บิล ')
+    .replace(/^Batch award$/, 'แต้มจากยอดซื้อ')
+    .replace(/^Batch voided: /, 'ยกเลิกชุดยอดขาย: ')
+    .replace(/^Redemption cancelled: /, 'ยกเลิกการแลกรางวัล: ')
+    .replace(/^Redeem: /, 'แลกรางวัล: ')
+
 interface UserDetailModalProps {
   isOpen: boolean
   onClose: () => void
@@ -390,7 +398,7 @@ export function UserDetailModal({
                         <div className="flex-1">
                           <div className="font-medium text-slate-900 text-sm">{getTransactionTypeLabel(transaction.transaction_type)}</div>
                           {transaction.description && (
-                            <div className="text-xs text-slate-600 mt-1">{transaction.description}</div>
+                            <div className="text-xs text-slate-600 mt-1">{thaiTxDescription(transaction.description)}</div>
                           )}
                           <div className="text-xs text-slate-500 mt-1">{formatDate(transaction.created_at, { includeTime: true })}</div>
                         </div>

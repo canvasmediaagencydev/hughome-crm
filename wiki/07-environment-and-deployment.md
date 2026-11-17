@@ -71,10 +71,11 @@ The shell's `VERCEL_TOKEN` is invalid, so run the CLI as `env -u VERCEL_TOKEN ve
 
 | | |
 |---|---|
-| Supabase project ref | `vltzkxmblmrvsmaookhl` — project `hughome-pilot`, Supabase account `canvasmediaagency@gmail.com`, region ap-northeast-1 (Tokyo), created 2026-09-14 |
+| Supabase project ref | `vltzkxmblmrvsmaookhl` — project `hughome-pilot`, Supabase account `canvasmediaagency@gmail.com`, region ap-northeast-1 (Tokyo), created 2026-09-14 · `tenant_code` changed to `fa_ham` 2026-11-17 · moved 2026-11-17 into its own org **HugHome** (`bxoeyyksokafhxpysynq`, upgraded to Pro by the owner the same day); URL and keys unchanged. The other account `canvasmediaagency.dev@gmail.com` cannot see this project |
 | `app_config.tenant_code` | `pilot` |
 | `NEXT_PUBLIC_TENANT_CODE` (local) | `pilot` — matches |
 | `NOTIFICATIONS_ENABLED` (local) | `false` — LINE push is off |
+| **Real branch LINE (since 2026-11-17)** | OA `@184eoync` (ฮักโฮมฟ้าฮ่ามHughome) · Messaging API enabled under new provider **Hug Point** (`2005818097`, linked permanently), Messaging API channel `2012655008` · LINE Login channel `2012655061` "Hug Point ฟ้าฮ่าม" (region Thailand, OA linked, **Developing** until the owner approves Publish) · LIFF `2012655061-yUW2Z7f7` (Full, openid+profile, add-friend Normal, endpoint `https://pilot-phase1.vercel.app`). Vercel Production now uses these three IDs; `LINE_CHANNEL_ACCESS_TOKEN` still the test OA's until the owner sets the new one. The test rows below stay for testing |
 | LIFF | `2010850077-4iXzuV6k` — link https://liff.line.me/2010850077-4iXzuV6k |
 | LINE Login channel | `2010850077` `Hughome_CRM_Demo` (provider `hughome_CRM_demo`) — **Published** 2026-09-25. While it was *Developing* only channel admins could log in; everyone else got LINE's `400 Bad Request`. Cannot go back to Developing |
 | LINE OA | `@779oabsu` |

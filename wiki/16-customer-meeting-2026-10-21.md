@@ -36,17 +36,38 @@ logged; the rest of the bell still works.
 
 ## Before deploy
 
-1. Paste `supabase/migrations/029_expiry_warning_sms.sql` into the SQL Editor of `hughome-pilot`
+1. **Done 2026-10-21.** Paste `supabase/migrations/029_expiry_warning_sms.sql` into the SQL Editor of `hughome-pilot`
    (`vltzkxmblmrvsmaookhl`). Check the project name in the header first (see `wiki/15` "Deploy order").
    Rollback: `rollback/029_expiry_warning_sms.down.sql`.
-2. Add `THAIBULKSMS_SMS_KEY`, `THAIBULKSMS_SMS_SECRET` and `THAIBULKSMS_SMS_SENDER` on Vercel Production.
+2. **Still open.** Add `THAIBULKSMS_SMS_KEY`, `THAIBULKSMS_SMS_SECRET` and `THAIBULKSMS_SMS_SENDER` on Vercel Production.
    These are the **SMS API** key and secret, not the OTP Manager app. Without them the cron returns
-   500 on the 1st of the month. It does not skip silently.
-3. Deploy. The SMS cron runs every day at 09:00 Bangkok time.
+   500 every day at 09:00 and sends nothing. It does not skip silently.
+3. **Done** (`0bfff69`, docs `d6ff5e5`). Deploy. The SMS cron runs every day at 09:00 Bangkok time.
 
 If the code goes out before `029`, the SMS is sent but the `notification_log` insert fails the CHECK
 (the error is logged and the cron does not fail). As a result, the same customers get the SMS again
 the next day. Apply `029` first.
+
+## Customer guide
+
+A step-by-step user guide in Thai was written on 2026-10-21 as a Claude Docs doc:
+https://claude.ai/artifact/AkumsCHMVUSYBntecv4way (private until the owner shares it).
+
+- Tab **คู่มือใช้งาน Hug Point**:
+  - A: customers in LINE (sign up, points, redeem, expiry SMS)
+  - B: back office (login, inbox bell, sales upload, approval, redemptions)
+  - C: user search and customer-code import
+  - D: Excel reports
+  - A summary table of M1–M7 plus the CI rebrand
+- Tab **ลิงก์เข้าใช้งาน**:
+  - The LINE OA link (`@779oabsu`) and the LIFF link (`https://liff.line.me/2010850077-4iXzuV6k`)
+  - Every admin page URL on `pilot-phase1.vercel.app`
+  - How to scan a pickup QR
+- Everything changed by this meeting is tagged **[อัปเดต 20 ต.ค.]**. The owner asked for that date,
+  but this page records the meeting as 2026-10-21.
+- Button and menu names were copied from the code. The guide has no screenshots, and its links have
+  not been opened to check them.
+- Update the guide whenever a labelled button, a menu name or a flow it describes changes.
 
 ## Open questions for the customer (business calls, not guessed)
 

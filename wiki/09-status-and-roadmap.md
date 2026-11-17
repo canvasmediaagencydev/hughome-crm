@@ -12,7 +12,7 @@ are marked as such.
 | Supabase | pilot `vltzkxmblmrvsmaookhl`, `tenant_code = pilot` |
 | Migrations | `001`–`028` applied (`024`–`026` on 2026-09-21, `027` on 2026-10-18, `028` on 2026-10-19, all through the SQL Editor) |
 | Sprints complete | 0, 1, 2, 2.1, 3, 3.1, pre-4, 4, 5 (partial), 6, 7, 8, 9R, 10 part 1–2 · customer feedback 2026-10-18 (`wiki/15`) · motion UI, issue reports, approver email 2026-10-19 — all deployed |
-| Demo data | `docs/demo/` (10 rows · 687 points) · `verify-demo-ready.js` 19/19 |
+| Demo data | **Customer side wiped 2026-11-17 for go-live** (11 users, 3 voided batches, all ledger/transactions/logs; backup `../backups/pre-golive-2026-11-17.json`). Admin side (admins, demo Makers S01–S04, rewards) kept on purpose until the owner says so. The 3 demo campaigns were deleted 2026-11-17 (none referenced by the ledger). `verify-demo-ready.js` now fails by design — do not re-seed |
 
 ### Demo data — resolved 2026-08-31
 

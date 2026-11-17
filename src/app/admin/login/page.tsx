@@ -29,8 +29,9 @@ function AdminLoginForm() {
       })
 
       if (error) {
-        setError(error.message)
-        toast.error(`เข้าสู่ระบบไม่สำเร็จ: ${error.message}`)
+        const msg = error.message === 'Invalid login credentials' ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' : error.message
+        setError(msg)
+        toast.error(`เข้าสู่ระบบไม่สำเร็จ: ${msg}`)
       } else if (data.user) {
         // ใช้ /api/admin/me เพื่อตรวจสอบ admin_users record
         try {
