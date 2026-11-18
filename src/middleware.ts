@@ -32,6 +32,8 @@ export async function middleware(request: NextRequest) {
 
   const url = request.nextUrl.clone()
   url.pathname = '/'
+  url.search = ''
+  url.searchParams.set('next', pathname + request.nextUrl.search) // root page returns here after login
   return NextResponse.redirect(url)
 }
 

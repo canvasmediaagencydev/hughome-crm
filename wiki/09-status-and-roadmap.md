@@ -95,13 +95,14 @@ two staff are testing internally first.
 |---|---|---|
 | A (wide) | สะสมแต้ม / ดูแต้มของฉัน | Link `https://liff.line.me/2012655061-yUW2Z7f7` |
 | B | แลกของรางวัล | Link `https://liff.line.me/2012655061-yUW2Z7f7/rewards` |
-| C | ประวัติแต้ม | Link `https://liff.line.me/2012655061-yUW2Z7f7/dashboard` |
+| C | ประวัติการแลก / QR รับของ | Link `https://liff.line.me/2012655061-yUW2Z7f7/rewards?tab=history` |
 | D | ข้อมูลของฉัน | Link `https://liff.line.me/2012655061-yUW2Z7f7/profile` |
 | E | โทรหาร้าน | Link `https://liff.line.me/2012655061-yUW2Z7f7/call` |
 | F | Facebook ร้าน | Link `https://liff.line.me/2012655061-yUW2Z7f7/facebook` |
 
-- LIFF sub-paths (`/rewards`, `/profile`, …) open the matching page of the app; not yet clicked from a
-  rich menu — verify each after publishing.
+- There is no customer point-history page; `/dashboard` is home (balance, next expiry) and redemption history
+  is the `history` tab of `/rewards`. The app's own bottom bar already links the same five pages.
+- LIFF sub-paths and the `?tab=history` query have not been clicked from a rich menu — verify each after publishing.
 
 ## Completed
 

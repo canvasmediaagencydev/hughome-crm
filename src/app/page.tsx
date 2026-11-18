@@ -7,6 +7,16 @@ import axios from 'axios'
 import { UserSessionManager } from '@/lib/user-session'
 import { clientEnv } from '@/config/env'
 
+// Rich-menu links open /rewards etc. Without a session the middleware sends them here as ?next=,
+// and LIFF may hand the path over as ?liff.state= — keep it so login lands where the customer tapped.
+const DEEP_LINK_RE = /^\/(dashboard|rewards|profile|call|facebook)(\/[\w-]*)?(\?[\w=&%-]*)?$/
+let deepLink: string | null = null
+function captureDeepLink() {
+  const q = new URLSearchParams(window.location.search)
+  const target = q.get('next') ?? q.get('liff.state')
+  deepLink = target && DEEP_LINK_RE.test(target) ? target : null
+}
+
 interface User {
   userId: string
   displayName: string
@@ -50,7 +60,7 @@ export default function Home() {
         if (!data.user.is_onboarded) {
           router.push('/onboarding')
         } else {
-          router.push('/dashboard')
+          router.push(deepLink ?? '/dashboard')
         }
         return true
       }
@@ -94,6 +104,7 @@ export default function Home() {
     try {
       // First, migrate any old localStorage data
       UserSessionManager.migrateOldUserData()
+      captureDeepLink()
 
       // REMOVED FAST PATH - Always validate with backend before redirecting
       // This prevents race conditions where cached data is stale
